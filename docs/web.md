@@ -60,7 +60,7 @@ Two more plans play what the regular one doesn't reach:
 
 ## The shader list
 
-`src/rt64_shaders.txt` holds 316 shaders in eight sections: the boot's (the logos, the intro, the title and the
+`src/rt64_shaders.txt` holds 321 shaders in eight sections: the boot's (the logos, the intro, the title and the
 menus to a course), one for each of the six courses, from Toad Highlands to Mario Star, and Mini-Golf's. It is
 recorded by code: the boot and Toad Highlands with `tools/shader_plan.json`, the other five courses and Mini-Golf with
 `tools/shader_plan_courses.json`, which opens them on a new save by the GameShark's Have All Courses (the list's header
@@ -81,5 +81,4 @@ The extended plan at 3840x2000, about five minutes on Mario Star, runs nothing o
 to 1.9 GB over it and Firefox's from 2.2 to 2.8 GB. Four stand-in pads play four golfers, each from the pad that
 picked it, and two pads of one model pulled out and plugged in again at the tee get their ports back and rumble again
 once the game has found their Rumble Paks, a few seconds on. On the desktop build every course, Mini-Golf, each play
-mode and a whole Tournament round draw at 16:9, 21:9 and 4:3; at Framerate Display a flyover now and then draws one
-frame with the course torn into loose polygons, which Original never does.
+mode and a whole Tournament round draw at 16:9, 21:9 and 4:3, and each hole's flyover whole at Framerate Display.

@@ -18,8 +18,8 @@
 # plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
 # other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
 # Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 15 the extended plan's plays missed on
-# Mario Star's first holes: what a section draws turns with where the ball goes and how many play, so a play's misses
-# are added to its section (play_page.mjs prints them).
+# Mario Star's first holes, then 5 a later Chrome play missed on Toad Highlands' shots: what a section draws turns
+# with where the ball goes and how many play, so a play's misses are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -256,6 +256,11 @@ c8104a51 00982c0f fc563280 1ffcfff8 09128808
 0055307c 0000ac0f fcffffff fffcf279 0803540b
 0f0a7009 0008ac3f fcffffff fffcf279 08035408
 00504340 00082c3f fcffffff fffe793c 08000008
+005041c8 00882c3f fcffffff fffe793c 08000008
+00504241 0000ac7f fc15522a 55a6ff7f 04cb540b
+00504240 00100c7f fc517fff 3ffdf238 03ce542b
+00504241 0000ac7f fc15522a 55a6ff7f 0ccb540b
+00504244 00082c0f fcffffff fffdf6fb 0000000b
 section koopa_park
 0f0a700c 0080ac0f fcffffff fffcf279 0ccb540b
 0f0a700c 0080ac0f fcffffff fffcf279 04cb540b
