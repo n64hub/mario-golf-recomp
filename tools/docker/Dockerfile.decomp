@@ -1,0 +1,18 @@
+# The Mario Golf 64 decomp's build (lib/mariogolf64's docker/Dockerfile, without the ROM it bakes in): Ubuntu 24.04,
+# mips-linux-gnu binutils and cpp, Python's venv. `make setup` in tools/build_decomp.sh makes the venv (splat) and
+# downloads the decomp's KMC GCC 2.7.2 into the checkout, inside this image.
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        binutils-mips-linux-gnu \
+        build-essential \
+        ca-certificates \
+        gcc-mips-linux-gnu \
+        git \
+        make \
+        python3 \
+        python3-pip \
+        python3-venv \
+        wget && \
+    rm -rf /var/lib/apt/lists/*
