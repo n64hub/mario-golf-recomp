@@ -1,1 +1,0 @@
-- **Trees no longer flicker:** in a hole's flyover the trees no longer jump out onto the fairway every other frame, they no longer jump about as you aim a shot, and they no longer stretch for a frame as the camera cuts to the ball.
