@@ -1,0 +1,58 @@
+# N64Recomp's configuration for Mario Golf (USA), NMFE rev 0: it reads the game's code out of the ROM by the symbols in
+# syms/ and writes RecompiledFuncs/ (tools/recompile.sh). All the code is stored raw in the ROM, so there is nothing to
+# decompress first.
+[input]
+# The ROM header's entrypoint, the decomp's _start (src/entry/entry.s).
+entrypoint = 0x80025C00
+# Paths are relative to this file.
+symbols_file_path = "syms/mariogolf64.us.syms.toml"
+rom_file_path = "roms/mariogolf64.us.z64"
+output_func_path = "RecompiledFuncs"
+use_absolute_symbols = true
+
+[patches]
+# The game's own functions named as C's math functions and main, which the generated C would declare a second time
+# with the recompiled functions' signature: N64Recomp gives these a _recomp suffix.
+renamed = ["sin", "cos", "tan", "atan", "atan2", "main"]
+
+
+# The game copies its overlays out of ROM with nuPiReadRom (the decomp's src/libnusys/nupireadrom.c), from its overlay
+# table (ROM 0x91360, 0x28 bytes an overlay: ROM start and end, then RAM start), and the runtime maps the functions in
+# the stretch it copies at the RAM it copies them to (mg_load_overlays). Its other reads (assets, sound) map nothing.
+[[patches.hook]]
+func = "nuPiReadRom"
+before_vram = 0x80025C50
+text = "{ void mg_load_overlays(uint8_t*, uint32_t, uint32_t, uint32_t); mg_load_overlays(rdram, ctx->r4, ctx->r5, ctx->r6); }"
+
+# The idle thread (NuSystem's nuIdle, func_8009951C after it starts the main thread) loops calling nuIdleFunc while it
+# is set, and spins while it isn't, which the game never sets. Only one game thread runs at a time here, so the spin
+# would keep every other from running: each pass waits for the runtime's next message (a retrace, a task done) and
+# lets the threads it wakes run.
+[[patches.hook]]
+func = "func_8009951C"
+before_vram = 0x800995B0
+text = "{ void yield_self(uint8_t*); yield_self(rdram); }"
+
+# The main thread's wait for a game mode (func_80029C34 after it sets the graphics callback, func_8002A434): it spins
+# while the mode word at 0x801052CC is -1, which only that callback changes, on the graphics thread at a retrace. Each
+# pass yields, so that the other game threads run.
+[[patches.hook]]
+func = "func_80029C34"
+before_vram = 0x80029EB4
+text = "{ void yield_self(uint8_t*); yield_self(rdram); }"
+
+# NuSystem's wait for every graphics task to end (the decomp's src/libnusys/nugfxtaskallendwait.c) spins on
+# nuGfxTaskSpool, which its task manager thread counts down as each task ends: while tasks are pending each pass lets
+# that thread run.
+[[patches.hook]]
+func = "nuGfxTaskAllEndWait"
+before_vram = 0x800A1608
+text = "{ void yield_self(uint8_t*); if (ctx->r2 != 0) yield_self(rdram); }"
+
+# The main loop's call of address 0 (a debug library's function the release doesn't link), with a0 = 100, made only
+# while the byte at 0x800B67C8 is 2. Nothing sets it but the graphics callback, from 1 to 2 when A, B, L and R are held,
+# and nothing sets it to 1, so the call never runs; N64Recomp needs a function to call there, and it calls nothing.
+[[patches.instruction]]
+func = "func_80029C34"
+vram = 0x80029EAC
+value = 0x00000000
