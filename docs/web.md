@@ -47,12 +47,24 @@ overlays), so the plan presses on when a screen has come rather than by fixed ti
 the game's own frame count, 30 a second. Play it with N64Recomp-browser's `tools/play_page.mjs` (its
 `docs/playing.md`).
 
+Two more plans play what the regular one doesn't reach:
+
+- `tools/play_plan_pads.json` plugs four stand-in pads in (N64Recomp-browser's `tools/gamepad_probe.js` as the
+  preload), takes four players, has each port pick a golfer with its own controller and tee off in turn on Toad
+  Highlands, and checks that the game counts four controllers with a Rumble Pak in each and that every pad has
+  rumbled: the game buzzes a player's pad as their turn comes. Its header says what each step shows.
+- `tools/play_plan_extended.json` (5 minutes at most) is the long play: a Tournament on Mario Star, opened with the
+  GameShark's Have All Courses, played hole after hole at a shot and a Give Up each, for over three minutes of the
+  game's busiest screens.
+
 ## The shader list
 
-`src/rt64_shaders.txt` holds 223 shaders in two sections: the boot's (the logos, the intro, the title and the
-menus to a course) and Toad Highlands'. It is recorded by code with `tools/shader_plan.json` (the list's header says
-what each section plays and how to record it again). The other courses aren't in it yet: a play that reaches one
-misses its shaders and prints them (`play_page.mjs` counts the misses); add them as a section of their own.
+`src/rt64_shaders.txt` holds 242 shaders in seven sections: the boot's (the logos, the intro, the title and the
+menus to a course) and one for each of the six courses, from Toad Highlands to Mario Star. It is recorded by code:
+the boot and Toad Highlands with `tools/shader_plan.json`, the other five courses with
+`tools/shader_plan_courses.json`, which opens them on a new save by the GameShark's Have All Courses (the list's header
+says what each section plays and how to record it again). A play that draws what the list lacks prints the shaders it
+missed (`play_page.mjs` counts the misses), which go into the section it was in.
 
 ## How it plays
 
