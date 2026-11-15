@@ -49,11 +49,17 @@ the game's own frame count, 30 a second. Play it with N64Recomp-browser's `tools
 
 ## The shader list
 
-`src/rt64_shaders.txt` holds 212 shaders in two sections: the boot's (the logos, the intro, the title and the
+`src/rt64_shaders.txt` holds 223 shaders in two sections: the boot's (the logos, the intro, the title and the
 menus to a course) and Toad Highlands'. It is recorded by code with `tools/shader_plan.json` (the list's header says
 what each section plays and how to record it again). The other courses aren't in it yet: a play that reaches one
 misses its shaders and prints them (`play_page.mjs` counts the misses); add them as a section of their own.
 
 ## How it plays
 
-PLAYS
+In Chrome RT64 builds the whole list behind the launcher, so nothing waits once Start Game is pressed, and on a
+desktop GPU the page draws well above the display's rate at the canvas's size. Firefox builds the boot's section with
+the game waiting before it starts and Toad Highlands' as the course first draws, under the page's panel, and on
+Windows its compositor holds it to about 30 frames a second. Render to RAM is on, its copy landing a list late
+(`src/main/main.cpp` says why): the card the last frame of a shot turns over on between shots is that copy, and no
+play has seen the game's CPU write to a frame with the copy pending (RT64 prints a line each time it does). Every
+play's numbers are lines in N64Recomp-browser's `plays.jsonl` (game `mg`).
