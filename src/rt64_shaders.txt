@@ -12,12 +12,13 @@
 # its first hole's flyover and four shots from it with the pause menu between. Then the other five courses, each a
 # section of its own, recorded with tools/shader_plan_courses.json (record_shaders.sh's PLAN, with --add): the
 # GameShark's "Have All Courses" opens them on a new save, and each plays its course select, its first hole's flyover
-# and three shots with the pause menu between. Flags follow settings (filtering, HDR, MSAA, upscaling), so a change to
-# one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
+# and three shots with the pause menu between. Then mini_golf, by the same plan: the play modes' Mini-Golf, a course
+# of its own, its first hole's flyover and three putts. Flags follow settings (filtering, HDR, MSAA, upscaling), so a
+# change to one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
 # plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
 # other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
-# Highlands' HUD): what a section draws turns with where the ball goes and how many play, so a play's misses are added
-# to its section (play_page.mjs prints them).
+# Highlands' HUD), then 3 a Chrome play at 3840x2000 missed on Toad Highlands: what a section draws turns with where
+# the ball goes and how many play, so a play's misses are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -250,6 +251,9 @@ c8104a51 00982c0f fc563280 1ffcfff8 09128808
 0f0a7008 0080ac3f fc11fe23 fffff3f9 0ccb540b
 0055307c 00803c0f fcffffff fffdf6fb 0800000b
 00504a54 00803c0f fcffffff fffdf6fb 0800000b
+0f0a7009 0008ac0f fcffffff fffcf279 08035408
+0055307c 0000ac0f fcffffff fffcf279 0803540b
+0f0a7009 0008ac3f fcffffff fffcf279 08035408
 section koopa_park
 0f0a700c 0080ac0f fcffffff fffcf279 0ccb540b
 0f0a700c 0080ac0f fcffffff fffcf279 04cb540b
@@ -839,3 +843,101 @@ c81049d8 00982c3f fc157e60 2ffd77f8 088e0008
 00000000 00802cff fc11fe23 fffff7fb 0003540b
 00504340 00802c3f fc11b223 ff67ffff 04cb540b
 0f0a7008 00808c3f fcffffff fffcf279 04cb540b
+section mini_golf
+00552078 00882c3f fc325864 ffb3ffff 0800000c
+00553078 00882c3f fc125224 ffa7ffff 0803540c
+0f0a7008 0080ac3f fc119623 ff2fffff 0ccb540b
+0f0a7008 0080ac3f fc119623 ff2fffff 04cb540b
+0f0a700c 0080ac3f fc119623 ff2fffff 04cb540b
+0f0a700c 0080ac0f fcffffff fffcf279 0ccb540b
+0055306c 0080ac0f fcffffff fffcf279 04cb540b
+0f0a7008 0080ac0f fc119623 ff2fffff 04cb540b
+0f0a7008 0080ac0f fcffffff fffcf279 04cb540b
+0f0a7008 0080ac0f fcffffff fffcf279 02aaaa0b
+0f0a7008 0080ac0f fcffffff fffcf279 0ccb540b
+c8113078 00980c0f fc115407 f1ffca7e 0b2f2a0c
+0c1845d8 00182c0f fc357e6a ffd3fded 08000008
+0f0a4000 00000cff fcffffff fffcf87c 04cb540b
+00000001 00a0accf fcffffff fffcf87c 019b100b
+0055307c 00082c0f fc121824 ff33ffff 0b33320c
+0055207c 0008ac0f fc127e24 fffff9fc 0bba440c
+00504340 00000c3f fcffffff fffdf6fb 0000000b
+00504b54 00082c0f fcffffff fffe793c 0800000c
+0055307c 00003c0f fc119623 ff2fffff 0803540b
+00504a54 00003c0f fc119623 ff2fffff 0aaaaa0b
+00504a70 00082c3f fc325864 ffb3ffff 08000008
+00504a70 00082c3f fc325864 ffb3ffff 0800000c
+00504a70 00082c3f fc125224 ffa7ffff 0803540c
+0c1849f8 00182c3f fc3258a1 f0fffe38 088c000c
+0c1849f8 00182c3f fc3258a1 f0fffe38 088c0008
+0f0a7009 0000ac3f fcffffff fffcf279 04cb540b
+0f0a7008 00008c3f fc11fe23 fffff3f9 04cb540b
+0f0a4000 00002c3f fc30fe61 fffff7fb 099b100b
+0f0a4000 00002c3f fc30fe61 fffff7fb 019b100b
+00504240 00000c3f fc30fe61 fffff7fb 019b100b
+00504240 00000c3f fc309e61 553efd7e 019b100b
+00553048 00082c3f fc119623 ff2fffff 0ccb540c
+005510c0 00000c3f fc11fe23 fffff3f9 04cb540b
+00000000 00202ccf fcffffff fffcf87c 0003540b
+005041c8 00002ccf fcffc3ff ff867f3f 0ccb5408
+0055307c 0008accf fc121824 ff33ffff 0803540c
+00552234 00088ccf fc127e24 fffff9fc 0bba440c
+00552078 0008accf fc121824 ff33ffff 0ccb540c
+00000000 00a02cff fcffffff fffcf87c 0003540b
+005041c8 00802cff fcffc3ff ff867f3f 0ccb5408
+0055307c 0088acff fc121824 ff33ffff 0803540c
+00552234 00888cff fc127e24 fffff9fc 0bba440c
+00552078 0088acff fc121824 ff33ffff 0ccb540c
+0f0a4000 00802cff fc10fe21 fffffdfe 0003540b
+0f0a4000 00902cff fc157e60 2ffd77f8 000e000b
+00504b54 00882c3f fcffffff fffe793c 0800000c
+0c1845d8 00982c0f fc357e6a ffd3fded 08000008
+c8104a51 00982c0f fc563280 1ffcfff8 09128808
+0055307c 00803c0f fc119623 ff2fffff 0803540b
+00504a54 00803c0f fc119623 ff2fffff 0aaaaa0b
+0c184b51 00982c0f fcffd3ff fffffff8 0aaaaa0c
+00504a70 00882c3f fc325864 ffb3ffff 08000008
+00504a70 00882c3f fc325864 ffb3ffff 0800000c
+00504a70 00882c3f fc125224 ffa7ffff 0803540c
+0c1849f8 00982c3f fc3258a1 f0fffe38 088c000c
+0c1849f8 00982c3f fc3258a1 f0fffe38 088c0008
+0f0a7009 0080ac3f fcffffff fffcf279 04cb540b
+0f0a7008 00808c3f fc11fe23 fffff3f9 04cb540b
+00552048 0088ac3f fc121824 ff33ffff 0ccb540c
+0f0a4000 00802c3f fc30fe61 fffff7fb 099b100b
+0f0a4000 00802c3f fc30fe61 fffff7fb 019b100b
+00504240 00800c3f fc30fe61 fffff7fb 019b100b
+00504240 00800c3f fc309e61 553efd7e 019b100b
+00553048 00882c3f fc119623 ff2fffff 0ccb540c
+0f0a7008 00808c3f fcffffff fffcf279 04cb540b
+00504340 00800c3f fcffffff fffdf6fb 0000000b
+00504241 0080ac3f fc119623 ff2fffff 04cb540b
+0f0a4000 00802c3f fcffffff fffcf87c 0ccb540b
+0f0a4000 00002c3f fcffffff fffcf87c 0ccb540b
+0055307c 00003c0f fcffffff fffdf6fb 0800000b
+00504a54 00003c0f fcffffff fffdf6fb 0800000b
+0c192078 00182c3f fc3258a1 f0fffe38 088c0008
+00504b54 00003c0f fc30b261 ff66ff7f 0803540b
+00504a50 00082c0f fc50b2a1 3365feff 0ccb5408
+4055307c 00080c0f fcfff3ff ffe4ec76 0b33320c
+005049fc 00082c0f fcffb3ff ff667f3f 0ccb540c
+0f0a7009 00002c3f fcffffff fffdf2f9 0ccb540b
+005041c8 00082c3f fcffffff fffdf6fb 08000008
+00504240 00080c3f fcffffff fffdf2f9 0ccb5408
+00504240 00000c3f fcffb3ff ff65feff 04cb540b
+0f0a4000 00082cff fcffffff fffcf87c 0ccb540c
+0f0a4000 00082cff fcffffff fffe793c 0800000c
+0055307c 00082ccf fc121824 ff33ffff 0b33320c
+0055207c 0008accf fc127e24 fffff9fc 0bba440c
+0055307c 00882cff fc121824 ff33ffff 0b33320c
+0055207c 0088acff fc127e24 fffff9fc 0bba440c
+0055307c 00003c0f fc119623 ff2fffff 0003540b
+00000000 00802cff fc11fe23 fffff7fb 0003540b
+00504340 00802c3f fc11b223 ff67ffff 04cb540b
+00553049 0008ac3f fcffffff fffcf279 0ccb5408
+0c1845d8 00182c0f fc357e6a ffb3fdff 08000008
+0f0a7008 00808c3f fc119623 ff2fffff 04cb540b
+0f0a4001 00800c3f fc30fe61 55fef379 0ccb540b
+0f0a4001 00800c3f fc30fe61 55fef379 04cb540b
+0f0a7008 00808c3f fcffffff fffcf279 0333320b
+0f0a7008 00808c3f fcffffff fffcf279 0333ba0b

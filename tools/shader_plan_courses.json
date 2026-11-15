@@ -7,7 +7,8 @@
   "ONE, the first golfer and a Tournament with A, turns the course select right once a course (the selected one is the byte",
   "at 0x801323B6: Koopa Cup, Shy Guy International, Yoshi Championship, Boo Classic, Mario Open), and plays the course's",
   "first hole: its flyover, three shots from the tee with the pause menu between, on the game's clock",
-  "(tools/shader_survey.js)."
+  "(tools/shader_survey.js). Its last section, mini_golf, takes the play modes' Mini-Golf (five presses right) in place of a",
+  "Tournament: a course of its own, whose hole is overlay 2 where the others' is 11."
  ],
  "load": [
   [
@@ -1403,6 +1404,294 @@
     [
      "wait",
      14000
+    ],
+    [
+     "clock"
+    ]
+   ]
+  },
+  {
+   "name": "mini_golf",
+   "steps": [
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     150
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     150
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "hold",
+     "KeyD",
+     "d",
+     68,
+     150
+    ],
+    [
+     "wait",
+     800
+    ],
+    [
+     "hold",
+     "KeyD",
+     "d",
+     68,
+     150
+    ],
+    [
+     "wait",
+     800
+    ],
+    [
+     "hold",
+     "KeyD",
+     "d",
+     68,
+     150
+    ],
+    [
+     "wait",
+     800
+    ],
+    [
+     "hold",
+     "KeyD",
+     "d",
+     68,
+     150
+    ],
+    [
+     "wait",
+     800
+    ],
+    [
+     "hold",
+     "KeyD",
+     "d",
+     68,
+     150
+    ],
+    [
+     "wait",
+     800
+    ],
+    [
+     "wait",
+     1000
+    ],
+    [
+     "shot",
+     "mini_golf_mode.png"
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     150
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "shot",
+     "mini_golf_select.png"
+    ],
+    [
+     "pressUntil",
+     "Space",
+     " ",
+     32,
+     150,
+     2500,
+     "loaded(2)",
+     30000
+    ],
+    [
+     "need",
+     "until(()=>!loaded(4),60000)"
+    ],
+    [
+     "clock",
+     "clock()",
+     30
+    ],
+    [
+     "wait",
+     4000
+    ],
+    [
+     "shot",
+     "mini_golf_tee.png"
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     700
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     700
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "shot",
+     "mini_golf_shot_1.png"
+    ],
+    [
+     "wait",
+     11000
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     700
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     700
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "shot",
+     "mini_golf_shot_2.png"
+    ],
+    [
+     "wait",
+     11000
+    ],
+    [
+     "hold",
+     "Enter",
+     "Enter",
+     13,
+     150
+    ],
+    [
+     "wait",
+     2000
+    ],
+    [
+     "shot",
+     "mini_golf_pause.png"
+    ],
+    [
+     "hold",
+     "Enter",
+     "Enter",
+     13,
+     150
+    ],
+    [
+     "wait",
+     2000
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     700
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     700
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     100
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "shot",
+     "mini_golf_shot_3.png"
+    ],
+    [
+     "wait",
+     11000
     ],
     [
      "clock"
