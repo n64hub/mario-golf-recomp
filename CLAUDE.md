@@ -83,9 +83,17 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   priority 10, 4 NuSystem's graphics thread, 5 its task manager or the controllers (by priority), 17-19 the
   scheduler's threads.
 - **Input.** RecompFrontend's default bindings. Keyboard: WASD the stick, Space A, Left Shift B, Q Z, R R, E L, Enter
-  Start, the arrows the C buttons. The game takes up to four players, each on a controller of their own: each pad
-  plays its own port in the order it is plugged in, and until any is assigned, every pad and the keyboard play port 1
-  (`RECOMPINPUT_SINGLE_PLAYER_UNTIL_ASSIGNED`, `RECOMPINPUT_PADS_IN_ORDER`, `CMakeLists.txt`).
+  Start, the arrows the C buttons, I, J, K and L the D-pad. The game takes up to four players, each on a controller of
+  their own: until players are assigned, each pad plays its own port in the order it was plugged in and the keyboard
+  plays port 1 (`RECOMPINPUT_SINGLE_PLAYER_UNTIL_ASSIGNED`, `RECOMPINPUT_PADS_IN_ORDER`, `CMakeLists.txt`). At
+  character select whichever controller picks first is 1P, the next 2P and so on, and the game plays each player from
+  the controller that picked, and buzzes its Rumble Pak as that player's turn comes. The main menu zooms in over the
+  title for about half a second after overlay 3 loads, and drops a press made then, so a script waits for the zoom
+  (or presses until the screen it wants has come) rather than pressing at a fixed time.
+- **The clock.** The game never calls `osSetTime`, which isn't linked, and only a debug timing meter reads
+  `osGetTime`: func_8002DC10 and the functions after it time the frame's parts in D_800B7734-D_800B7740, which
+  0x80031340-0x8003137C draw as bars when the debug flag D_800B67C0 is on (a code entered at the title, overlay 8's
+  table at ROM 0x14F994). So time spent in the launcher reaches nothing a player sees.
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, and `src/game/hud.cpp` puts
   the HUD at the wide picture's sides (its header says how). Its players take turns on one view, never a split screen,
