@@ -11,11 +11,11 @@
 // few small models (the map, the ball on its lie, the wind's arrow) in an orthographic projection of the 320x240
 // screen, each placed by a modelview matrix. So the commands are followed as the RSP would (the matrices, the viewport,
 // the vertices, the display lists they call) to know where on the screen each draws, and they are split into pieces:
-// what a command draws joins the piece before it when it lies within a few pixels of it, so a number stays with its
-// label and a meter with its marks. A piece across the middle of the screen, or near it, stays where the game draws it;
-// one left of it is placed from the left side and one right of it from the right (gEXSetRectAlign for its rectangles,
-// gEXSetViewportAlign and the viewport again for its models). Its scissors are widened to the picture, with the same
-// margins from its sides.
+// a rectangle joins the piece before it when it lies within a few pixels of it, so a number stays with its label and
+// the meter with its marks, and each model is a piece of its own. A piece across the middle of the screen, or near it,
+// stays where the game draws it; one left of it is placed from the left side and one right of it from the right
+// (gEXSetRectAlign for its rectangles, gEXSetViewportAlign and the viewport again for its models). Its scissors are
+// widened to the picture, a little inside the 3D's border (WIDE_MARGIN).
 //
 // The commands go to a buffer of this file's in RDRAM above the 4 MB the game uses (it sees 8 MB and never touches the
 // upper 4), and the first command the game wrote is replaced by a branch to it, which branches back to where the game
@@ -44,6 +44,12 @@ constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
 constexpr uint32_t MG_HUD_VIEWPORT = 0x800B77A0;
 // The HUD's scissor, set before it.
 constexpr int MG_HUD_SCISSOR_ULX = 8, MG_HUD_SCISSOR_ULY = 8, MG_HUD_SCISSOR_LRX = 312, MG_HUD_SCISSOR_LRY = 232;
+
+// How far from the HUD's sides its scissors stay. RT64 widens the 3D's scissor (8 to 312) with the picture, so its
+// black border is 8/320 of the picture's width: 10.7 at 16:9, 14 at 21:9. Nothing clears what lies past it, so a HUD
+// drawn there (as its pieces slide in) would stay on the screen; a margin of 14 keeps the HUD inside the 3D with the
+// HUD placed at 16:9 in any window, or at the window's sides up to 21:9.
+constexpr int WIDE_MARGIN = 14;
 
 constexpr int SCREEN_WIDTH = 320;
 constexpr int SCREEN_MIDDLE = SCREEN_WIDTH / 2;
@@ -290,6 +296,12 @@ void scissor(Writer& out, uint32_t mode, int ulx, int uly, int lrx, int lry) {
     GfxCommand c[2];
     uint32_t lorigin = ulx < SCREEN_MIDDLE ? G_EX_ORIGIN_LEFT : G_EX_ORIGIN_RIGHT;
     uint32_t rorigin = lrx <= SCREEN_MIDDLE ? G_EX_ORIGIN_LEFT : G_EX_ORIGIN_RIGHT;
+    if (lorigin == G_EX_ORIGIN_LEFT && ulx < WIDE_MARGIN) {
+        ulx = WIDE_MARGIN;
+    }
+    if (rorigin == G_EX_ORIGIN_RIGHT && lrx > SCREEN_WIDTH - WIDE_MARGIN) {
+        lrx = SCREEN_WIDTH - WIDE_MARGIN;
+    }
     gEXSetScissor(c, mode, lorigin, rorigin, lorigin == G_EX_ORIGIN_RIGHT ? ulx - SCREEN_WIDTH : ulx, uly,
                   rorigin == G_EX_ORIGIN_RIGHT ? lrx - SCREEN_WIDTH : lrx, lry);
     out.put(c, 2);
@@ -339,9 +351,11 @@ void anchor(uint32_t start, uint32_t end) {
         if (box.empty()) {
             continue;
         }
-        if (pieces > 0 && g_pieces[pieces - 1].box.near(box)) {
+        // Rectangles join the piece before them when they lie near it. A model is a piece of its own: the shot type's
+        // arc, the club's head, the meter's marker and the lie are each within a few pixels of the next and of the
+        // meter, so joined they made one piece across the middle.
+        if (pieces > 0 && !model && !g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.near(box)) {
             g_pieces[pieces - 1].box.add(box);
-            g_pieces[pieces - 1].models |= model;
             continue;
         }
         g_pieces[pieces] = Piece{};

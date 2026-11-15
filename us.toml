@@ -57,7 +57,6 @@ func = "func_80029C34"
 vram = 0x80029EAC
 value = 0x00000000
 
-
 # The course's HUD at the wide picture's sides (src/game/hud.cpp): around the frame's one call of the function that
 # draws it (func_80089094), what it adds to the display list is noted and put back with RT64's alignments.
 [[patches.hook]]
