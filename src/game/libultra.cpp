@@ -21,7 +21,7 @@ extern "C" void __osSetWatchLo_recomp(uint8_t* rdram, recomp_context* ctx) {
 }
 
 // The TLB: the effects' pages are backed by memory of their own at their addresses (src/game/recomp_api.cpp,
-// pm::map_tlb_pages), so there is nothing to map.
+// mg::map_tlb_pages), so there is nothing to map.
 extern "C" void osMapTLB_recomp(uint8_t* rdram, recomp_context* ctx) {
 }
 

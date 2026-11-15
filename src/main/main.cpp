@@ -1,4 +1,4 @@
-// Paper Mario: Recompiled on RecompFrontend: its launcher (Load ROM, Start Game), settings menus, input and RT64
+// Mario Golf: Recompiled on RecompFrontend: its launcher (Load ROM, Start Game), settings menus, input and RT64
 // render context. The natives the patches call are recomp_api.cpp, the settings config.cpp.
 
 #include <cstdio>
@@ -45,7 +45,7 @@
 #include "recompinput/recompinput.h"
 #include "recompinput/profiles.h"
 
-#include "pm.h"
+#include "mg.h"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
 #include "librecomp/helpers.hpp"
@@ -93,7 +93,7 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
     return {};
 }
 
-// Paper Mario is one player's: port 1 has a controller, with a Rumble Pak (the game starts its motor only when the
+// Mario Golf is one player's: port 1 has a controller, with a Rumble Pak (the game starts its motor only when the
 // controller reports one, nuContRmbCheck in the decomp's src/os/nusys, and the runtime's osMotorInit only when it is a
 // Rumble Pak). Any pad or the keyboard plays it. The strength is the General tab's.
 ultramodern::input::connected_device_info_t get_connected_device_info(int controller_num) {
@@ -126,7 +126,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
-    window = SDL_CreateWindow(std::string{ pm::program_name }.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    window = SDL_CreateWindow(std::string{ mg::program_name }.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         window_width, window_height, flags);
     if (window == nullptr) {
         exit_error("Failed to create window: %s\n", SDL_GetError());
@@ -331,17 +331,17 @@ extern "C" void recomp_entrypoint(uint8_t* rdram, recomp_context* ctx);
 gpr get_entrypoint_address();
 
 static void on_init(uint8_t* rdram, recomp_context*) {
-    pm::map_tlb_pages(rdram);
+    mg::map_tlb_pages(rdram);
 }
 
 std::vector<recomp::GameEntry> supported_games = {
     {
-        // XXH3 of Paper Mario (USA), SHA-1 3837f44cda784b466c9a2d99df70d77c322b97a0.
+        // XXH3 of Mario Golf (USA), SHA-1 3837f44cda784b466c9a2d99df70d77c322b97a0.
         .rom_hash = 0x1a478f060d5194cfULL,
         .internal_name = "PAPER MARIO",
-        .display_name = "Paper Mario",
-        .game_id = u8"papermario.n64.us.1.0",
-        .mod_game_id = "pm64",
+        .display_name = "Mario Golf",
+        .game_id = u8"mariogolf64.n64.us.1.0",
+        .mod_game_id = "mg64",
         // 1 Mbit of Flash (the decomp's src/fio.c, through libultra's osFlash calls).
         .save_type = recomp::SaveType::Flashram,
         .thumbnail_bytes = std::span<const char>(icon_bytes),
@@ -556,8 +556,8 @@ int main(int argc, char** argv) {
     NFD_Init();
 #endif
 
-    recompui::programconfig::set_program_name(std::string{ pm::program_name });
-    recompui::programconfig::set_program_id(std::u8string{ pm::program_id });
+    recompui::programconfig::set_program_name(std::string{ mg::program_name });
+    recompui::programconfig::set_program_id(std::u8string{ mg::program_id });
 
     SDL_InitSubSystem(SDL_INIT_AUDIO);
     reset_audio(48000);
@@ -578,13 +578,13 @@ int main(int argc, char** argv) {
 
     recompui::register_ui_exports();
 
-    pm::register_overlays();
-    pm::register_patches();
+    mg::register_overlays();
+    mg::register_patches();
 
     // One player, on any pad or the keyboard.
     recompinput::players::set_single_player_mode(true);
 
-    pm::init_config();
+    mg::init_config();
 
     recompui::register_launcher_init_callback(on_launcher_init);
     recompui::register_launcher_update_callback(on_launcher_update);

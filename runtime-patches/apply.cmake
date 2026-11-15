@@ -7,13 +7,13 @@
 # change them.
 #
 #   cmake -P runtime-patches/apply.cmake          from the repo's root (tools/build_n64recomp.sh)
-#   include(runtime-patches/apply.cmake)          and pm_apply_patches() (CMakeLists.txt)
+#   include(runtime-patches/apply.cmake)          and mg_apply_patches() (CMakeLists.txt)
 
-set(PM_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
-include("${PM_ROOT}/lib/N64Recomp-browser/patches/apply.cmake")
+set(MG_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+include("${MG_ROOT}/lib/N64Recomp-browser/patches/apply.cmake")
 
-function(pm_apply_patches)
-    get_filename_component(root "${PM_ROOT}" ABSOLUTE)
+function(mg_apply_patches)
+    get_filename_component(root "${MG_ROOT}" ABSOLUTE)
     file(GLOB patches "${root}/runtime-patches/*.patch")
     list(SORT patches)
     list(REVERSE patches)
@@ -39,5 +39,5 @@ function(pm_apply_patches)
 endfunction()
 
 if (CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
-    pm_apply_patches()
+    mg_apply_patches()
 endif()

@@ -1,7 +1,7 @@
 // Evaluated in the page by N64Recomp-browser's tools/record_shaders.mjs (tools/shader_plan.json) and play_page.mjs
 // (tools/play_plan.json, tools/play_plan_extended.json, tools/play_plan_maps.json): takes the game where a plan
 // needs it as the game's own code does, by writing what that code writes into RDRAM, with no patch. The addresses
-// are the USA ROM's (syms/papermario.us.datasyms.toml), the fields the decomp's (include/common_structs.h,
+// are the USA ROM's (syms/mariogolf64.us.datasyms.toml), the fields the decomp's (include/common_structs.h,
 // src/game_modes.h). It offers
 //
 //   mode()                     the game mode playing (CurGameMode: 2 the title, 4 the world, 5 a map change, 8 a

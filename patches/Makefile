@@ -1,7 +1,7 @@
-# The patches (*.c here), compiled for MIPS against the decomp's headers (lib/papermario) as its context builds read
+# The patches (*.c here), compiled for MIPS against the decomp's headers (lib/mariogolf64) as its context builds read
 # them (__CTX__ leaves out the assembly its headers include), and linked into patches.elf, which N64Recomp recompiles
 # with patches.toml (CMakeLists.txt's PatchesLib). dummy_headers/ stands in for the headers the decomp's build
-# generates from the ROM and for KMC gcc's stdarg.h (pm_stdarg.h says why). CC is a clang with a MIPS backend and LD
+# generates from the ROM and for KMC gcc's stdarg.h (mg_stdarg.h says why). CC is a clang with a MIPS backend and LD
 # ld.lld.
 TARGET = patches.elf
 
@@ -12,7 +12,7 @@ CFLAGS   := -target mips -mips2 -mabi=32 -O2 -G0 -mno-abicalls -mno-odd-spreg -m
 			-fomit-frame-pointer -ffast-math -fno-unsafe-math-optimizations -fno-builtin-memset \
 			-Wall -Wextra -Wno-incompatible-library-redeclaration -Wno-unused-parameter -Wno-unknown-pragmas \
 			-Wno-unused-variable -Wno-unused-but-set-variable -Wno-missing-braces -Wno-unsupported-floating-point-opt -Wno-shift-negative-value
-CPPFLAGS := -nostdinc -D_LANGUAGE_C -DLANGUAGE_C -DMIPS -D__sgi -D_MIPS_SZLONG=32 -DF3DEX_GBI_2 -DNDEBUG -DN_MICRO 			-D_FINALROM -DVERSION_US -D__CTX__ 			-I dummy_headers -I ../lib/papermario/include -I ../lib/papermario/include/PR 			-I ../lib/papermario/include/libc -I ../lib/papermario/src -I ../lib/rt64/include
+CPPFLAGS := -nostdinc -D_LANGUAGE_C -DLANGUAGE_C -DMIPS -D__sgi -D_MIPS_SZLONG=32 -DF3DEX_GBI_2 -DNDEBUG -DN_MICRO 			-D_FINALROM -DVERSION_US -D__CTX__ 			-I dummy_headers -I ../lib/mariogolf64/include -I ../lib/mariogolf64/include/PR 			-I ../lib/mariogolf64/include/libc -I ../lib/mariogolf64/src -I ../lib/rt64/include
 LDFLAGS  := -nostdlib -T patches.ld -T syms.ld -Map patches.map --unresolved-symbols=ignore-all --emit-relocs
 
 C_SRCS := $(wildcard *.c)

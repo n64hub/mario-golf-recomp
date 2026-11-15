@@ -1,5 +1,5 @@
 {
- "page": "PaperMarioRecompiled.html",
+ "page": "MarioGolfRecompiled.html",
  "header": [
   "The RT64 shaders the web page builds: one shader description a line, other mode L and H, color combiner L and H,",
   "flags, in hex. RT64 specializes each one's WGSL when the page is built and builds them with the game waiting: those",

@@ -19,7 +19,7 @@
 #define osRecvMesg osRecvMesg_recomp
 #define osEPiStartDma osEPiStartDma_recomp
 
-#include "pm_stdarg.h"
+#include "mg_stdarg.h"
 #include <ultra64.h>
 
 // The natives (src/game/recomp_api.cpp).

@@ -1,7 +1,8 @@
-"""Writes a game's <prefix>.syms.toml and <prefix>.datasyms.toml (syms/papermario.us) from its decomp's US ELF with
+"""Writes a game's <prefix>.syms.toml and <prefix>.datasyms.toml (syms/mariogolf64.us) from its decomp's ELF with
 N64Recomp's own context dump (--dump-context), the way the MarioKart64RecompSyms and Starfox64RecompSyms repos were
 made. tools/gen_syms.sh runs it. It is mario-party-engine's tools/gen_syms.py, which the Mario Party recomps share,
-with Paper Mario's entrypoint and the sizes of its hand-written assembly's functions (unsized_functions).
+with Mario Golf's entrypoint, the sizes of its hand-written assembly's functions (unsized_functions) and its debug
+module placed where it runs (REBASED).
 
 The ELF is the game's tools/build_decomp.sh's, as the decomp links it. KMC gcc puts every function, static ones too,
 in the symbol table, and splat sizes every function of the assembly, so the ELF alone gives N64Recomp each function
@@ -29,9 +30,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-# The decomp's entry_point (src/boot/entry_point.s): the ROM header says 0x80125C00, and the CIC-6103's boot code copies
-# 1 MB from ROM 0x1000 to 0x100000 below what the header says.
+# The decomp's _start (src/entry/entry.s), the ROM header's entrypoint, where the boot code copies 1 MB from ROM 0x1000.
 ENTRYPOINT = 0x80025C00
+
+# Sections the decomp links somewhere other than where the game runs them, and where they run: the decomp's
+# overlay_gap (ROM 0x11BA50-0x128580, which the game's overlay table doesn't list) is linked at 0x80451A50, a guess,
+# but its calls into itself and .main's calls into it land on its functions at 0x80400000, the Expansion Pak's RAM. It
+# is a debug module: .main calls it only while the word at 0x800B67C4 is set, which is 0 in the ROM and never written,
+# so the game never loads it. Its functions are only there so those calls have somewhere to go.
+REBASED = {".overlay_gap": 0x80400000}
 
 
 def elf_sections(path):
@@ -92,12 +99,31 @@ def entry_nops(dump, sections):
     return dump, moved
 
 
+
+
+def rebase(dump):
+    """The dump with each section in REBASED, its functions and its symbols moved to where the game runs it."""
+    def section(match):
+        block, name = match.group(0), match.group(1)
+        vram = int(re.search(r"\nvram = (0x[0-9A-F]+)", block).group(1), 16)
+        delta = REBASED[name] - vram
+
+        def moved(m):
+            address = int(m.group(1), 16)
+            return m.group(0).replace(m.group(1), f"{address + delta:08X}") if vram <= address < vram + 0x1000000 \
+                else m.group(0)
+
+        return re.sub(r"(?:0x|_)([0-9A-F]{8})\b", moved, block)
+
+    names = "|".join(re.escape(n) for n in REBASED)
+    return re.sub(r'\[\[section\]\]\nname = "(' + names + r')"\n(?:(?!\[\[section).*\n?)*', section, dump)
+
+
 def unsized_functions(path):
-    """function_sizes for the functions the ELF gives no size: Paper Mario's decomp keeps libultra's and its effect
-    loaders' assembly as it was written (hasm), whose functions carry none, and N64Recomp leaves a function without a
-    size out. Each runs up to the next symbol in its section, or the section's end. The boot code the decomp keeps
-    (.boot, the cartridge's IPL3 at 0xA4000040, in KSEG1) is the console's, never the game's, and stays out, as do
-    the bounds of the RSP microcodes' text the decomp labels as functions (n_aspMainTextEnd, say)."""
+    """function_sizes for the functions the ELF gives no size: the decomp keeps some of libultra's assembly as it was
+    written (hasm), whose functions carry none, and N64Recomp leaves a function without a size out. Each runs up to the
+    next symbol in its section, or the section's end. The cartridge's IPL3 (.ipl3, in KSEG1) is the console's, never
+    the game's, and stays out, as do the bounds of the RSP microcodes' text the decomp labels as functions."""
     data = Path(path).read_bytes()
     e_shoff, = struct.unpack_from(">I", data, 0x20)
     e_shentsize, e_shnum = struct.unpack_from(">HH", data, 0x2E)
@@ -124,6 +150,50 @@ def unsized_functions(path):
     return "function_sizes = [\n" + "".join(sizes) + "]\n" if sizes else ""
 
 
+def untyped_functions(dump, path):
+    """The dump with the functions of the hand-written assembly whose symbols carry no type: the decomp's libultra and
+    libgcc assembly labels them as data (osGetCount, bcopy, the TLB and cache calls, __divdi3), and N64Recomp takes only
+    the ELF's functions, so a call to one found none. Each symbol a jal in the code reaches is a function, up to the
+    next global symbol in its section, or the next such function, or the section's end; a jal to the address of one
+    the dump has, or to no symbol (a data word that reads as a jal), adds nothing."""
+    data = Path(path).read_bytes()
+    e_shoff, = struct.unpack_from(">I", data, 0x20)
+    e_shentsize, e_shnum, e_shstrndx = struct.unpack_from(">HHH", data, 0x2E)
+    headers = [struct.unpack_from(">IIIIIIIIII", data, e_shoff + i * e_shentsize) for i in range(e_shnum)]
+    section_name = lambda h: data[headers[e_shstrndx][4] + h[0]:data.index(b"\0", headers[e_shstrndx][4] + h[0])].decode()
+    symtab = next(h for h in headers if h[1] == 2)
+    strtab = headers[symtab[6]][4]
+    known = {int(v, 16) for v in re.findall(r"vram = (0x[0-9A-F]+), size", dump)}
+    targets = set()
+    for h in headers:
+        if h[2] & 4 and h[1] == 1:
+            for off in range(0, h[5] - 3, 4):
+                word, = struct.unpack_from(">I", data, h[4] + off)
+                if word >> 26 == 3:
+                    targets.add((h[3] & 0xF0000000) | (word & 0x3FFFFFF) << 2)
+    bounds, found = {}, {}
+    for off in range(symtab[4], symtab[4] + symtab[5], 16):
+        name, value, size, info, _, shndx = struct.unpack_from(">IIIBBH", data, off)
+        if not 0 < shndx < e_shnum or not headers[shndx][2] & 4:
+            continue
+        name = data[strtab + name:data.index(b"\0", strtab + name)].decode()
+        if info >> 4 == 1:
+            bounds.setdefault(shndx, set()).add(value)
+        if size == 0 and info & 15 in (0, 1) and value in targets and value not in known and "." not in name:
+            if info >> 4 == 1 or value not in found.get(shndx, {}):
+                found.setdefault(shndx, {})[value] = name
+    for shndx, funcs in found.items():
+        h = headers[shndx]
+        stops = bounds.get(shndx, set()) | set(funcs)
+        lines = ""
+        for value, name in sorted(funcs.items()):
+            end = min([a for a in stops if a > value] or [h[3] + h[5]])
+            lines += f'    {{ name = "{name}", vram = 0x{value:08X}, size = 0x{end - value:X} }},\n'
+        dump = re.sub(r'(\[\[section\]\]\nname = "' + re.escape(section_name(h)) + r'"\n(?:(?!\[\[section).*\n)*?functions = \[\n)',
+                      lambda m: m.group(1) + lines, dump, count=1)
+    return dump
+
+
 def main():
     if len(sys.argv) < 5:
         sys.exit(__doc__.strip().splitlines()[-1])
@@ -145,15 +215,17 @@ def main():
         dump = (Path(tmp) / "dump.toml").read_text()
         check_rom_offsets(dump, elf_sections(elf), rom.read_bytes())
         dump, moved = entry_nops(dump, elf_sections(elf))
-        # The decomp's dead maps (ver/us/splat.yaml's dead_code segments): older builds of a few maps left in the ROM,
-        # which the game never loads, linked against an older engine whose functions aren't there.
-        dump = re.sub(r'\[\[section\]\]\nname = "\.dead_[^"]*"\n(?:(?!\[\[section).*\n?)*', "", dump)
+        dump = untyped_functions(dump, elf)
+        dump = rebase(dump)
+        # The RSP microcodes' text (the boot microcode, n_aspMain, F3DEX2), which the decomp's symbols size as
+        # functions (rspbootTextStart and the others): RSP code, never the CPU's.
+        dump = re.sub(r' *\{ name = "\w+Text(?:Start|End)", [^}]*\},\n', "", dump)
         print("started at their nop: " + (", ".join(moved) or "none"))
         syms = prefix.with_name(prefix.name + ".syms.toml")
         datasyms = prefix.with_name(prefix.name + ".datasyms.toml")
         prefix.parent.mkdir(exist_ok=True)
         syms.write_text(dump, newline="\n")
-        datasyms.write_text((Path(tmp) / "data_dump.toml").read_text(), newline="\n")
+        datasyms.write_text(rebase((Path(tmp) / "data_dump.toml").read_text()), newline="\n")
     print(f"{dump.count('[[section]]')} sections, {dump.count('{ name = ')} functions; wrote {syms} and {datasyms}")
 
 

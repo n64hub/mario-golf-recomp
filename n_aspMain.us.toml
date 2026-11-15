@@ -1,4 +1,4 @@
-# RSPRecomp's configuration for Paper Mario (USA)'s audio microcode, n_aspMain. Graphics tasks go to RT64; the audio
+# RSPRecomp's configuration for Mario Golf (USA)'s audio microcode, n_aspMain. Graphics tasks go to RT64; the audio
 # tasks the game sends need this microcode recompiled to run (src/main/main.cpp, get_rsp_microcode).
 # tools/recompile.sh writes it into RecompiledFuncs/.
 #

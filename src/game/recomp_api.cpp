@@ -1,5 +1,5 @@
 // The memory behind the game's TLB-mapped effects, and the natives the patches call (patches/syms.ld gives each a dummy
-// address that N64Recomp turns into a call by name). (pm_load_overlays, which us.toml's hooks call, is in
+// address that N64Recomp turns into a call by name). (mg_load_overlays, which us.toml's hooks call, is in
 // src/main/register_overlays.cpp, beside N64Recomp's section table.)
 
 #include "recomp.h"
@@ -20,7 +20,7 @@
 #include <unistd.h>
 #endif
 
-#include "pm.h"
+#include "mg.h"
 
 // The game's effects run at 0xE0000000 and up behind the TLB (the decomp's src/effects.c: load_effect maps a 4 KB page
 // pair of gEffectDataBuffer at each effect's address before it copies the effect there, and clear_effect_data maps
@@ -36,7 +36,7 @@
 static constexpr uint32_t effects_vram = 0xE0000000;
 static constexpr uint32_t effects_end = 0xE0210000;
 
-void pm::map_tlb_pages(uint8_t* rdram) {
+void mg::map_tlb_pages(uint8_t* rdram) {
     uint8_t* begin = rdram + (effects_vram - 0x80000000u);
     uint8_t* end = rdram + (effects_end - 0x80000000u);
     bool ok;

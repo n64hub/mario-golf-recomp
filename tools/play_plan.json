@@ -12,7 +12,7 @@
   "(nok_01) the same way. The game mode is CurGameMode (0x800A08F0, its high half). tools/play_plan_extended.json goes",
   "on to more areas, for when a longer play is needed."
  ],
- "page": "PaperMarioRecompiled.html",
+ "page": "MarioGolfRecompiled.html",
  "load": [["until", "RT64: all [0-9]+ prebuilt shaders built|once the game draws", 45000], ["wait", 5000]],
  "setup": [["rom", 627, 364], ["wait", 3000]],
  "start": [
