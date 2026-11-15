@@ -18,7 +18,8 @@ git or CI is made from one except the symbol names and addresses in `syms/`.
 ball's flight and the pause menu, with sound, and its Save and Quit writes the tournament to the game's SRAM. Up to
 four players each play a controller of their own. Not played yet: the courses past the first, the other play modes,
 a saved tournament continued after a restart, and several pads at once. On a window wider than 4:3 the course reaches
-its edges while the HUD stays in the middle 4:3. The Game Boy Color link through the Transfer Pak is not there.
+its edges and the HUD its sides, with the menus in the middle 4:3. The Game Boy Color link through the Transfer Pak is
+not there.
 
 It plays in a browser too, at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/) (`docs/web.md`), and the
 desktop builds for Windows and Linux are on the [Releases](https://github.com/n64hub/mario-golf-recomp/releases) page.

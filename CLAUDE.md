@@ -87,9 +87,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   plays its own port in the order it is plugged in, and until any is assigned, every pad and the keyboard play port 1
   (`RECOMPINPUT_SINGLE_PLAYER_UNTIL_ASSIGNED`, `RECOMPINPUT_PADS_IN_ORDER`, `CMakeLists.txt`).
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
-  to the display's rate. The game's own picture is 4:3; N64Recomp-browser's docs/new-recomp.md row says where its
-  widescreen stands. Its players take turns on one view, never a split screen, so that list's item 1a (split screen)
-  isn't in its row.
+  to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, and `src/game/hud.cpp` puts
+  the HUD at the wide picture's sides (its header says how). Its players take turns on one view, never a split screen,
+  so N64Recomp-browser's docs/new-recomp.md item 1a (split screen) isn't in its row.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact.
