@@ -62,7 +62,7 @@
 #include "window_icon_bmp.h"
 #endif
 
-const std::string version_string = "0.1.13";
+const std::string version_string = "0.1.0";
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
@@ -93,17 +93,19 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
     return {};
 }
 
-// Mario Golf is one player's: port 1 has a controller, with a Rumble Pak (the game starts its motor only when the
-// controller reports one, nuContRmbCheck in the decomp's src/os/nusys, and the runtime's osMotorInit only when it is a
-// Rumble Pak). Any pad or the keyboard plays it. The strength is the General tab's.
+// A port has a controller when its player is assigned, or until players are assigned when it is port 1 or a connected
+// pad's (RECOMPINPUT_PADS_IN_ORDER: the second pad connected plays port 2, and so on), as a console has a controller
+// in each port a pad is plugged into: the game offers golfers for those ports alone, up to four. Each has a Rumble Pak
+// in it, which the game starts with NuSystem's nuContRmb calls (the runtime's osMotorInit, to that port's pad): with
+// no pak the runtime's osMotorInit answers PFS_ERR_NOPACK and the game never rumbles. The strength is the General tab's.
 ultramodern::input::connected_device_info_t get_connected_device_info(int controller_num) {
-    if (recompinput::players::is_single_player_mode() || recompinput::players::get_player_is_assigned(controller_num)) {
-        if (controller_num == 0) {
-            return ultramodern::input::connected_device_info_t{
-                .connected_device = ultramodern::input::Device::Controller,
-                .connected_pak = ultramodern::input::Pak::RumblePak,
-            };
-        }
+    bool unassigned = recompinput::players::get_number_of_assigned_players() == 0;
+    if ((unassigned && (controller_num == 0 || (size_t)controller_num < recompinput::get_detected_controller_count())) ||
+        recompinput::players::get_player_is_assigned(controller_num)) {
+        return ultramodern::input::connected_device_info_t{
+            .connected_device = ultramodern::input::Device::Controller,
+            .connected_pak = ultramodern::input::Pak::RumblePak,
+        };
     }
 
     return ultramodern::input::connected_device_info_t{
@@ -331,19 +333,21 @@ extern "C" void recomp_entrypoint(uint8_t* rdram, recomp_context* ctx);
 gpr get_entrypoint_address();
 
 static void on_init(uint8_t* rdram, recomp_context*) {
-    mg::map_tlb_pages(rdram);
+    mg::init_tlb(rdram);
 }
 
 std::vector<recomp::GameEntry> supported_games = {
     {
-        // XXH3 of Mario Golf (USA), SHA-1 3837f44cda784b466c9a2d99df70d77c322b97a0.
-        .rom_hash = 0x1a478f060d5194cfULL,
-        .internal_name = "PAPER MARIO",
+        // XXH3 of Mario Golf (USA), the 32 MB cartridge (SHA-1 e2c4e7a905b29529b49a1619a401fe699224829b): the common
+        // 24 MB dump of it, without the 0xFF it ends in, is padded back to it before the check
+        // (runtime-patches/N64ModernRuntime-1-pad-a-short-rom.patch).
+        .rom_hash = 0xc44360a904011b02ULL,
+        .internal_name = "MarioGolf64",
         .display_name = "Mario Golf",
         .game_id = u8"mariogolf64.n64.us.1.0",
         .mod_game_id = "mg64",
-        // 1 Mbit of Flash (the decomp's src/fio.c, through libultra's osFlash calls).
-        .save_type = recomp::SaveType::Flashram,
+        // 256 Kbit of SRAM, through NuSystem's nuPiReadWriteSram.
+        .save_type = recomp::SaveType::Sram,
         .thumbnail_bytes = std::span<const char>(icon_bytes),
         .is_enabled = true,
         .entrypoint_address = get_entrypoint_address(),
@@ -352,8 +356,8 @@ std::vector<recomp::GameEntry> supported_games = {
     },
 };
 
-// The game's threads: NuSystem's (the decomp's include/nu/nusys.h ids, src/os/nusys/), its audio manager's
-// (src/audio/core/system.c, which shares the main thread's id, 3), the crash screen's and libultra's managers.
+// The game's threads: NuSystem's (the decomp's include/libnusys/nusys.h ids, where the controller thread shares the
+// graphics task manager's id, 5), the game's own and libultra's managers.
 static std::string game_thread_name(const OSThread* t) {
     std::string name = "[Game] ";
 
@@ -378,12 +382,8 @@ static std::string game_thread_name(const OSThread* t) {
             name += "IDLE";
             break;
 
-        case 2:
-            name += "CRASH";
-            break;
-
         case 3:
-            name += t->priority == 10 ? "MAIN" : "AUDIO";
+            name += "MAIN";
             break;
 
         case 4:
@@ -391,11 +391,7 @@ static std::string game_thread_name(const OSThread* t) {
             break;
 
         case 5:
-            name += "GFXTASKMGR";
-            break;
-
-        case 6:
-            name += "CONTROLLER";
+            name += t->priority == 60 ? "GFXTASKMGR" : "CONTROLLER";
             break;
 
         case 17:
@@ -499,6 +495,7 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 }
 
 void install_crash_trace();
+void start_stack_dumps(double seconds);
 
 int main(int argc, char** argv) {
     install_crash_trace();
@@ -508,6 +505,9 @@ int main(int argc, char** argv) {
         }
         else if (strcmp(argv[i], "--input") == 0 && i + 1 < argc) {
             load_input_script(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--stacks") == 0 && i + 1 < argc) {
+            start_stack_dumps(atof(argv[++i]));
         }
         else if (strcmp(argv[i], "--window") == 0 && i + 1 < argc) {
             sscanf(argv[++i], "%dx%d", &window_width, &window_height);
@@ -581,8 +581,12 @@ int main(int argc, char** argv) {
     mg::register_overlays();
     mg::register_patches();
 
-    // One player, on any pad or the keyboard.
-    recompinput::players::set_single_player_mode(true);
+    // Up to four players, each assigned a pad (or the keyboard) on the controls page's Assign players, which is then
+    // their own port (get_connected_device_info). Until players are assigned each pad plays a port of its own in the
+    // order the pads were connected and the keyboard plays port 1, with RECOMPINPUT_SINGLE_PLAYER_UNTIL_ASSIGNED and
+    // RECOMPINPUT_PADS_IN_ORDER (CMakeLists.txt).
+    recompinput::players::set_single_player_mode(false);
+    recompinput::players::set_player_count_range(1, 4);
 
     mg::init_config();
 
@@ -593,16 +597,11 @@ int main(int argc, char** argv) {
         .get_rsp_microcode = get_rsp_microcode,
     };
 
-    // Skip Buffering, not Present Early: the game draws each frame in two RSP tasks, the background (its clears and a
-    // fill over the whole framebuffer) and then the world, and Present Early shows a framebuffer as soon as a task fills
-    // it, so the background alone came on screen between the world's frames.
+    // Presented at the VI (Skip Buffering), not as soon as a task fills a framebuffer (Present Early), which shows a
+    // frame drawn in several tasks before its last.
     //
-    // Render to RAM, RT64's exact copy of each list's frame into RDRAM (its default, on the page too, where each list
-    // waits 5-6 ms for the browser's readback): the game's CPU reads a frame it has just drawn. Pausing, the background
-    // list writes the frame's coverage into nuGfxCfb[1], and the next frame's background, before its list starts,
-    // makes the pause menu's picture of the world on the CPU from that and the frame in nuGfxCfb[0]
-    // (gfx_transfer_frame_to_depth, gfx_draw_background). A copy a list late lands at a list's start or a VI, so it
-    // would give that a frame older than the one the game drew, as it would Majora's Mask's pause background.
+    // Render to RAM, RT64's exact copy of each list's frame into RDRAM (its default, on the page too), so that what the
+    // game's CPU reads of a frame it has drawn is that frame.
     ultramodern::renderer::callbacks_t renderer_callbacks{
         .create_render_context = [](uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool developer_mode) {
             recompui::renderer::set_render_to_ram(true);

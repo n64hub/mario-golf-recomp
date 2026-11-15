@@ -15,8 +15,8 @@ namespace mg {
     // The settings (config.cpp): RecompFrontend's tabs.
     void init_config();
 
-    // Backs the effects' TLB-mapped pages with memory (recomp_api.cpp), before the game runs.
-    void map_tlb_pages(uint8_t* rdram);
+    // The TLB's window (tlb.cpp): hands the runtime its osVirtualToPhysical and RSP-task callbacks, before the game runs.
+    void init_tlb(uint8_t* rdram);
 }
 
 #endif

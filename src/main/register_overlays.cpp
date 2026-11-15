@@ -20,10 +20,9 @@ void mg::register_overlays() {
     recomp::overlays::register_overlays(sections, overlays);
 }
 
-// The hooks where the game copies code out of ROM (us.toml): the code sections lying wholly in the size bytes of ROM at
-// rom are now at ram. The game loads its overlays (maps, battles, effects, world and battle code) with dma_copy, which
-// reads in 0x2000-byte pieces through nuPiReadRom, and a few, such as a battle's partner, with nuPiReadRom alone; a
-// piece inside a section maps nothing.
+// The hook where the game copies code out of ROM (us.toml): the code sections lying wholly in the size bytes of ROM at
+// rom are now at ram. The game's overlay loader (func_800260C4, from its table at 0x800B5F58) reads each overlay with
+// one nuPiReadRom of the whole of it; a read of data maps nothing.
 extern "C" void mg_load_overlays(uint8_t* rdram, uint32_t rom, uint32_t ram, uint32_t size) {
     (void)rdram;
     load_overlays(rom, (int32_t)ram, size);

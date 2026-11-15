@@ -1,0 +1,72 @@
+--- a/ultramodern/include/ultramodern/ultramodern.hpp
++++ b/ultramodern/include/ultramodern/ultramodern.hpp
+@@ -101,6 +101,17 @@
+ bool is_entrypoint_thread();
+ bool is_game_thread();
+ void submit_rsp_task(RDRAM_ARG PTR(OSTask) task);
++
++// For a game that backs its TLB-mapped (KUSEG) addresses itself: virtual_to_physical gives osVirtualToPhysical a mapped
++// address's physical one (0xFFFFFFFF for one it doesn't map, which is then returned as it is), and before_rsp_task runs
++// on the game's thread as a task is submitted, before the RSP reads memory, to put what the game wrote through a mapping
++// where the RSP reads it. Either may be null.
++struct TlbCallbacks {
++    u32 (*virtual_to_physical)(u32 vaddr);
++    void (*before_rsp_task)(RDRAM_ARG1);
++};
++void set_tlb_callbacks(const TlbCallbacks& callbacks);
++const TlbCallbacks& get_tlb_callbacks();
+ void send_si_message();
+ uint32_t get_speed_multiplier();
+ 
+--- a/ultramodern/src/misc_ultra.cpp
++++ b/ultramodern/src/misc_ultra.cpp
+@@ -1,4 +1,5 @@
+ #include "ultramodern/ultra64.h"
++#include "ultramodern/ultramodern.hpp"
+ 
+ #define K0BASE        0x80000000
+ #define K1BASE        0xA0000000
+@@ -8,6 +9,16 @@
+ #define K0_TO_PHYS(x) ((u32)(x)&0x1FFFFFFF)
+ #define K1_TO_PHYS(x) ((u32)(x)&0x1FFFFFFF)
+ 
++static ultramodern::TlbCallbacks tlb_callbacks{};
++
++void ultramodern::set_tlb_callbacks(const TlbCallbacks& callbacks) {
++    tlb_callbacks = callbacks;
++}
++
++const ultramodern::TlbCallbacks& ultramodern::get_tlb_callbacks() {
++    return tlb_callbacks;
++}
++
+ u32 osVirtualToPhysical(PTR(void) addr) {
+     uintptr_t addr_val = (uintptr_t)addr;
+     if (IS_KSEG0(addr_val)) {
+@@ -15,7 +26,12 @@
+     } else if (IS_KSEG1(addr_val)) {
+         return K1_TO_PHYS(addr_val);
+     } else {
+-        // TODO handle TLB mappings
++        if (tlb_callbacks.virtual_to_physical != nullptr) {
++            u32 physical = tlb_callbacks.virtual_to_physical((u32)addr_val);
++            if (physical != 0xFFFFFFFFu) {
++                return physical;
++            }
++        }
+         return (u32)addr_val;
+     }
+ }
+--- a/ultramodern/src/events.cpp
++++ b/ultramodern/src/events.cpp
+@@ -833,6 +833,10 @@
+ void ultramodern::submit_rsp_task(RDRAM_ARG PTR(OSTask) task_) {
+     OSTask* task = TO_PTR(OSTask, task_);
+ 
++    if (ultramodern::get_tlb_callbacks().before_rsp_task != nullptr) {
++        ultramodern::get_tlb_callbacks().before_rsp_task(PASS_RDRAM1);
++    }
++
+     // Send gfx tasks to the graphics action queue
+     if (task->t.type == M_GFXTASK) {
+         events_context.action_queue.enqueue(SpTaskAction{ *task });

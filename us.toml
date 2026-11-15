@@ -11,6 +11,10 @@ output_func_path = "RecompiledFuncs"
 use_absolute_symbols = true
 
 [patches]
+# The game's own functions named as C's math functions and main, which the generated C would declare a second time
+# with the recompiled functions' signature: N64Recomp gives these a _recomp suffix.
+renamed = ["sin", "cos", "tan", "atan", "atan2", "main"]
+
 
 # The game copies its overlays out of ROM with nuPiReadRom (the decomp's src/libnusys/nupireadrom.c), from its overlay
 # table (ROM 0x91360, 0x28 bytes an overlay: ROM start and end, then RAM start), and the runtime maps the functions in
@@ -27,6 +31,14 @@ text = "{ void mg_load_overlays(uint8_t*, uint32_t, uint32_t, uint32_t); mg_load
 [[patches.hook]]
 func = "func_8009951C"
 before_vram = 0x800995B0
+text = "{ void yield_self(uint8_t*); yield_self(rdram); }"
+
+# The main thread's wait for a game mode (func_80029C34 after it sets the graphics callback, func_8002A434): it spins
+# while the mode word at 0x801052CC is -1, which only that callback changes, on the graphics thread at a retrace. Each
+# pass yields, so that the other game threads run.
+[[patches.hook]]
+func = "func_80029C34"
+before_vram = 0x80029EB4
 text = "{ void yield_self(uint8_t*); yield_self(rdram); }"
 
 # NuSystem's wait for every graphics task to end (the decomp's src/libnusys/nugfxtaskallendwait.c) spins on

@@ -1,11 +1,14 @@
 // On Windows, prints where the program crashed to stderr: the exception and each frame of the crashing thread's stack,
 // named from the .pdb beside the exe. Recompiled functions carry the game's names (syms/), so a trace points at the
-// game code that crashed.
+// game code that crashed. --stacks <seconds> (development) prints every thread's stack that often, for a game that
+// hangs without crashing.
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <DbgHelp.h>
+#include <TlHelp32.h>
 #include <cstdio>
+#include <thread>
 
 static void print_stack(HANDLE process, HANDLE thread, CONTEXT context) {
     STACKFRAME64 frame{};
@@ -61,6 +64,48 @@ static LONG WINAPI print_crash(EXCEPTION_POINTERS* info) {
 void install_crash_trace() {
     SetUnhandledExceptionFilter(print_crash);
 }
+
+void start_stack_dumps(double seconds) {
+    std::thread([seconds]() {
+        HANDLE process = GetCurrentProcess();
+        SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
+        SymInitialize(process, nullptr, TRUE);
+        DWORD self = GetCurrentThreadId();
+        for (int round = 1;; round++) {
+            Sleep((DWORD)(seconds * 1000));
+            HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+            THREADENTRY32 entry{ sizeof(entry) };
+            for (BOOL more = Thread32First(snapshot, &entry); more; more = Thread32Next(snapshot, &entry)) {
+                if (entry.th32OwnerProcessID != GetCurrentProcessId() || entry.th32ThreadID == self) {
+                    continue;
+                }
+                HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, entry.th32ThreadID);
+                if (thread == nullptr) {
+                    continue;
+                }
+                PWSTR name = nullptr;
+                char name8[128] = "";
+                if (SUCCEEDED(GetThreadDescription(thread, &name)) && name != nullptr) {
+                    WideCharToMultiByte(CP_UTF8, 0, name, -1, name8, sizeof(name8), nullptr, nullptr);
+                    LocalFree(name);
+                }
+                if (SuspendThread(thread) != (DWORD)-1) {
+                    CONTEXT context{};
+                    context.ContextFlags = CONTEXT_FULL;
+                    if (GetThreadContext(thread, &context)) {
+                        fprintf(stderr, "Stacks %d: thread %lu %s\n", round, entry.th32ThreadID, name8);
+                        print_stack(process, thread, context);
+                    }
+                    ResumeThread(thread);
+                }
+                CloseHandle(thread);
+            }
+            CloseHandle(snapshot);
+            fflush(stderr);
+        }
+    }).detach();
+}
 #else
 void install_crash_trace() {}
+void start_stack_dumps(double) {}
 #endif

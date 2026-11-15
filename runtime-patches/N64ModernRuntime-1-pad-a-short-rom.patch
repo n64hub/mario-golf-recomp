@@ -1,0 +1,23 @@
+--- a/librecomp/src/recomp.cpp
++++ b/librecomp/src/recomp.cpp
+@@ -450,6 +450,20 @@
+             break;
+     }
+ 
++    // A dump cut short of its cartridge's size, the 0xFF past the game's data left off (Mario Golf's 24 MB of a
++    // 32 MB cartridge), is the cartridge's ROM once that is put back: padded with 0xFF to the next power of two.
++    if (!check_hash(rom_data, game_entry.rom_hash) && (rom_data.size() & (rom_data.size() - 1)) != 0) {
++        size_t cartridge_size = 1;
++        while (cartridge_size < rom_data.size()) {
++            cartridge_size <<= 1;
++        }
++        std::vector<uint8_t> padded = rom_data;
++        padded.resize(cartridge_size, 0xFF);
++        if (check_hash(padded, game_entry.rom_hash)) {
++            rom_data = std::move(padded);
++        }
++    }
++
+     if (!check_hash(rom_data, game_entry.rom_hash)) {
+         const std::string_view name{ reinterpret_cast<const char*>(rom_data.data()) + 0x20, game_entry.internal_name.size()};
+         if (name == game_entry.internal_name) {

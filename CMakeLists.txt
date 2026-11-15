@@ -78,11 +78,20 @@ set(RT64_SDL_WINDOW_VULKAN TRUE)
 # here on the desktop too: gfxRetrace_Callback steps the game whatever its lists do, so a long stall let it run on and
 # rewrite the list RT64 was still reading, and on Mesa's software Vulkan the picture stopped for good after 90 s.
 set(ULTRAMODERN_VIS_WAIT_FOR_RENDERER ON)
-# The game draws a frame in two RSP tasks, gfx_task_background (which swaps nothing) and then gfx_draw_frame, which RT64
-# interpolates as one game frame with RT64_GAME_FRAME_WORKLOADS, on with Emscripten and here on the desktop too: each
-# task interpolated as a frame of its own drew frames between the game's from the background and half the world, and
-# the opening's "Mail call!" at Mario's house flickered to his house's inside without its outer wall, roof and trees.
+# RT64 interpolates the RSP tasks the game draws a frame in as one frame (RT64_GAME_FRAME_WORKLOADS), on with
+# Emscripten and here on the desktop too, so the desktop build draws as the page does.
 set(RT64_GAME_FRAME_WORKLOADS ON)
+# The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
+# memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
+# every target, the runtime's too, so that each maps KUSEG the same way.
+add_compile_definitions(RECOMP_KUSEG_WINDOW)
+# Up to four players, each a port of their own (src/main/main.cpp, get_connected_device_info): the game turns
+# RecompFrontend's single-player mode off, and plays as single-player mode until players are assigned, as with
+# Emscripten, so a player alone needn't assign their pad or keyboard first. And until then each pad plays a port of its
+# own, in the order they were connected, the keyboard port 1 (RecompFrontend-web's option): four people with four pads
+# play four golfers without assigning them.
+set(RECOMPINPUT_SINGLE_PLAYER_UNTIL_ASSIGNED ON)
+set(RECOMPINPUT_PADS_IN_ORDER ON)
 add_compile_definitions(HLSL_CPU)
 
 if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -213,7 +222,7 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/main/register_overlays.cpp
     ${CMAKE_SOURCE_DIR}/src/game/config.cpp
     ${CMAKE_SOURCE_DIR}/src/game/libultra.cpp
-    ${CMAKE_SOURCE_DIR}/src/game/recomp_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/tlb.cpp
 )
 if (MG_PATCHES)
     target_sources(MarioGolfRecompiled PRIVATE ${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp)
@@ -389,10 +398,7 @@ if (EMSCRIPTEN)
     n64recomp_browser_frontend_page(MarioGolfRecompiled)
     target_link_options(MarioGolfRecompiled PRIVATE
         "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/assets@/assets"
-        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/recompcontrollerdb.txt@/recompcontrollerdb.txt"
-        # The effects' TLB pages (src/game/recomp_api.cpp, mg::map_tlb_pages) lie about 1.5 GB past RDRAM: the heap
-        # grows to cover them.
-        -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB)
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/recompcontrollerdb.txt@/recompcontrollerdb.txt")
 else()
     target_link_libraries(MarioGolfRecompiled PRIVATE nfd)
 endif()

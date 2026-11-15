@@ -1,35 +1,52 @@
 // libultra functions the game links that N64Recomp leaves out (its ignored_funcs) and the runtime doesn't implement,
-// so each call to one in RecompiledFuncs/ comes here.
+// so each call to one in RecompiledFuncs/ comes here. The TLB's are src/game/tlb.cpp.
 #include <cstdint>
+#include <cstdio>
 
 #include "recomp.h"
 
-// u64 % s64 (libultra's libc/ll.c), for the game's own 64-bit arithmetic: a and b in a0:a1 and a2:a3, the result in
-// v0:v1.
-extern "C" void __ll_rem_recomp(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t a = (ctx->r4 << 32) | ((ctx->r5 << 0) & 0xFFFFFFFFu);
-    uint64_t b = (ctx->r6 << 32) | ((ctx->r7 << 0) & 0xFFFFFFFFu);
-    uint64_t ret = b != 0 ? a % b : 0;
+// The controller's accessory bus, which the game reads only for a Transfer Pak (libultra's osGbpak calls, for its link
+// with Mario Golf on the Game Boy Color, whose golfers it brings in). None is plugged in here, as Mario Tennis's recomp
+// has it: each answers PFS_ERR_NOPACK, so the game finds no Transfer Pak, as on a console with none. A Controller Pak
+// and the Rumble Pak are the runtime's own (osPfs, osMotor), which don't come here.
+static constexpr int32_t PFS_ERR_NOPACK = 1;
 
-    ctx->r2 = (int32_t)(ret >> 32);
-    ctx->r3 = (int32_t)(ret >> 0);
+extern "C" void __osPfsGetStatus_recomp(uint8_t* rdram, recomp_context* ctx) {
+    ctx->r2 = PFS_ERR_NOPACK;
 }
 
-// The CPU's watch register, which the game's boot (sys/main.c) sets to trap writes to the RDRAM registers: there are
-// none here to watch.
-extern "C" void __osSetWatchLo_recomp(uint8_t* rdram, recomp_context* ctx) {
+extern "C" void __osContRamRead_recomp(uint8_t* rdram, recomp_context* ctx) {
+    ctx->r2 = PFS_ERR_NOPACK;
 }
 
-// The TLB: the effects' pages are backed by memory of their own at their addresses (src/game/recomp_api.cpp,
-// mg::map_tlb_pages), so there is nothing to map.
-extern "C" void osMapTLB_recomp(uint8_t* rdram, recomp_context* ctx) {
+extern "C" void __osContRamWrite_recomp(uint8_t* rdram, recomp_context* ctx) {
+    ctx->r2 = PFS_ERR_NOPACK;
 }
 
-extern "C" void osUnmapTLB_recomp(uint8_t* rdram, recomp_context* ctx) {
+// osDpGetCounters(u32 counters[4]): the RDP's clock, command-busy, pipe-busy and TMEM counters, which NuSystem's
+// scheduler (nuScExecuteGraphics) reads for its performance meter. There is no RDP to count.
+extern "C" void osDpGetCounters_recomp(uint8_t* rdram, recomp_context* ctx) {
+    for (int i = 0; i < 4; i++) {
+        MEM_W(i * 4, ctx->r4) = 0;
+    }
 }
 
-// A write to the cartridge bus: the game's debug output (is_debug_init and is_debug_print in the decomp's
-// src/is_debug.c) writes to the IS-Viewer's registers, which a cartridge doesn't have.
-extern "C" void osEPiWriteIo_recomp(uint8_t* rdram, recomp_context* ctx) {
+// osViGetCurrentMode(): the VI mode's type, OS_VI_NTSC_LAN1 (320x240, non-interlaced), the mode the game sets.
+extern "C" void osViGetCurrentMode_recomp(uint8_t* rdram, recomp_context* ctx) {
+    ctx->r2 = 2;
+}
+
+// The VI manager's own internals: the game's viMgrMain calls them, and the runtime runs the VI manager itself
+// (osCreateViManager), so the game's never runs.
+extern "C" void __osViGetCurrentContext_recomp(uint8_t* rdram, recomp_context* ctx) {
+    fprintf(stderr, "__osViGetCurrentContext: the game's VI manager ran\n");
     ctx->r2 = 0;
+}
+
+extern "C" void __osViSwapContext_recomp(uint8_t* rdram, recomp_context* ctx) {
+    fprintf(stderr, "__osViSwapContext: the game's VI manager ran\n");
+}
+
+extern "C" void __osTimerInterrupt_recomp(uint8_t* rdram, recomp_context* ctx) {
+    fprintf(stderr, "__osTimerInterrupt: the game's VI manager ran\n");
 }
