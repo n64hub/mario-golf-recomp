@@ -55,7 +55,8 @@ Two more plans play what the regular one doesn't reach:
   rumbled: the game buzzes a player's pad as their turn comes. Its header says what each step shows.
 - `tools/play_plan_extended.json` (5 minutes at most) is the long play: a Tournament on Mario Star, opened with the
   GameShark's Have All Courses, played hole after hole at a shot and a Give Up each, for over three minutes of the
-  game's busiest screens.
+  game's busiest screens. The Leader Board that comes up between holes keeps the flyover's overlay loaded, so the
+  plan presses past it and lets the next flyover play before it looks for the tee.
 
 ## The shader list
 
@@ -75,3 +76,10 @@ Windows its compositor holds it to about 30 frames a second. Render to RAM is on
 (`src/main/main.cpp` says why): the card the last frame of a shot turns over on between shots is that copy, and no
 play has seen the game's CPU write to a frame with the copy pending (RT64 prints a line each time it does). Every
 play's numbers are lines in N64Recomp-browser's `plays.jsonl` (game `mg`).
+
+The extended plan at 3840x2000, about five minutes on Mario Star, runs nothing out: Chrome's GPU process grew from 1.5
+to 1.9 GB over it and Firefox's from 2.2 to 2.8 GB. Four stand-in pads play four golfers, each from the pad that
+picked it, and two pads of one model pulled out and plugged in again at the tee get their ports back and rumble again
+once the game has found their Rumble Paks, a few seconds on. On the desktop build every course, Mini-Golf, each play
+mode and a whole Tournament round draw at 16:9, 21:9 and 4:3; at Framerate Display a flyover now and then draws one
+frame with the course torn into loose polygons, which Original never does.
