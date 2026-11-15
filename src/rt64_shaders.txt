@@ -17,7 +17,7 @@
 # change to one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
 # plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
 # other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
-# Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 12 the extended plan's missed on
+# Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 15 the extended plan's plays missed on
 # Mario Star's first holes: what a section draws turns with where the ball goes and how many play, so a play's misses
 # are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
@@ -857,6 +857,9 @@ c81049d8 00982c3f fc157e60 2ffd77f8 088e0008
 00504245 00002c0f fc119623 ff2fffff 04cb540b
 0f0a7008 0088ac3f fc121824 ff33ffff 0ccb5408
 00504240 00880c3f fcffffff fffdf2f9 0ccb5400
+00504240 00082c3f fcffffff fffe793c 0800000c
+00504240 00882c3f fcffffff fffe793c 0800000c
+0f0a700d 0000ac0f fcffffff fffcf279 04cb540b
 section mini_golf
 00552078 00882c3f fc325864 ffb3ffff 0800000c
 00553078 00882c3f fc125224 ffa7ffff 0803540c
