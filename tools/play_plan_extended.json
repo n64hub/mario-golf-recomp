@@ -5,7 +5,9 @@
   "tools/play_plan.json has it, then a Tournament on Mario Star, the last course, opened by the GameShark's Have All",
   "Courses as tools/shader_plan_courses.json does, and its first four holes: each hole's flyover, one shot from the tee,",
   "then the pause menu's Give Up (four presses down, A, left to YES, A) to the next hole, whose number is the byte at",
-  "0x801B609B (0 the first). Three minutes or more on the course, on the game's clock (tools/shader_survey.js)."
+  "0x801B609B (0 the first). The Leader Board comes up between holes with the flyover's overlay (4) already loaded, so",
+  "each next hole presses past it twice, lets the flyover play, and presses on only if it is still there 14 s on. Three",
+  "minutes or more on the course, on the game's clock (tools/shader_survey.js)."
  ],
  "page": "MarioGolfRecompiled.html",
  "load": [
@@ -354,11 +356,43 @@
   ],
   [
    "wait",
-   6000
+   1000
   ],
   [
-   "need",
-   "until(() => !loaded(4), 60000)"
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   3000
+  ],
+  [
+   "shot",
+   "hole_1_board.png"
+  ],
+  [
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   14000
+  ],
+  [
+   "pressUntil",
+   "Space",
+   " ",
+   32,
+   150,
+   2500,
+   "!loaded(4)",
+   120000
   ],
   [
    "wait",
@@ -513,11 +547,43 @@
   ],
   [
    "wait",
-   6000
+   1000
   ],
   [
-   "need",
-   "until(() => !loaded(4), 60000)"
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   3000
+  ],
+  [
+   "shot",
+   "hole_2_board.png"
+  ],
+  [
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   14000
+  ],
+  [
+   "pressUntil",
+   "Space",
+   " ",
+   32,
+   150,
+   2500,
+   "!loaded(4)",
+   120000
   ],
   [
    "wait",
@@ -672,11 +738,43 @@
   ],
   [
    "wait",
-   6000
+   1000
   ],
   [
-   "need",
-   "until(() => !loaded(4), 60000)"
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   3000
+  ],
+  [
+   "shot",
+   "hole_3_board.png"
+  ],
+  [
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   14000
+  ],
+  [
+   "pressUntil",
+   "Space",
+   " ",
+   32,
+   150,
+   2500,
+   "!loaded(4)",
+   120000
   ],
   [
    "wait",
@@ -831,11 +929,43 @@
   ],
   [
    "wait",
-   6000
+   1000
   ],
   [
-   "need",
-   "until(() => !loaded(4), 60000)"
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   3000
+  ],
+  [
+   "shot",
+   "hole_4_board.png"
+  ],
+  [
+   "hold",
+   "Space",
+   " ",
+   32,
+   150
+  ],
+  [
+   "wait",
+   14000
+  ],
+  [
+   "pressUntil",
+   "Space",
+   " ",
+   32,
+   150,
+   2500,
+   "!loaded(4)",
+   120000
   ],
   [
    "wait",

@@ -17,8 +17,9 @@
 # change to one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
 # plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
 # other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
-# Highlands' HUD), then 3 a Chrome play at 3840x2000 missed on Toad Highlands: what a section draws turns with where
-# the ball goes and how many play, so a play's misses are added to its section (play_page.mjs prints them).
+# Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 12 the extended plan's missed on
+# Mario Star's first holes: what a section draws turns with where the ball goes and how many play, so a play's misses
+# are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -254,6 +255,7 @@ c8104a51 00982c0f fc563280 1ffcfff8 09128808
 0f0a7009 0008ac0f fcffffff fffcf279 08035408
 0055307c 0000ac0f fcffffff fffcf279 0803540b
 0f0a7009 0008ac3f fcffffff fffcf279 08035408
+00504340 00082c3f fcffffff fffe793c 08000008
 section koopa_park
 0f0a700c 0080ac0f fcffffff fffcf279 0ccb540b
 0f0a700c 0080ac0f fcffffff fffcf279 04cb540b
@@ -843,6 +845,18 @@ c81049d8 00982c3f fc157e60 2ffd77f8 088e0008
 00000000 00802cff fc11fe23 fffff7fb 0003540b
 00504340 00802c3f fc11b223 ff67ffff 04cb540b
 0f0a7008 00808c3f fcffffff fffcf279 04cb540b
+00504340 00082c7f fcffb3ff ff65feff 0c42ee08
+0f0a7008 00002c7f fcffffff fffcf279 04cb540b
+00504340 00002c7f fcffffff fffdf6fb 0000000b
+00504340 00882c7f fcffb3ff ff65feff 0c42ee08
+0f0a7008 00802c7f fcffffff fffcf279 04cb540b
+00504340 00802c7f fcffffff fffdf6fb 0000000b
+00504340 00802c3f fc30fe61 55fef379 0ccb540b
+00504a55 0000ac0f fc119623 ff2fffff 04cb540b
+00504a55 00002c0f fc119623 ff2fffff 04cb540b
+00504245 00002c0f fc119623 ff2fffff 04cb540b
+0f0a7008 0088ac3f fc121824 ff33ffff 0ccb5408
+00504240 00880c3f fcffffff fffdf2f9 0ccb5400
 section mini_golf
 00552078 00882c3f fc325864 ffb3ffff 0800000c
 00553078 00882c3f fc125224 ffa7ffff 0803540c
