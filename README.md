@@ -14,7 +14,13 @@ decompilation. It is not an emulator.
 The repo holds no ROM, no asset from the game and no data extracted from it: you supply your own ROM, and nothing in
 git or CI is made from one except the symbol names and addresses in `syms/`.
 
-**Status:** STATUS
+**Status:** it boots and plays: the intro, the title, the menus and a Tournament on Toad Highlands, swings, the
+ball's flight and the pause menu, with sound and saves, for up to four players on controllers of their own. The courses
+past the first and the other play modes haven't been played yet. On a window wider than 4:3 the course reaches its
+edges while the HUD stays in the middle 4:3. The Game Boy Color link through the Transfer Pak is not there.
+
+It plays in a browser too, at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/) (`docs/web.md`), and the
+desktop builds for Windows and Linux are on the [Releases](https://github.com/n64hub/mario-golf-recomp/releases) page.
 
 ## The ROM
 

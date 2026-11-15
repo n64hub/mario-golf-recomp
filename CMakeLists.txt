@@ -47,9 +47,9 @@ if (EMSCRIPTEN)
     include(${CMAKE_SOURCE_DIR}/lib/N64Recomp-browser/frontend/build_speed.cmake)
     # The shaders the page specializes at build time and builds before the game needs them, in sections: the boot's
     # before the first frame, the rest as the game first draws them (src/rt64_shaders.txt says how it was recorded).
-    if (EXISTS ${CMAKE_SOURCE_DIR}/src/rt64_shaders.txt)
-        set(RT64_PREBUILT_SHADER_LIST ${CMAKE_SOURCE_DIR}/src/rt64_shaders.txt)
-    endif()
+    # Set whether or not the file is there, never behind an EXISTS: that is read once, at configure, so a build dir
+    # configured before the list came kept building pages without one.
+    set(RT64_PREBUILT_SHADER_LIST ${CMAKE_SOURCE_DIR}/src/rt64_shaders.txt)
 else()
     # The desktop build's compiles go through ccache when it is on PATH, so a new build dir or another checkout of the
     # same code compiles only what changed since a build here. CCACHE_BASEDIR, the checkout, makes its paths relative
