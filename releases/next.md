@@ -1,0 +1,1 @@
+- **No more crackling:** the sound no longer clicks and pops a few times a second through the whole game, and it comes out with less delay.
