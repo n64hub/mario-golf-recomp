@@ -21,8 +21,10 @@ a saved tournament continued after a restart, and several pads at once. On a win
 its edges and the HUD its sides, with the menus in the middle 4:3. The Game Boy Color link through the Transfer Pak is
 not there.
 
-It plays in a browser too, at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/) (`docs/web.md`), and the
-desktop builds for Windows and Linux are on the [Releases](https://github.com/n64hub/mario-golf-recomp/releases) page.
+It isn't released yet: it is being played through N64Recomp-browser's checklists (its docs/new-recomp.md), which a
+game passes before its first release. Then its desktop builds for Windows and Linux go on the
+[Releases](https://github.com/n64hub/mario-golf-recomp/releases) page, and its page, which plays it in a browser
+(`docs/web.md`), goes on [n64hub.com](https://n64hub.com/). Until then, build it as below.
 
 ## The ROM
 
