@@ -15,8 +15,9 @@
 # and three shots with the pause menu between. Flags follow settings (filtering, HDR, MSAA, upscaling), so a change to
 # one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
 # plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
-# other lies: what a section draws turns with where the ball goes, so a play's misses are added to its section
-# (play_page.mjs prints them).
+# other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
+# Highlands' HUD): what a section draws turns with where the ball goes and how many play, so a play's misses are added
+# to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -108,6 +109,10 @@ c8113078 00182c0f fc563280 1ffcfff8 09128808
 00552078 0008ac0f fc121824 ff33ffff 0ccb540c
 00504340 00002ccf fc11fe23 fffff7fb 04cb540b
 00504340 00802ccf fc11fe23 fffff7fb 04cb540b
+00504240 0080ac0f fc119623 ff2fffff 04cb540b
+00504240 0080ac0f fcffffff fffcf279 02aaaa0b
+00504240 0080ac0f fcffffff fffcf279 04cb540b
+00504240 0080ac0f fcffffff fffcf279 0ccb540b
 section toad_highlands
 0f0a4000 00000cff fcffffff fffcf87c 04cb540b
 00000001 00a0accf fcffffff fffcf87c 019b100b
@@ -241,6 +246,10 @@ c8104a51 00982c0f fc563280 1ffcfff8 09128808
 00504340 00882cff fcffb3ff ff65feff 0c42ee08
 0f0a7008 00802cff fcffffff fffcf279 04cb540b
 00504340 00802cff fcffffff fffdf6fb 0000000b
+0f0a7008 0000ac3f fc11fe23 fffff3f9 0ccb540b
+0f0a7008 0080ac3f fc11fe23 fffff3f9 0ccb540b
+0055307c 00803c0f fcffffff fffdf6fb 0800000b
+00504a54 00803c0f fcffffff fffdf6fb 0800000b
 section koopa_park
 0f0a700c 0080ac0f fcffffff fffcf279 0ccb540b
 0f0a700c 0080ac0f fcffffff fffcf279 04cb540b
