@@ -49,7 +49,7 @@ the game's own frame count, 30 a second. Play it with N64Recomp-browser's `tools
 
 ## The shader list
 
-`src/rt64_shaders.txt` holds SHADERS shaders in two sections: the boot's (the logos, the intro, the title and the
+`src/rt64_shaders.txt` holds 212 shaders in two sections: the boot's (the logos, the intro, the title and the
 menus to a course) and Toad Highlands'. It is recorded by code with `tools/shader_plan.json` (the list's header says
 what each section plays and how to record it again). The other courses aren't in it yet: a play that reaches one
 misses its shaders and prints them (`play_page.mjs` counts the misses); add them as a section of their own.

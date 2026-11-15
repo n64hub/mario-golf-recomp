@@ -11,7 +11,9 @@
 # golfers with the stick and back, and the menus to a Tournament's course with A as a player does. Then toad_highlands:
 # its first hole's flyover and four shots from it with the pause menu between. Not recorded: the other courses, which
 # a new save has yet to open, and the other play modes. Flags follow settings (filtering, HDR, MSAA, upscaling), so a
-# change to one of those defaults means recording again.
+# change to one of those defaults means recording again. Toad Highlands' section ends with the 17 shaders that
+# tools/play_plan.json's play in Chrome missed after the recording, its shots landing on other lies: what a section
+# draws turns with where the ball goes, so a play's misses are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -208,3 +210,20 @@ c81049d8 00982c3f fc157e60 2ffd77f8 088e0008
 00504b55 00002c2f fc11b223 ff67ffff 008a000b
 005049fc 00082c0f fcffb3ff ff667f3f 0ccb540c
 c8104a51 00982c0f fc563280 1ffcfff8 09128808
+005041c8 00082c5f fcffffff fffdf6fb 08000008
+00504240 00000c7f fcffb3ff ff65feff 04cb540b
+00504240 00080c7f fcffffff fffdf2f9 0ccb5408
+00504240 00082c0f fcffffff fffdf6fb 0000000b
+00504240 00800c5f fc309e61 553efd7e 019b100b
+00504240 00800c5f fc30fe61 fffff7fb 019b100b
+00504240 00882c5f fcffffff fffe793c 0800000c
+00504340 00000c7f fcffffff fffdf6fb 0000000b
+00504340 00800c7f fcffffff fffdf6fb 0000000b
+00504340 00802c3f fcffffff fffdf2f9 0ccb540b
+005510c0 00800c7f fc11fe23 fffff3f9 04cb540b
+00553048 00882c5f fc119623 ff2fffff 0ccb540c
+0f0a4000 00802c5f fc30fe61 fffff7fb 019b100b
+0f0a4000 00802c5f fc30fe61 fffff7fb 099b100b
+0f0a4000 00802c5f fcffffff fffcf87c 0ccb540b
+0f0a7008 00008c7f fcffffff fffcf279 04cb540b
+0f0a7008 00808c5f fcffffff fffcf279 04cb540b
