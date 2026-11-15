@@ -10,21 +10,21 @@
   "Recorded by code, not by playing: bash tools/record_shaders.sh (its header says how) runs N64Recomp-browser's",
   "tools/record_shaders.mjs with tools/shader_plan.json, which loads the page fresh for each section, and",
   "tools/shader_survey.js tells the plan which screen the game shows. Section 0 is the launcher and the boot: the",
-  "logos, the intro's golfers played whole, the title, the main menu, the play modes turned through with the stick",
-  "and back, and the menus to a Tournament's course with A as a player does. Then toad_highlands: its first hole's",
-  "flyover and four shots from it with the pause menu between. Not recorded: the other courses, which a new save has",
-  "yet to open, and the other play modes. Flags follow settings (filtering, HDR, MSAA, upscaling), so a change to one",
-  "of those defaults means recording again."
+  "logos, the intro's golfers played whole, the title, the main menu, character select's cursor moved across the",
+  "golfers with the stick and back, and the menus to a Tournament's course with A as a player does. Then toad_highlands:",
+  "its first hole's flyover and four shots from it with the pause menu between. Not recorded: the other courses, which",
+  "a new save has yet to open, and the other play modes. Flags follow settings (filtering, HDR, MSAA, upscaling), so a",
+  "change to one of those defaults means recording again."
  ],
  "load": [
   [
    "until",
-   "RT64: all [0-9]+ prebuilt shaders built|once the game draws",
+   "Device Name|once the game draws",
    45000
   ],
   [
    "wait",
-   5000
+   3000
   ]
  ],
  "setup": [
@@ -155,7 +155,7 @@
     ],
     [
      "shot",
-     "play_modes.png"
+     "character_select.png"
     ],
     [
      "hold",
@@ -269,7 +269,7 @@
     ],
     [
      "shot",
-     "play_modes_turned.png"
+     "character_select_turned.png"
     ],
     [
      "hold",

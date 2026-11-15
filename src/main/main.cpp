@@ -600,11 +600,17 @@ int main(int argc, char** argv) {
     // Presented at the VI (Skip Buffering), not as soon as a task fills a framebuffer (Present Early), which shows a
     // frame drawn in several tasks before its last.
     //
-    // Render to RAM, RT64's exact copy of each list's frame into RDRAM (its default, on the page too), so that what the
-    // game's CPU reads of a frame it has drawn is that frame.
+    // Render to RAM, RT64's copy of each list's frame into RDRAM: the game's CPU reads a frame it drew for the
+    // transition between shots, which turns the last frame of the shot over as a card, and without the copy that card
+    // is black. On the page the copy lands a list late, as F-Zero X's does: the transition takes the frame being left,
+    // which a list or two before is the same picture, and with the exact copy every list waits for the GPU's readback.
+    // The desktop build keeps RT64's exact copy.
     ultramodern::renderer::callbacks_t renderer_callbacks{
         .create_render_context = [](uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool developer_mode) {
             recompui::renderer::set_render_to_ram(true);
+#ifdef __EMSCRIPTEN__
+            recompui::renderer::set_render_to_ram_late(true);
+#endif
             return recompui::renderer::create_render_context(rdram, window_handle, ultramodern::renderer::PresentationMode::SkipBuffering, developer_mode);
         },
     };
