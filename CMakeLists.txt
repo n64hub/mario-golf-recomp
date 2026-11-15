@@ -81,6 +81,13 @@ set(ULTRAMODERN_VIS_WAIT_FOR_RENDERER ON)
 # RT64 interpolates the RSP tasks the game draws a frame in as one frame (RT64_GAME_FRAME_WORKLOADS), on with
 # Emscripten and here on the desktop too, so the desktop build draws as the page does.
 set(RT64_GAME_FRAME_WORKLOADS ON)
+# The game gives its draws no matrix groups, so RT64 pairs what it draws from frame to frame itself: here on the desktop
+# too, as with Emscripten, a camera cut pairs nothing across the cut (RT64_SKIP_CAMERA_CUTS), or its frames between
+# drew the trees stretched as the camera cuts from the golfer to the ball, and a tree pairs with none at another place
+# that stood still in both frames (RT64_SKIP_PLACE_SWAPS), or they drew the trees, which the game draws in another
+# order each frame, out on the fairway in a flyover and jumping about as a shot is aimed.
+set(RT64_SKIP_CAMERA_CUTS ON)
+set(RT64_SKIP_PLACE_SWAPS ON)
 # The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
 # memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
 # every target, the runtime's too, so that each maps KUSEG the same way.
