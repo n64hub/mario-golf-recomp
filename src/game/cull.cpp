@@ -1,13 +1,14 @@
-// How much wider than the game's 4:3 the picture is, for the course's culling (patches/cull.c): the window's aspect
-// ratio over 4:3 with the Graphics tab's Aspect Ratio Expand, where RT64 widens the picture to the window, and 1 with
-// Original, or in a window no wider than 4:3, where the game's own test fits the picture.
+// How much wider than the game's 4:3 the picture is: the window's aspect ratio over 4:3 with the Graphics tab's Aspect
+// Ratio Expand, where RT64 widens the picture to the window, and 1 with Original, or in a window no wider than 4:3,
+// where the game's own 4:3 fills the picture. The course's culling reads it (patches/cull.c), and so does the sun's
+// light on the sky (src/game/backdrop.cpp).
 #include <cstdint>
 
 #include "recomp.h"
 #include "ultramodern/config.hpp"
 #include "recompui/recompui.h"
 
-extern "C" void mg_cull_width_scale(uint8_t*, recomp_context* ctx) {
+float mg_wide_scale() {
     float scale = 1.0f;
     if (ultramodern::renderer::get_graphics_config().ar_option == ultramodern::renderer::AspectRatio::Expand) {
         int width = 0;
@@ -20,5 +21,9 @@ extern "C" void mg_cull_width_scale(uint8_t*, recomp_context* ctx) {
             }
         }
     }
-    ctx->f0.fl = scale;
+    return scale;
+}
+
+extern "C" void mg_cull_width_scale(uint8_t*, recomp_context* ctx) {
+    ctx->f0.fl = mg_wide_scale();
 }

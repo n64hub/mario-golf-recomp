@@ -1,0 +1,200 @@
+// The sun's light at the wide picture's sides (RT64's Aspect Ratio Expand): its beam and glare go on past the 4:3
+// frame's side where the sun is, rather than ending in a vertical line there.
+//
+// The sky behind the course has the sun's light drawn on it in screen space, where the sun is: a texture rectangle
+// (a 64-texel texture, mirrored, so the light is 128 texels across) in a pale colour, before the course. Where the sun
+// is near or past a side of the screen, the game cuts the rectangle at that side, at 0 or 320, and starts its texture
+// as far in as it cut. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame,
+// so in a wider window the light was cut along a vertical line at that frame's side, with the plain sky beyond.
+//
+// func_80091110 draws the sky with it (and the course's backdrop), twice a frame, from func_8002DC10, the frame's
+// drawing; it is asm in the decomp, so as with the HUD (src/game/hud.cpp) its commands are rewritten rather than the
+// function copied. us.toml hooks both calls on both sides: mg_backdrop_begin notes where the display list's head stands,
+// and mg_backdrop_end reads what was added since. A rectangle cut at a side is put back as the game had it before the
+// cut: on the left its texture starts at the tile's own start again, the rectangle as far past the side as that takes;
+// on the right it goes on to the texture's end (twice the tile with a mirrored s). It is drawn as RT64's extended
+// texture rectangle stretched to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the
+// game's own scissor, the 3D's, clips it where the wide picture's 3D ends; its place and texture step are squeezed
+// toward the screen's middle by as much, so the light keeps its shape. A scissor of its own, widened past 4:3 in the
+// 4:3 frame's coordinates, doesn't hold it: the light reaches the black border past the 3D, which nothing clears. Those
+// commands go to a buffer of this file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced
+// by a branch to it, and its end a branch back. With Aspect Ratio Original, or a window no wider than 4:3, nothing
+// changes.
+
+#include <cmath>
+#include <cstdint>
+
+#define F3DEX_GBI_2
+#include "rt64_extended_gbi.h"
+
+float mg_wide_scale();
+
+namespace {
+
+// F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
+constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
+constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2;
+constexpr uint32_t G_DL_NOPUSH = 1, G_TX_MIRROR = 1;
+
+// The display list's head, which the game's drawing functions advance (the decomp's data at 0x801B93DC).
+constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
+// The screen's width, in pixels.
+constexpr int SCREEN_WIDTH = 320;
+
+// Above hud.cpp's buffers. Two lists a frame, and the renderer may read one a frame or more after the game sends it.
+constexpr uint32_t BUFFER_BASE = 0x80740000;
+constexpr uint32_t BUFFER_SIZE = 0x400;
+constexpr uint32_t BUFFER_COUNT = 64;
+// The commands read from the game, at most.
+constexpr uint32_t MAX_COMMANDS = 20000;
+// Rectangles rewritten in one call, at most.
+constexpr int MAX_RECTS = 4;
+
+uint8_t* g_rdram;
+uint32_t g_start;
+bool g_open = false;
+uint32_t g_next_buffer = 0;
+
+uint32_t rd_w(uint32_t addr) {
+    return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
+}
+
+void wr_w(uint32_t addr, uint32_t value) {
+    *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u)) = value;
+}
+
+struct Writer {
+    uint32_t pos, end;
+    bool ok = true;
+    void put(uint32_t w0, uint32_t w1) {
+        if (pos + 8 > end) {
+            ok = false;
+            return;
+        }
+        wr_w(pos, w0);
+        wr_w(pos + 4, w1);
+        pos += 8;
+    }
+    void put(const GfxCommand* cmds, int n) {
+        for (int i = 0; i < n; i++) {
+            put(cmds[i].values.word0, cmds[i].values.word1);
+        }
+    }
+};
+
+// What the last G_SETTILE and G_SETTILESIZE said of a tile.
+struct Tile {
+    int uls = 0, lrs = 0; // in texels
+    bool mirror = false;
+};
+
+// The rectangle at addr (its three commands) put back past a side of the screen it was cut at, in a buffer that
+// branches back after it. False if it wasn't cut at one, or didn't fit.
+bool widen(uint32_t addr, const Tile& tile, float scale) {
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
+    int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
+    int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
+    int s = int16_t(st >> 16), t = int16_t(st & 0xFFFF); // s10.5
+    int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF); // s5.10
+    if (dsdx <= 0) {
+        return false;
+    }
+    int start = tile.uls * 32;
+    int end = (tile.uls + (tile.lrs - tile.uls + 1) * (tile.mirror ? 2 : 1)) * 32;
+    int new_ulx = ulx, new_lrx = lrx, new_s = s;
+    // s moves by dsdx / 128 a quarter pixel.
+    if (ulx == 0 && s > start) {
+        new_ulx = -((s - start) * 128 / dsdx);
+        new_s = start;
+    }
+    if (lrx == SCREEN_WIDTH * 4) {
+        int s_right = s + (lrx - ulx) * dsdx / 128;
+        if (end > s_right) {
+            new_lrx = lrx + (end - s_right) * 128 / dsdx;
+        }
+    }
+    if (new_ulx == ulx && new_lrx == lrx) {
+        return false;
+    }
+
+    // Drawn stretched to the picture, as RT64 draws a rectangle across the whole screen: the game's own scissor (the
+    // 3D's, 8 to 312) is then the 3D's in the picture too. So that the light keeps its shape, the rectangle is put
+    // nearer the screen's middle and its texture stepped faster by as much as the stretch spreads them.
+    auto squeeze = [scale](int x) { return int(std::lround(SCREEN_WIDTH * 2 + (x - SCREEN_WIDTH * 2) / scale)); };
+    int wide_dsdx = int(std::lround(dsdx * scale));
+    if (wide_dsdx > INT16_MAX) {
+        return false;
+    }
+
+    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+    Writer out{ buffer, buffer + BUFFER_SIZE };
+    GfxCommand c[3];
+    gEXEnable(c);
+    out.put(c, 1);
+    gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
+    out.put(c, 1);
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), uly, squeeze(new_lrx), lry,
+                        (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
+    out.put(c, 3);
+    gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
+    out.put(c, 1);
+    out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
+    if (!out.ok) {
+        return false;
+    }
+    wr_w(addr, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
+    return true;
+}
+
+void widen_all(uint32_t start, uint32_t end) {
+    if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
+        return;
+    }
+    float scale = mg_wide_scale();
+    if (scale <= 1.0f) {
+        return;
+    }
+    Tile tiles[8];
+    int done = 0;
+    for (uint32_t addr = start; addr + 8 <= end && done < MAX_RECTS; addr += 8) {
+        uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
+        switch (w0 >> 24) {
+            case G_SETTILE:
+                tiles[(w1 >> 24) & 7].mirror = ((w1 >> 8) & G_TX_MIRROR) != 0;
+                break;
+            case G_SETTILESIZE: {
+                Tile& tile = tiles[(w1 >> 24) & 7];
+                tile.uls = int((w0 >> 12) & 0xFFF) / 4;
+                tile.lrs = int((w1 >> 12) & 0xFFF) / 4;
+                break;
+            }
+            case G_TEXRECT:
+                if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
+                    if (widen(addr, tiles[(w1 >> 24) & 7], scale)) {
+                        done++;
+                    }
+                    addr += 16;
+                }
+                break;
+        }
+    }
+}
+
+} // namespace
+
+extern "C" void mg_backdrop_begin(uint8_t* rdram) {
+    g_rdram = rdram;
+    g_start = rd_w(MG_GFX_HEAD);
+    g_open = true;
+}
+
+extern "C" void mg_backdrop_end(uint8_t* rdram) {
+    if (!g_open) {
+        return;
+    }
+    g_open = false;
+    g_rdram = rdram;
+    widen_all(g_start, rd_w(MG_GFX_HEAD));
+}

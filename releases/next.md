@@ -1,0 +1,2 @@
+- **The sun's glare goes on past the 4:3 edge in widescreen:** with the Graphics tab's Aspect Ratio Expand in a window wider than 4:3, the sun's beam and glare on the sky no longer end in a straight vertical line where the 4:3 picture would end, on the left or the right.
+- **The title screen fills the window's height in widescreen:** with Aspect Ratio Expand in a window wider than 4:3, the title's painting is shown at the window's full height, keeping its shape, instead of in a smaller box with black above and below it.

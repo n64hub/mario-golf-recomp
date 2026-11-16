@@ -102,8 +102,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   table at ROM 0x14F994). So time spent in the launcher reaches nothing a player sees.
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, `patches/cull.c` culls the
-  course's terrain at the wide picture's width rather than the 4:3 frame's, and `src/game/hud.cpp` puts the HUD at the
-  wide picture's sides (their headers say how). The pin's flagstick is drawn from screen positions the game works out
+  course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
+  wide picture's sides, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
+  sides, where the game cuts them at the screen's, and `src/game/title.cpp` scales the title's painting, a 2D screen
+  RT64 keeps at 4:3, to the picture's full height (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker. Its players take turns on one view, never a split screen,
   so N64Recomp-browser's docs/new-recomp.md item 1a (split screen) isn't in its row.

@@ -240,6 +240,8 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/game/tlb.cpp
     ${CMAKE_SOURCE_DIR}/src/game/hud.cpp
     ${CMAKE_SOURCE_DIR}/src/game/cull.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/backdrop.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/title.cpp
 )
 if (MG_PATCHES)
     target_sources(MarioGolfRecompiled PRIVATE ${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp)
