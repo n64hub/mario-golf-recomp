@@ -1,1 +1,0 @@
-- **The course fills a wide window:** with the Graphics tab's Aspect Ratio Expand in a window wider than 4:3, the ground at the picture's sides is drawn instead of left out, so a hole's flyover and the hole select no longer show water where the course goes on.
