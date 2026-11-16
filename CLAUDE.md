@@ -100,8 +100,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   0x80031340-0x8003137C draw as bars when the debug flag D_800B67C0 is on (a code entered at the title, overlay 8's
   table at ROM 0x14F994). So time spent in the launcher reaches nothing a player sees.
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
-  to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, and `src/game/hud.cpp` puts
-  the HUD at the wide picture's sides (its header says how). Its players take turns on one view, never a split screen,
+  to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, `patches/cull.c` culls the
+  course's terrain at the wide picture's width rather than the 4:3 frame's, and `src/game/hud.cpp` puts the HUD at the
+  wide picture's sides (their headers say how). Its players take turns on one view, never a split screen,
   so N64Recomp-browser's docs/new-recomp.md item 1a (split screen) isn't in its row.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the

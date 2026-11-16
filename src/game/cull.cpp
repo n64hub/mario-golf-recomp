@@ -7,7 +7,7 @@
 #include "ultramodern/config.hpp"
 #include "recompui/recompui.h"
 
-extern "C" void mg_cull_width_scale(uint8_t* rdram, recomp_context* ctx) {
+extern "C" void mg_cull_width_scale(uint8_t*, recomp_context* ctx) {
     float scale = 1.0f;
     if (ultramodern::renderer::get_graphics_config().ar_option == ultramodern::renderer::AspectRatio::Expand) {
         int width = 0;
