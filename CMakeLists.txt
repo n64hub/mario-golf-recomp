@@ -85,9 +85,12 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # too, as with Emscripten, a camera cut pairs nothing across the cut (RT64_SKIP_CAMERA_CUTS), or its frames between
 # drew the trees stretched as the camera cuts from the golfer to the ball, and a tree pairs with none at another place
 # that stood still in both frames (RT64_SKIP_PLACE_SWAPS), or they drew the trees, which the game draws in another
-# order each frame, out on the fairway in a flyover and jumping about as a shot is aimed.
+# order each frame, out on the fairway in a flyover and jumping about as a shot is aimed. The far hills behind a
+# course are 2D strips whose texture the game scrolls as the camera turns, so RT64 slides it in the frames between
+# (RT64_INTERPOLATE_RECT_SCROLLS), or they stepped a game frame at a time against the trees and fairway in front.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
+set(RT64_INTERPOLATE_RECT_SCROLLS ON)
 # The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
 # memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
 # every target, the runtime's too, so that each maps KUSEG the same way.

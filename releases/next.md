@@ -1,0 +1,1 @@
+- **The far hills move smoothly:** the hills on the horizon behind a course (Toad Highlands' hills with eyes) now turn with the camera on every frame, like the trees in front of them, instead of jumping 30 times a second.
