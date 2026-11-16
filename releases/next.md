@@ -1,1 +1,0 @@
-- **The clouds in the sky move smoothly:** as the camera turns on a course, the clouds behind it slide at the display's rate with the course in front of them, instead of stepping at the game's own 30 a second.
