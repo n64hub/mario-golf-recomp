@@ -91,6 +91,11 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
+# The game projects the pin's flagstick itself and writes where its corners land (G_MODIFYVTX's XYSCREEN): here on the
+# desktop too, as with Emscripten, RT64 scales those screen positions for Aspect Ratio Expand as it scales its
+# projections (RT64_EXPAND_SCREEN_VERTICES), or in a picture wider than 4:3 the flagstick stood away from the hole and
+# from the pin's marker, further out the further it was from the picture's middle.
+set(RT64_EXPAND_SCREEN_VERTICES ON)
 # The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
 # memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
 # every target, the runtime's too, so that each maps KUSEG the same way.

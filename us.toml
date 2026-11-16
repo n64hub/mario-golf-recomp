@@ -49,6 +49,14 @@ func = "nuGfxTaskAllEndWait"
 before_vram = 0x800A1608
 text = "{ void yield_self(uint8_t*); if (ctx->r2 != 0) yield_self(rdram); }"
 
+# A wait of three retraces in func_80069D08 (Training's course screen, as the hole changes): it spins while the
+# retrace count at 0x800B67F0, which the graphics callback advances on another game thread, is within 3 of the one it
+# noted at 0x80105318. Each pass yields, so that thread runs; without it the game froze there.
+[[patches.hook]]
+func = "func_80069D08"
+before_vram = 0x80069D5C
+text = "{ void yield_self(uint8_t*); yield_self(rdram); }"
+
 # The main loop's call of address 0 (a debug library's function the release doesn't link), with a0 = 100, made only
 # while the byte at 0x800B67C8 is 2. Nothing sets it but the graphics callback, from 1 to 2 when A, B, L and R are held,
 # and nothing sets it to 1, so the call never runs; N64Recomp needs a function to call there, and it calls nothing.

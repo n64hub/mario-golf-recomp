@@ -64,10 +64,11 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   before each RSP task). `RECOMP_KUSEG_WINDOW` gives the recompiled code that window, natively and on the page
   (`CMakeLists.txt`).
 - **Spins.** The runtime runs one game thread at a time and switches only when the running one calls into it, where a
-  console's interrupts preempt any thread. Three loops spin on what another thread changes: NuSystem's idle thread
+  console's interrupts preempt any thread. Four loops spin on what another thread changes: NuSystem's idle thread
   waiting for an idle function the game never sets, the main thread's wait for a game mode that the graphics callback
-  sets (func_80029C34), and nuGfxTaskAllEndWait on its task count. Each pass yields (`us.toml`). Without them the game
-  hangs on a black screen at boot. A new hang with every other game thread waiting in `osRecvMesg` is another such
+  sets (func_80029C34), nuGfxTaskAllEndWait on its task count, and Training's wait of three retraces as its hole
+  changes (func_80069D08). Each pass yields (`us.toml`). Without the first three the game hangs on a black screen at
+  boot, and without the last Training froze on its course screen. A new hang with every other game thread waiting in `osRecvMesg` is another such
   loop: `--stacks <seconds>` prints every thread's stack that often on Windows (`src/main/crash_trace.cpp`), which
   finds it.
 - **Renames.** The game has functions of its own named `sin`, `cos`, `tan`, `atan`, `atan2` and `main`, which N64Recomp
@@ -102,7 +103,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, and `src/game/hud.cpp` puts the HUD at the
-  wide picture's sides (their headers say how). Its players take turns on one view, never a split screen,
+  wide picture's sides (their headers say how). The pin's flagstick is drawn from screen positions the game works out
+  itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
+  or it stands away from the hole and its marker. Its players take turns on one view, never a split screen,
   so N64Recomp-browser's docs/new-recomp.md item 1a (split screen) isn't in its row.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
