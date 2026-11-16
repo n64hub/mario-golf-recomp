@@ -20,6 +20,19 @@
 // commands go to a buffer of this file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced
 // by a branch to it, and its end a branch back. With Aspect Ratio Original, or a window no wider than 4:3, nothing
 // changes.
+//
+// The sky's clouds slide on every frame drawn as the camera turns, with the course in front of them, rather than a step
+// a game frame. The sky is the first thing func_80091110 draws: three triangles, under a modelview matrix of their
+// own, from ten vertices that never move (at 0x800C69C0 and 0x800C6A60 on alternate frames, as the display list
+// alternates between two buffers), whose texture coordinates the game writes anew each frame as the camera turns, over
+// a 64-texel cloud texture that wraps. RT64 slides a 3D draw's texture between the game's frames only for a matrix
+// group that asks it to (its extended GBI's texcoord interpolation), and an untagged one asks nothing, so with
+// interpolation on the clouds stepped at the game's 30 a second while the trees moved at the display's rate (the far
+// hills, texture rectangles, are RT64_INTERPOLATE_RECT_SCROLLS's, CMakeLists.txt). The sky's matrix command is
+// replaced by a branch to a buffer that opens such a group around it, and the command after its last triangle by one
+// that closes it. The texture coordinates' wrap point is the cloud texture's own period, so where the game's
+// coordinates wrap the clouds slide the short way, as they look, not across the sky in one frame. Whatever the aspect
+// ratio.
 
 #include <cmath>
 #include <cstdint>
@@ -35,6 +48,19 @@ namespace {
 constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2;
 constexpr uint32_t G_DL_NOPUSH = 1, G_TX_MIRROR = 1;
+constexpr uint32_t G_VTX = 0x01, G_TRI1 = 0x05, G_TRI2 = 0x06, G_QUAD = 0x07, G_MTX = 0xDA, G_MOVEWORD = 0xDB;
+constexpr uint32_t G_RDPPIPESYNC = 0xE7;
+// G_MTX's parameter byte, which F3DEX2 sends with G_MTX_PUSH flipped: set for a projection, clear for a modelview.
+constexpr uint32_t G_MTX_PROJECTION = 0x04;
+constexpr uint32_t G_MTX_MODELVIEW = 0x00;
+
+// The sky's vertices, which func_80091110 loads with one G_VTX and gives new texture coordinates each frame: two
+// buffers, used on alternate frames, as the display list is.
+constexpr uint32_t SKY_VERTICES[2] = { 0x800C69C0, 0x800C6A60 };
+// The sky's matrix group: any ID of the game's own that nothing else uses.
+constexpr uint32_t SKY_GROUP_ID = 0x4D47534B;
+// The cloud texture's period, in texels (its tile's mask), in the quarter texels gEXSetTexcoordWrapPoint takes.
+constexpr uint32_t SKY_WRAP = 64 * 4;
 
 // The display list's head, which the game's drawing functions advance (the decomp's data at 0x801B93DC).
 constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
@@ -182,6 +208,81 @@ void widen_all(uint32_t start, uint32_t end) {
     }
 }
 
+// The sky's draw between start and end (its modelview matrix, the G_VTX of its vertices and its triangles) put in a
+// matrix group whose texture coordinates RT64 interpolates. False if it isn't there or a buffer didn't fit.
+bool tag_sky(uint32_t start, uint32_t end) {
+    if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
+        return false;
+    }
+    for (uint32_t vtx = start; vtx + 8 <= end; vtx += 8) {
+        const uint32_t vtx_address = rd_w(vtx + 4) & 0x7FFFFF;
+        if ((rd_w(vtx) >> 24) != G_VTX ||
+            (vtx_address != (SKY_VERTICES[0] & 0x7FFFFF) && vtx_address != (SKY_VERTICES[1] & 0x7FFFFF))) {
+            continue;
+        }
+        // Its modelview matrix, a few commands before (a G_MOVEWORD between them).
+        uint32_t mtx = 0;
+        for (uint32_t a = vtx; a >= start + 8 && a + 32 > vtx;) {
+            a -= 8;
+            uint32_t op = rd_w(a) >> 24;
+            if (op == G_MTX) {
+                if ((rd_w(a) & G_MTX_PROJECTION) == 0) {
+                    mtx = a;
+                }
+                break;
+            }
+            if (op != G_MOVEWORD) {
+                break;
+            }
+        }
+        // The command after its last triangle (a pipe sync comes between the G_VTX and them).
+        uint32_t tris = vtx + 8;
+        while (tris + 8 <= end && (rd_w(tris) >> 24) == G_RDPPIPESYNC) {
+            tris += 8;
+        }
+        uint32_t after = tris;
+        while (after + 8 <= end && ((rd_w(after) >> 24) == G_TRI1 || (rd_w(after) >> 24) == G_TRI2 ||
+                                    (rd_w(after) >> 24) == G_QUAD)) {
+            after += 8;
+        }
+        uint32_t after_op = rd_w(after) >> 24;
+        if (mtx == 0 || after == tris || after + 8 > end || after_op == G_TEXRECT || after_op == G_RDPHALF_1 ||
+            after_op == G_RDPHALF_2) {
+            return false;
+        }
+
+        uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+        g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+        Writer open{ buffer, buffer + BUFFER_SIZE / 2 };
+        Writer close{ buffer + BUFFER_SIZE / 2, buffer + BUFFER_SIZE };
+        GfxCommand c[2];
+        gEXEnable(c);
+        open.put(c, 1);
+        gEXSetTexcoordWrapPoint(c, SKY_WRAP, SKY_WRAP);
+        open.put(c, 1);
+        gEXMatrixGroupSimple(c, SKY_GROUP_ID, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_INTERPOLATE,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                             G_EX_COMPONENT_SKIP, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE, G_EX_COMPONENT_INTERPOLATE,
+                             G_EX_COMPONENT_SKIP);
+        open.put(c, 2);
+        open.put(rd_w(mtx), rd_w(mtx + 4));
+        open.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (mtx + 8) & 0x1FFFFFFF);
+        gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+        close.put(c, 1);
+        close.put(rd_w(after), rd_w(after + 4));
+        close.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (after + 8) & 0x1FFFFFFF);
+        if (!open.ok || !close.ok) {
+            return false;
+        }
+        wr_w(mtx, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
+        wr_w(mtx + 4, buffer & 0x1FFFFFFF);
+        wr_w(after, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
+        wr_w(after + 4, (buffer + BUFFER_SIZE / 2) & 0x1FFFFFFF);
+        return true;
+    }
+    return false;
+}
+
 } // namespace
 
 extern "C" void mg_backdrop_begin(uint8_t* rdram) {
@@ -196,5 +297,6 @@ extern "C" void mg_backdrop_end(uint8_t* rdram) {
     }
     g_open = false;
     g_rdram = rdram;
+    tag_sky(g_start, rd_w(MG_GFX_HEAD));
     widen_all(g_start, rd_w(MG_GFX_HEAD));
 }
