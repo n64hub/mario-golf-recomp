@@ -1,0 +1,2 @@
+- **The pin stands at the hole in widescreen:** with the Graphics tab's Aspect Ratio Expand in a window wider than 4:3, the flagstick is drawn at the hole and under the pin's marker, instead of off to the side and drifting further away as the camera turns.
+- **Training no longer freezes as the hole changes:** picking another hole on Training's course screen goes on to it instead of hanging there.
