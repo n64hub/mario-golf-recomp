@@ -140,11 +140,13 @@ before_vram = 0x80030758
 text = "{ void mg_ball_end(uint8_t*); mg_ball_end(rdram); }"
 
 # The title screen's painting at the picture's full height in a wide window (src/game/title.cpp): each display list the
-# game sends is read for the painting's scissor, and its rectangles are scaled in place.
+# game sends is read for the painting's scissor, and its rectangles are scaled in place. And the iris wipe at its own
+# shape (src/game/iris.cpp): the same list is read for the mask's rectangle, which is drawn at its aspect across the
+# whole window.
 [[patches.hook]]
 func = "nuGfxTaskStart"
 before_vram = 0x80029774
-text = "{ void mg_title_fill(uint8_t*, uint32_t); mg_title_fill(rdram, (uint32_t)ctx->r4); }"
+text = "{ void mg_title_fill(uint8_t*, uint32_t); void mg_iris_fix(uint8_t*, uint32_t); mg_title_fill(rdram, (uint32_t)ctx->r4); mg_iris_fix(rdram, (uint32_t)ctx->r4); }"
 
 # The course's terrain without cracks at a high resolution. The course is 8 by 16 blocks, and each frame func_80062A8C
 # picks each block's level of detail by its distance: 2, its own fine display list; 1, a 2x2 grid of quads; 0, one quad.

@@ -245,6 +245,7 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/game/title.cpp
     ${CMAKE_SOURCE_DIR}/src/game/ball.cpp
     ${CMAKE_SOURCE_DIR}/src/game/card.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/iris.cpp
 )
 if (MG_PATCHES)
     target_sources(MarioGolfRecompiled PRIVATE ${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp)
