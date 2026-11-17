@@ -1,7 +1,7 @@
 // The old shot of a transition kept at the game's 4:3 shape in a wide picture (RT64's Aspect Ratio Expand).
 //
-// As the intro cuts between its shots, and as a course's view changes after a shot, the game dissolves from the old shot
-// to the new one. It copies its last frame of the old shot out of the framebuffer into a buffer of its own (304x240,
+// As the intro cuts between its shots, and as a shot's camera cuts to a view from the green while the ball flies, the
+// game dissolves from the old shot to the new one, the HUD included. It copies its last frame of the old shot out of the framebuffer into a buffer of its own (304x240,
 // 16-bit) and draws that copy over the new shot, fading it out, as 38 texture rectangles of 6 rows each from x 8 to 312
 // (func_8009232C, called by the transition drawer func_800957F0 for its transition types 8 and 9). The copy is what the
 // game read back from RAM, and RT64 renders that at the game's own 320x240 for it, so it holds the 4:3 frame and none of
