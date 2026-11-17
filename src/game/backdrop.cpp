@@ -1,25 +1,32 @@
 // The sun's light at the wide picture's sides (RT64's Aspect Ratio Expand): its beam and glare go on past the 4:3
-// frame's side where the sun is, rather than ending in a vertical line there.
+// frame's side where the sun is, rather than ending in a vertical line there, and stay while any of it is in the
+// picture.
 //
-// The sky behind the course has the sun's light drawn on it in screen space, where the sun is: a texture rectangle
-// (a 64-texel texture, mirrored, so the light is 128 texels across) in a pale colour, before the course. Where the sun
-// is near or past a side of the screen, the game cuts the rectangle at that side, at 0 or 320, and starts its texture
-// as far in as it cut. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame,
-// so in a wider window the light was cut along a vertical line at that frame's side, with the plain sky beyond.
+// The sky behind the course has the sun's light drawn on it in screen space, where the sun is: a texture rectangle (a
+// 64-texel texture, mirrored, so the light is 128 texels across) in a pale colour, before the course. func_8008FF20
+// draws it. Where the sun is near or past the screen's left side, the game cuts the rectangle at 0 and starts its
+// texture as far in as it cut (wholly past it, the rectangle is cut to nothing); on the right it lets the rectangle run
+// past 320. Either way the game's scissor, the 3D's (8 to 312), cuts it at the 4:3 frame's side. RT64 widens the 3D to
+// the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that scissor, so in a wider window
+// the light was cut along a vertical line at that frame's side, with the plain sky beyond. And the game draws the light
+// only while the sun is within 64 pixels of the screen, so with the sun further out the light went at once, though the
+// wide picture still showed some of it.
 //
 // func_80091110 draws the sky with it (and the course's backdrop), twice a frame, from func_8002DC10, the frame's
 // drawing; it is asm in the decomp, so as with the HUD (src/game/hud.cpp) its commands are rewritten rather than the
-// function copied. us.toml hooks both calls on both sides: mg_backdrop_begin notes where the display list's head stands,
-// and mg_backdrop_end reads what was added since. A rectangle cut at a side is put back as the game had it before the
-// cut: on the left its texture starts at the tile's own start again, the rectangle as far past the side as that takes;
-// on the right it goes on to the texture's end (twice the tile with a mirrored s). It is drawn as RT64's extended
-// texture rectangle stretched to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the
-// game's own scissor, the 3D's, clips it where the wide picture's 3D ends; its place and texture step are squeezed
-// toward the screen's middle by as much, so the light keeps its shape. A scissor of its own, widened past 4:3 in the
-// 4:3 frame's coordinates, doesn't hold it: the light reaches the black border past the 3D, which nothing clears. Those
-// commands go to a buffer of this file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced
-// by a branch to it, and its end a branch back. With Aspect Ratio Original, or a window no wider than 4:3, nothing
-// changes.
+// function copied. us.toml hooks both calls on both sides: mg_backdrop_begin notes where the display list's head
+// stands, and mg_backdrop_end reads what was added since. A rectangle that reaches past the scissor is drawn again past
+// it, and one cut at the left side is put back as the game had it before the cut: its texture starts at the tile's own
+// start again, the rectangle as far past the side as that takes, and one cut to nothing goes on to the texture's end
+// (twice the tile with a mirrored s). It is drawn as RT64's extended texture rectangle stretched to the picture
+// (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's own scissor, the 3D's, clips it where
+// the wide picture's 3D ends; its place and texture step are squeezed toward the screen's middle by as much, so the
+// light keeps its shape. A scissor of its own, widened past 4:3 in the 4:3 frame's coordinates, doesn't hold it: the
+// light reaches the black border past the 3D, which nothing clears. Those commands go to a buffer of this file's in
+// RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a branch
+// back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through mg_sun_bound_x, a us.toml hook that moves
+// the x they compare toward the screen's middle by as much as the wide picture reaches past 4:3, so the light is drawn
+// until the last of it leaves the picture. With Aspect Ratio Original, or a window no wider than 4:3, nothing changes.
 //
 // The sky's clouds slide on every frame drawn as the camera turns, with the course in front of them, rather than a step
 // a game frame. The sky is the first thing func_80091110 draws: three triangles, under a modelview matrix of their
@@ -66,6 +73,12 @@ constexpr uint32_t SKY_WRAP = 64 * 4;
 constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
 // The screen's width, in pixels.
 constexpr int SCREEN_WIDTH = 320;
+// The game's scissor for the 3D and the sky, in pixels: a rectangle past it is cut at the 4:3 frame's sides.
+constexpr int SCISSOR_LEFT = 8;
+constexpr int SCISSOR_RIGHT = 312;
+// func_8008FF20 draws the sun's light only while the sun is less than this far past a side of the 4:3 screen (its
+// -64 and 384), in pixels: the light's half-width.
+constexpr float SUN_REACH = 64.0f;
 
 // Above hud.cpp's buffers. Two lists a frame, and the renderer may read one a frame or more after the game sends it.
 constexpr uint32_t BUFFER_BASE = 0x80740000;
@@ -114,8 +127,9 @@ struct Tile {
     bool mirror = false;
 };
 
-// The rectangle at addr (its three commands) put back past a side of the screen it was cut at, in a buffer that
-// branches back after it. False if it wasn't cut at one, or didn't fit.
+// The rectangle at addr (its three commands) drawn past the scissor where it reaches past it, put back past the left
+// side where the game cut it there, in a buffer that branches back after it. False if it stays within the scissor, or
+// didn't fit.
 bool widen(uint32_t addr, const Tile& tile, float scale) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
@@ -132,14 +146,12 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     if (ulx == 0 && s > start) {
         new_ulx = -((s - start) * 128 / dsdx);
         new_s = start;
-    }
-    if (lrx == SCREEN_WIDTH * 4) {
-        int s_right = s + (lrx - ulx) * dsdx / 128;
-        if (end > s_right) {
-            new_lrx = lrx + (end - s_right) * 128 / dsdx;
+        // Wholly past the left side, the game's right edge is cut to 0 too: it goes on to the texture's end.
+        if (lrx <= ulx) {
+            new_lrx = new_ulx + (end - start) * 128 / dsdx;
         }
     }
-    if (new_ulx == ulx && new_lrx == lrx) {
+    if (new_ulx >= SCISSOR_LEFT * 4 && new_lrx <= SCISSOR_RIGHT * 4) {
         return false;
     }
 
@@ -284,6 +296,17 @@ bool tag_sky(uint32_t start, uint32_t end) {
 }
 
 } // namespace
+
+// The sun's x on the screen as func_8008FF20's bounds read it: moved toward the screen's middle by as much as the wide
+// picture reaches further, so that the light is drawn while any of it is in the picture.
+extern "C" float mg_sun_bound_x(float x) {
+    float scale = mg_wide_scale();
+    if (scale <= 1.0f) {
+        return x;
+    }
+    float half = SCREEN_WIDTH / 2.0f;
+    return half + (x - half) * (half + SUN_REACH) / (half * scale + SUN_REACH);
+}
 
 extern "C" void mg_backdrop_begin(uint8_t* rdram) {
     g_rdram = rdram;
