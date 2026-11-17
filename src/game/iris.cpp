@@ -9,10 +9,12 @@
 //
 // nuGfxTaskStart sends each frame's display list, and title.cpp's hook there calls mg_iris_fix with it: it finds the
 // mask's rectangle and sends it through a buffer that draws it kept at its aspect (G_EX_ASPECT_ADJUST) and from the
-// window's left edge to its right one, its coordinates past the 4:3 frame's sides, under a scissor of the whole window,
-// its s moved back by as many texels as the rectangle grew to the left. The mask's texels past the 4:3 frame are what
-// the console would show there: black while the shape is inside the frame. The scissor and the aspect are set back
-// after it. The buffers are this file's in RDRAM, above the 4 MB the game uses. With Aspect Ratio Original, or a window
+// window's left edge to its right one, its coordinates past the 4:3 frame's sides, under a scissor as wide as it, its s
+// moved back by as many texels as the rectangle grew to the left. The mask's texels past the 4:3 frame are what the
+// console would show there: black while the shape is inside the frame. The scissor's sides are the rectangle's own
+// coordinates, not the window's edges (G_EX_ORIGIN_LEFT and G_EX_ORIGIN_RIGHT): RT64 puts those at the HUD's edges, which
+// its HUD Ratio setting (Clamp 16:9 by default) holds in from the sides of a window wider than 16:9, and the course
+// showed in a strip down each side through the wipe. The scissor and the aspect are set back after it. The buffers are this file's in RDRAM, above the 4 MB the game uses. With Aspect Ratio Original, or a window
 // no wider than 4:3, nothing changes.
 
 #include <cmath>
@@ -108,7 +110,7 @@ void widen(uint32_t addr, float left) {
     out.put(c, 1);
     gEXPushScissor(c);
     out.put(c, 1);
-    gEXSetScissor(c, G_SC_NON_INTERLACE, G_EX_ORIGIN_LEFT, G_EX_ORIGIN_RIGHT, 0, 0, 0, SCREEN_HEIGHT);
+    gEXSetScissor(c, G_SC_NON_INTERLACE, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx / 4, 0, lrx / 4, SCREEN_HEIGHT);
     out.put(c, 2);
     gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx & 0xFFFF, w1 & 0xFFF, lrx & 0xFFFF, w0 & 0xFFF, tile,
                         s_left & 0xFFFF, t & 0xFFFF, dsdx, dtdy);
