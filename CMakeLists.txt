@@ -86,8 +86,9 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # drew the trees stretched as the camera cuts from the golfer to the ball, and a tree pairs with none at another place
 # that stood still in both frames (RT64_SKIP_PLACE_SWAPS), or they drew the trees, which the game draws in another
 # order each frame, out on the fairway in a flyover and jumping about as a shot is aimed. The far hills behind a
-# course are 2D strips whose texture the game scrolls as the camera turns, so RT64 slides it in the frames between
-# (RT64_INTERPOLATE_RECT_SCROLLS), or they stepped a game frame at a time against the trees and fairway in front.
+# course are 2D strips whose texture the game scrolls as the camera turns and which it moves up and down as the camera
+# pitches, so RT64 slides the texture and moves the strips in the frames between (RT64_INTERPOLATE_RECT_SCROLLS), or
+# they stepped a game frame at a time against the trees and fairway in front.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
