@@ -1,0 +1,1 @@
+- **No thin lines across the course at a high resolution:** where the distant terrain met a nearer stretch, pale lines of the sky's colour could cross the rough (Koopa Park's first holes at 4K, issue 33); the far terrain is drawn finer now, so its edges meet.

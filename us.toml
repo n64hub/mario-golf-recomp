@@ -105,3 +105,17 @@ text = "{ void mg_backdrop_end(uint8_t*); mg_backdrop_end(rdram); }"
 func = "nuGfxTaskStart"
 before_vram = 0x80029774
 text = "{ void mg_title_fill(uint8_t*, uint32_t); mg_title_fill(rdram, (uint32_t)ctx->r4); }"
+
+# The course's terrain without cracks at a high resolution. The course is 8 by 16 blocks, and each frame func_80062A8C
+# picks each block's level of detail by its distance: 2, its own fine display list; 1, a 2x2 grid of quads; 0, one quad.
+# Where levels meet the game stitches most edges (a fine block's edge pieces suit a coarser neighbour, a level-1 group
+# averages its edge midpoints beside a level-0 one), but not all: a level-1 block in a group of four that also holds a
+# level-2 one keeps its edges' true midpoints beside a level-0 group above or below it. The terrain bends at those
+# midpoints and the level-0 edge doesn't, so a sliver of the background shows between them: on a console a fraction of
+# a pixel, at 4K a pale line across the rough wherever a hill's height there is far off the straight edge. Here a block
+# the game would draw at level 0 is drawn at level 1 (the branch's delay slot sets 1 in place of 0), so level 0 is
+# never drawn and every edge left meets one the game stitches; far terrain draws 8 triangles a block in place of 2.
+[[patches.instruction]]
+func = "func_80062A8C"
+vram = 0x800633A8
+value = 0x24050001
