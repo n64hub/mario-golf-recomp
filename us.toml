@@ -161,3 +161,22 @@ text = "{ void mg_title_fill(uint8_t*, uint32_t); void mg_iris_fix(uint8_t*, uin
 func = "func_80062A8C"
 vram = 0x800633A8
 value = 0x24050001
+
+# The old shot of a transition over the wide picture's whole width (src/game/card.cpp): before the transition drawer
+# (func_800957F0) calls the function that copies its last frame (func_80095150), whether this frame starts a
+# transition; around its call of the function that draws that copy as strips (func_8009232C), a copy of the wide frame
+# before and the strips rewritten to read it.
+[[patches.hook]]
+func = "func_800957F0"
+before_vram = 0x800957F8
+text = "{ void mg_card_check(uint8_t*); mg_card_check(rdram); }"
+
+[[patches.hook]]
+func = "func_800957F0"
+before_vram = 0x80095870
+text = "{ void mg_card_strips_begin(uint8_t*); mg_card_strips_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_800957F0"
+before_vram = 0x80095878
+text = "{ void mg_card_strips_end(uint8_t*); mg_card_strips_end(rdram); }"
