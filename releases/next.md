@@ -1,0 +1,1 @@
+- **The sun's light at a wide window's sides:** with Aspect Ratio Expand, the sun's glow on the sky goes on past the old 4:3 frame's right side instead of ending in a straight vertical line there (the flyover before a hole showed it most), and it stays while any of it is on screen instead of vanishing as the sun nears a side.

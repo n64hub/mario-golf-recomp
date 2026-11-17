@@ -104,7 +104,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
   wide picture's sides, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
-  sides, where the game cuts them at the screen's, and puts the sky in a matrix group whose clouds RT64 slides
+  sides, where the game's scissor cuts them, and while any of them is in the picture, and puts the sky in a matrix group whose clouds RT64 slides
   between the game's frames, and `src/game/title.cpp` scales the title's painting, a 2D screen
   RT64 keeps at 4:3, to the picture's full height (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
