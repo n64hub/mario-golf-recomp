@@ -159,3 +159,16 @@ text = "{ void mg_title_fill(uint8_t*, uint32_t); mg_title_fill(rdram, (uint32_t
 func = "func_80062A8C"
 vram = 0x800633A8
 value = 0x24050001
+
+# The old shot of a transition at 4:3 in a wide picture (src/game/card.cpp): around the transition drawer's
+# (func_800957F0) call of the function that draws the game's copy of its last frame as strips (func_8009232C), RT64
+# keeps rectangles at their shape rather than stretching those that span the screen.
+[[patches.hook]]
+func = "func_800957F0"
+before_vram = 0x80095870
+text = "{ void mg_card_strips_begin(uint8_t*); mg_card_strips_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_800957F0"
+before_vram = 0x80095878
+text = "{ void mg_card_strips_end(uint8_t*); mg_card_strips_end(rdram); }"
