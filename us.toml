@@ -106,6 +106,39 @@ func = "func_8008FF20"
 before_vram = 0x80090658
 text = "{ float mg_sun_bound_x(float); ctx->f2.fl = mg_sun_bound_x(ctx->f2.fl); }"
 
+# The ball and the stars around the cup past the 4:3 frame's sides (src/game/ball.cpp): around both of the frame's calls
+# of the function that draws the ball's sprites up close (func_ovl0_801FE370), and its call of the one that draws the
+# stars (func_ovl0_80217164), a rectangle at or past a side of the screen is put back past it.
+[[patches.hook]]
+func = "func_8002DC10"
+before_vram = 0x80030280
+text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_8002DC10"
+before_vram = 0x80030288
+text = "{ void mg_ball_end(uint8_t*); mg_ball_end(rdram); }"
+
+[[patches.hook]]
+func = "func_8002DC10"
+before_vram = 0x800303D4
+text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_8002DC10"
+before_vram = 0x800303DC
+text = "{ void mg_ball_end(uint8_t*); mg_ball_end(rdram); }"
+
+[[patches.hook]]
+func = "func_8002DC10"
+before_vram = 0x80030750
+text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_8002DC10"
+before_vram = 0x80030758
+text = "{ void mg_ball_end(uint8_t*); mg_ball_end(rdram); }"
+
 # The title screen's painting at the picture's full height in a wide window (src/game/title.cpp): each display list the
 # game sends is read for the painting's scissor, and its rectangles are scaled in place.
 [[patches.hook]]
