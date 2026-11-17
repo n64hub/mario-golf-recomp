@@ -1,17 +1,19 @@
 // The old shot of a transition kept at the game's 4:3 shape in a wide picture (RT64's Aspect Ratio Expand).
 //
-// As the intro cuts between its shots, and as a shot's camera cuts to a view from the green while the ball flies, the
-// game dissolves from the old shot to the new one, the HUD included. It copies its last frame of the old shot out of the framebuffer into a buffer of its own (304x240,
-// 16-bit) and draws that copy over the new shot, fading it out, as 38 texture rectangles of 6 rows each from x 8 to 312
-// (func_8009232C, called by the transition drawer func_800957F0 for its transition types 8 and 9). The copy is what the
-// game read back from RAM, and RT64 renders that at the game's own 320x240 for it, so it holds the 4:3 frame and none of
-// the wide picture's sides. Each strip spans the screen's scissor, and RT64 stretches a rectangle that spans it across
-// the wide picture, so the old shot was drawn stretched sideways, jumping wider as the dissolve began.
+// As the intro cuts between its shots (transition type 9), and as a shot's camera cuts to a view from the green while
+// the ball flies (type 8), the game draws its last frame of the old shot over the new one, the HUD included, until it is
+// gone. func_80095150 copies that frame with the CPU, out of the framebuffer in RAM into a buffer of its own (304x240,
+// 16-bit at 0x802EA000), and func_8009232C, called by the transition drawer func_800957F0, draws the copy as 38 texture
+// rectangles of 6 rows each from x 8 to 312: whole for type 9, and for type 8 as two halves each that slide apart from
+// the middle, doors opening on the new shot. The copy is what the CPU read from RAM, and RT64 renders that at the game's
+// own 320x240 for it, so it holds the 4:3 frame and none of the wide picture's sides. Each strip spans the screen's
+// scissor, and RT64 stretches a rectangle that spans it across the wide picture, so the old shot was drawn stretched
+// sideways, jumping wider as the transition began.
 //
 // us.toml hooks the drawer's one call of func_8009232C on both sides: mg_card_strips_begin adds RT64's
 // gEXSetRectAspect(G_EX_ASPECT_ADJUST) to the frame's display list, so its rectangles keep their 4:3 shape in the
-// middle of the picture, and mg_card_strips_end puts G_EX_ASPECT_AUTO back. The old shot fades out in the middle while
-// the new one fills the sides. The drawer's other transitions need nothing: its tiles (type 10) are each narrower than
+// middle of the picture, and mg_card_strips_end puts G_EX_ASPECT_AUTO back. The old shot goes in the middle while the
+// new one fills the sides. The drawer's other transitions need nothing: its tiles (type 10) are each narrower than
 // the screen, and the card that turns over to a course's next shot (type 2) is a model, both kept at 4:3 by RT64.
 
 #include <cstdint>
