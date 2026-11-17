@@ -35,7 +35,7 @@ namespace {
 
 // F3DEX2's commands and flags this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_VTX = 0x01, G_DL = 0xDE, G_ENDDL = 0xDF, G_MTX = 0xDA, G_POPMTX = 0xD8, G_MOVEMEM = 0xDC;
-constexpr uint32_t G_TEXRECT = 0xE4, G_TEXRECTFLIP = 0xE5, G_FILLRECT = 0xF6, G_SETSCISSOR = 0xED;
+constexpr uint32_t G_TEXRECT = 0xE4, G_TEXRECTFLIP = 0xE5, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1, G_FILLRECT = 0xF6, G_SETSCISSOR = 0xED;
 constexpr uint32_t G_MV_VIEWPORT = 8, G_DL_NOPUSH = 1, G_SC_NON_INTERLACE = 0;
 constexpr uint32_t G_MTX_PUSH = 1, G_MTX_LOAD = 2, G_MTX_PROJECTION = 4;
 // gSPViewport's first word.
@@ -317,6 +317,25 @@ void game_scissor(Writer& out, uint32_t mode, int ulx, int uly, int lrx, int lry
     out.put(c, 2);
 }
 
+// RT64 places the left edge of a rectangle it stretches across the picture (one that spans the scissor's width) a pixel
+// or two right of the stretched scissor's, which is the 3D's border: Lakitu Mode's letterbox bars, texture rectangles
+// from the scissor's left to its right (8 to 312), left a column of the course showing at their left ends. Such a
+// rectangle starts at the screen's left instead, its texture moved with it, and the scissor cuts it at the 3D's border.
+// Its texture coordinates are the next command's (G_RDPHALF_1: s and t), its steps the one after (G_RDPHALF_2).
+void spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx, int sc_lrx) {
+    uint32_t ulx = (rect.w1 >> 12) & 0xFFF, lrx = (rect.w0 >> 12) & 0xFFF;
+    if (ulx == 0 || ulx != uint32_t(sc_ulx) * 4 || lrx != uint32_t(sc_lrx) * 4 || (half1.w0 >> 24) != G_RDPHALF_1 ||
+        (half2.w0 >> 24) != G_RDPHALF_2) {
+        return;
+    }
+    // s is 10.5 fixed point, dsdx 5.10, ulx in quarter pixels.
+    int32_t s = int16_t(half1.w1 >> 16);
+    int32_t dsdx = int16_t(half2.w1 >> 16);
+    s -= int32_t(ulx) * dsdx / 128;
+    rect.w1 &= ~(0xFFFu << 12);
+    half1.w1 = (uint32_t(uint16_t(s)) << 16) | (half1.w1 & 0xFFFF);
+}
+
 void anchor(uint32_t start, uint32_t end) {
     uint32_t count = (end - start) / 8;
     if (end <= start || count > MAX_COMMANDS || (start & 7) != 0) {
@@ -417,7 +436,7 @@ void anchor(uint32_t start, uint32_t end) {
     uint32_t vp_origin = G_EX_ORIGIN_NONE;
     const Cmd* last_scissor = nullptr;
     for (uint32_t i = 0; i < count; i++) {
-        const Cmd& cmd = g_cmds[i];
+        Cmd& cmd = g_cmds[i];
         if (cmd.piece >= 0) {
             const Piece& piece = g_pieces[cmd.piece];
             if ((piece.origin != G_EX_ORIGIN_NONE) != sc_wide) {
@@ -446,6 +465,9 @@ void anchor(uint32_t start, uint32_t end) {
         }
         if (op == G_MOVEMEM && (cmd.w0 & 0xFF) == G_MV_VIEWPORT) {
             viewport_w1 = cmd.w1;
+        }
+        if (op == G_TEXRECT && !sc_wide && i + 2 < count) {
+            spanning_rect_from_left(cmd, g_cmds[i + 1], g_cmds[i + 2], sc_ulx, sc_lrx);
         }
         out.put(cmd.w0, cmd.w1);
     }
