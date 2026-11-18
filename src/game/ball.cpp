@@ -54,7 +54,7 @@ constexpr int SCREEN_HEIGHT = 240 * 4;
 constexpr int SCISSOR_LEFT = 8 * 4;
 constexpr int SCISSOR_RIGHT = 312 * 4;
 
-// Above src/game/title.cpp's buffers. Two calls a frame, and the renderer may read one a frame or more after the game
+// Above src/game/screen.cpp's buffers. Two calls a frame, and the renderer may read one a frame or more after the game
 // sends it.
 constexpr uint32_t BUFFER_BASE = 0x80770000;
 constexpr uint32_t BUFFER_SIZE = 0x40;

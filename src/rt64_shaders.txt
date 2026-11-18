@@ -20,7 +20,7 @@
 # Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 15 the extended plan's plays missed on
 # Mario Star's first holes, then 5 a later Chrome play missed on Toad Highlands' shots, then 5 a Chrome play at
 # 3840x2000 missed in section 0 once the title's painting was scaled and point sampled and the sun's light drawn
-# stretched (src/game/title.cpp, src/game/backdrop.cpp): what a section draws turns with where the ball goes and how
+# stretched (src/game/screen.cpp, src/game/backdrop.cpp): what a section draws turns with where the ball goes and how
 # many play, so a play's misses are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b

@@ -7,7 +7,7 @@
 // stretches a rectangle as wide as its scissor across the whole window, as it does a screen's fill, so in a wide window
 // the shape was drawn wider than it is, by the window's width over a 4:3 one's.
 //
-// nuGfxTaskStart sends each frame's display list, and title.cpp's hook there calls mg_iris_fix with it: it finds the
+// nuGfxTaskStart sends each frame's display list, and the hook there calls mg_iris_fix with it, before screen.cpp reads it: it finds the
 // mask's rectangle and sends it through a buffer that draws it stretched across the window (G_EX_ASPECT_STRETCH, as
 // RT64 draws it on its own where the game's scissor is the frame's, but on a 4:3 menu too), its texture stepped that
 // many times faster across it (dsdx) and its s moved back so that the texel at the screen's middle stays there. So the
