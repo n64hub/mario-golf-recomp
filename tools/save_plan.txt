@@ -1,0 +1,33 @@
+# The save run of the desktop save check (N64Recomp-browser's tools/frame_dump.mjs --saves, through
+# tools/remote_frame_dump.sh, with tools/load_plan.txt; frame_dump.mjs's header says what it checks): a round of
+# Tournament on Toad Highlands begun with one tee shot and left by the pause menu's Save and Quit, which writes the
+# SRAM (saves/mariogolf64.n64.us.1.0.bin). The steps are tools/capture_window.ps1's plus frame_dump's `saves`; times
+# are seconds since the program started, and each until moves the later steps on by its wait.
+#
+# The game keeps the SRAM's 32 KB in RAM at 0x8012F720 and reads it in at boot. A round left by Save and Quit is the
+# block at SRAM 0x2000 (0x80131720): the ball, the holes' order (0x8013194C on: 0x00010002, 0x00030004, ...) and the
+# scores, with a 1 at SRAM 0x1FF8 (0x80131718) for a round to continue. A first boot writes an SRAM with none, so the
+# until on 0x80131718 here fails this run, which checks nothing, when the presses missed the round, and not the load
+# run's. Addresses as tools/soak_plan.txt's (its header lists them): overlays 8 (the title), 3 (the main menu) and 4
+# (a hole's flyover) loaded at 0x800B6098, 0x800B5FD0 and 0x800B5FA8, the menu screen 0x801EFFA0 (1 Character Select,
+# 5 Play Modes, 6 Course Select), the pause 0x800C306C and its cursor 0x80224924 (5 Save and Quit). Keys are the
+# keyboard's defaults: Enter Start, Space A, W up.
+55 until 0x800B6098 0xFF000000 0x01000000 60 Enter
+58 until 0x800B5FD0 0xFF000000 0x01000000 30 Enter
+61.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+64 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+66 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+67.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+68.5 until 0x800B5FF8 0xFF000000 0x00000000 60
+69.5 key Space
+70.2 key Space
+70.9 key Space
+79 shot shot
+81 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+82.5 until 0x80224924 0x000000FF 0x00000005 15 W
+83 shot save_and_quit
+83.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+84.5 until 0x80131718 0xFFFFFFFF 0x1 10
+85 saves changed 15
+88 shot saved
+89 end
