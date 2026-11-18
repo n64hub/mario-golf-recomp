@@ -108,7 +108,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   between the game's frames, `src/game/ball.cpp` draws the ball's sprites and the stars in the view of the cup on into
   the wide picture's sides, where the game cuts them at the screen's, and `src/game/title.cpp` scales the title's painting, a 2D screen
   RT64 keeps at 4:3, to the picture's full height, `src/game/iris.cpp` draws the iris wipe between screens at its
-  own shape across the wide picture, and `src/game/card.cpp` keeps the old shot a dissolve fades out at 4:3, both where
+  own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it, both where
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker, and draws them between game frames only with
