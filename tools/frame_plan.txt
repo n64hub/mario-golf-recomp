@@ -11,12 +11,14 @@
 # design (src/game/hud.cpp), which the middle check reads as unlike the 4:3 window's. Each key waits on the frame
 # counter, not the clock, so the three windows, which draw at different rates, play the same: pressed at a time, the
 # 32:9 run's opening fell behind and its fade showed another shot. A key in the main menu's zoom is dropped
-# (CLAUDE.md, Input), so the menus wait for overlay 3 (0x800B5FD0) and then a counter step. Each overlay's entry is
+# (CLAUDE.md, Input), so the menus wait for overlay 3 (0x800B5FD0) and then a counter step, and Start at the opening
+# is pressed again every 1.5 s until the title's overlay (8, 0x800B6098) loads: the opening drops a press now and then
+# (one 32:9 run of v0.1.23 never reached the title). Each overlay's entry is
 # 0x28 bytes from 0x800B5F58, its loaded word's top byte 1 while it is loaded (tools/shader_survey.js reads the same).
 2 shot opening
 3 until 0x800B67F0 0xFFFFFF80 0x00000500 120
 3 key Enter
-4 until 0x800B6098 0xFF000000 0x01000000 30
+4 until 0x800B6098 0xFF000000 0x01000000 30 Enter
 4 shot title
 5 until 0x800B67F0 0xFFFFFF80 0x00000580 30
 5 key Enter
