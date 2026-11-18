@@ -6,24 +6,25 @@
 #
 # Recorded by code, not by playing: bash tools/record_shaders.sh (its header says how) runs N64Recomp-browser's
 # tools/record_shaders.mjs with tools/shader_plan.json, which loads the page fresh for each section, and
-# tools/shader_survey.js tells the plan which screen the game shows. Section 0 is the launcher and the boot: the
-# logos, the intro's golfers played whole, the title, the main menu, character select's cursor moved across the
-# golfers with the stick and back, and the menus to a Tournament's course with A as a player does. Then toad_highlands:
-# its first hole's flyover and four shots from it with the pause menu between. Then the other five courses, each a
-# section of its own, recorded with tools/shader_plan_courses.json (record_shaders.sh's PLAN, with --add): the
-# GameShark's "Have All Courses" opens them on a new save, and each plays its course select, its first hole's flyover
-# and three shots with the pause menu between. Then mini_golf, by the same plan: the play modes' Mini-Golf, a course
-# of its own, its first hole's flyover and three putts. Then credits, by the same plan: the staff credits, reached
-# from Toad Highlands' first tee by setting the round to its credits state, played whole, the names and the course in
-# its box to the Congratulations picture fading in over them (src/game/credits.cpp's black under it included). Flags
-# follow settings (filtering, HDR, MSAA, upscaling), so a change to one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
-# plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
-# other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
-# Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 15 the extended plan's plays missed on
-# Mario Star's first holes, then 5 a later Chrome play missed on Toad Highlands' shots, then 5 a Chrome play at
-# 3840x2000 missed in section 0 once the title's painting was scaled and point sampled and the sun's light drawn
-# stretched (src/game/screen.cpp, src/game/backdrop.cpp): what a section draws turns with where the ball goes and how
-# many play, so a play's misses are added to its section (play_page.mjs prints them).
+# tools/shader_survey.js tells the plan which screen the game shows. Section 0 is the launcher and the boot: the logos,
+# the intro's golfers played whole, the title, the main menu, character select's cursor moved across the golfers with
+# the stick and back, and the menus to a Tournament's course with A as a player does. Then toad_highlands: its first
+# hole's flyover and four shots from it with the pause menu between. Then the other five courses, each a section of its
+# own, recorded with tools/shader_plan_courses.json (record_shaders.sh's PLAN, with --add): the GameShark's "Have All
+# Courses" opens them on a new save, and each plays its course select, its first hole's flyover and three shots with the
+# pause menu between. Then mini_golf, by the same plan: the play modes' Mini-Golf, a course of its own, its first hole's
+# flyover and three putts. Then credits, by the same plan: the staff credits, reached from Toad Highlands' first tee by
+# setting the round to its credits state, played whole, the names and the course in its box to the Congratulations
+# picture fading in over them (src/game/credits.cpp's black under it included). Flags follow settings (filtering, HDR,
+# MSAA, upscaling), so a change to one of those defaults means recording again. Each section ends with the shaders
+# tools/play_plan.json's plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title),
+# its shots landing on other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the
+# menus, and on Toad Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 15 the extended
+# plan's plays missed on Mario Star's first holes, then 5 a later Chrome play missed on Toad Highlands' shots, then 5 a
+# Chrome play at 3840x2000 missed in section 0 once the title's painting was scaled and point sampled and the sun's
+# light drawn stretched (src/game/screen.cpp, src/game/backdrop.cpp), then 1 a Chrome play missed in the credits' course
+# box: what a section draws turns with where the ball goes and how many play, so a play's misses are added to its
+# section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -1028,3 +1029,4 @@ section credits
 00504241 00000c0f fcffffff fffcf67b 0ccb540b
 0f0a4001 00000c3f fcffffff fffff7df 0800000b
 0f0a4001 00000c0f fcffffff fffcf279 0ccb540b
+00504a50 00082c3f fcffb3ff ff65feff 0aaaaa08
