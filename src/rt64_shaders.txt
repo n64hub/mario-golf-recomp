@@ -13,8 +13,10 @@
 # section of its own, recorded with tools/shader_plan_courses.json (record_shaders.sh's PLAN, with --add): the
 # GameShark's "Have All Courses" opens them on a new save, and each plays its course select, its first hole's flyover
 # and three shots with the pause menu between. Then mini_golf, by the same plan: the play modes' Mini-Golf, a course
-# of its own, its first hole's flyover and three putts. Flags follow settings (filtering, HDR, MSAA, upscaling), so a
-# change to one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
+# of its own, its first hole's flyover and three putts. Then credits, by the same plan: the staff credits, reached
+# from Toad Highlands' first tee by setting the round to its credits state, played whole, the names and the course in
+# its box to the Congratulations picture fading in over them (src/game/credits.cpp's black under it included). Flags
+# follow settings (filtering, HDR, MSAA, upscaling), so a change to one of those defaults means recording again. Each section ends with the shaders tools/play_plan.json's
 # plays missed after the recording (17 in Chrome, then 11 in Firefox, 2 of them at the title), its shots landing on
 # other lies, then the 8 tools/play_plan_pads.json's four players missed (four golfers on the menus, and on Toad
 # Highlands' HUD), then 4 Chrome plays at 3840x2000 missed on Toad Highlands and 15 the extended plan's plays missed on
@@ -1003,3 +1005,26 @@ c8104a51 00982c0f fc563280 1ffcfff8 09128808
 0f0a4001 00800c3f fc30fe61 55fef379 04cb540b
 0f0a7008 00808c3f fcffffff fffcf279 0333320b
 0f0a7008 00808c3f fcffffff fffcf279 0333ba0b
+section credits
+0f0a4001 00808c0f fc157e2a fffffdfe 04cb540b
+0f0a4001 00808c0f fcffffff fffcf279 04cb540b
+0f0a7008 0080acff fcffffff fffcf279 099b100b
+00504241 00008c0f fcffffff fffcf67b 04cb540b
+00504341 00008c0f fcffffff fffcf67b 04cb540b
+00504241 00000cff fcffb3ff ff67ffff 04cb540b
+00504241 00000cff fcffb3ff ff65feff 04cb540b
+0f0a7008 0080acef fcffffff fffcf279 099b100b
+00552078 00082c3f fcffd7ff ffadfeff 0800000c
+00504341 00002c0f fcffffff fffff7fb 0000000b
+00504241 00000c3f fcffb3ff ff67ffff 04cb540b
+00504241 00000c3f fcffb3ff ff65feff 04cb540b
+0c192078 00182c3f fc125866 f0b3fe3f 0803540c
+0c192078 00182c3f fc125866 f0b3fe3f 08035408
+00504b55 00002c2f fc50b2a1 3365feff 088a000b
+00504b55 00002c2f fc50b2a1 3365feff 008a000b
+00504341 00000c3f fcffffff fffff7df 0800000b
+00504341 00000c0f fcffffff fffcf67b 0ccb540b
+00504241 00000c3f fcffffff fffff7df 0800000b
+00504241 00000c0f fcffffff fffcf67b 0ccb540b
+0f0a4001 00000c3f fcffffff fffff7df 0800000b
+0f0a4001 00000c0f fcffffff fffcf279 0ccb540b
