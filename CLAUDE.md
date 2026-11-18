@@ -135,4 +135,6 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   each wait reads. A scene a fault turns up in that it doesn't reach is added to it with the fix. `tools/soak_plan.txt`
   plays one round of Tournament, Ring Shot, Training and Mini-Golf in three minutes for a soak that fails on a crash
   or a hang, each step waiting on the game's RAM (its header lists the addresses: the menu screen, the Play Modes
-  cursor, the pause and its menu).
+  cursor, the pause and its menu). `tools/save_plan.txt` and `tools/load_plan.txt` are the desktop save check: a
+  Tournament round left by Save and Quit, and after a restart, with the saves behind symlinks, that round read back
+  off the SRAM into its copy in RAM at 0x8012F720 (their headers say which words).

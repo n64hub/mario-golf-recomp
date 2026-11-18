@@ -1,0 +1,25 @@
+# The load run of the desktop save check (N64Recomp-browser's tools/frame_dump.mjs --saves), after
+# tools/save_plan.txt, the program started again in the same folder: at the main menu the game has read the SRAM, and
+# the round Save and Quit left is in RAM (0x80131718 = 1, the holes' order at 0x8013194C on) only if it came off the
+# file: a first boot has zeros there. Nothing is written by then. Then Tournament continues the round, which the game
+# writes as it does, and Save and Quit writes it again, through the check's links. tools/save_plan.txt's header has
+# the addresses.
+55 until 0x800B6098 0xFF000000 0x01000000 60 Enter
+58 until 0x800B5FD0 0xFF000000 0x01000000 30 Enter
+60 until 0x80131718 0xFFFFFFFF 0x1 20
+60.5 until 0x8013194C 0xFFFFFFFF 0x00010002 5
+61 until 0x80131950 0xFFFFFFFF 0x00030004 5
+61.5 shot menu
+62 saves same
+63.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+66 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+68 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+69.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+70.5 until 0x800B5FF8 0xFF000000 0x00000000 60
+72 shot continued
+74 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+75.5 until 0x80224924 0x000000FF 0x00000005 15 W
+76 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+77 saves changed 15
+80 shot saved
+81 end
