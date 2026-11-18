@@ -1,11 +1,13 @@
 // The old shot of a transition, drawn over the wide picture's whole width (RT64's Aspect Ratio Expand).
 //
-// As the intro cuts between its shots (transition type 9), and as a shot's camera cuts to a view from the green while
-// the ball flies or a menu opens the next (type 8), the game draws its last frame of the old shot over the new one, the
-// HUD included, until it is gone. func_80095150 copies that frame with the CPU, out of the framebuffer in RAM into a
-// buffer of its own (304x224, 16-bit, packed, in the z-buffer at 0x802EA000), and func_8009232C, called by the
-// transition drawer func_800957F0, draws the copy as 38 texture rectangles of 6 rows each from x 8 to 312: whole and
-// fading for type 9, and for type 8 as two halves each that slide apart from the middle, doors opening on the new shot.
+// As the intro cuts between its shots (transition type 9) or crossfades between them (type 1: from Luigi's swing to the
+// overhead shot of the putting green), and as a shot's camera cuts to a view from the green while the ball flies or a
+// menu opens the next (type 8), the game draws its last frame of the old shot over the new one, the HUD included, until
+// it is gone. func_80095150 copies that frame with the CPU, out of the framebuffer in RAM into a buffer of its own
+// (304x224, 16-bit, packed, in the z-buffer at 0x802EA000), and func_8009232C, called by the transition drawer
+// func_800957F0, draws the copy as 38 texture rectangles of 6 rows each from x 8 to 312: whole and fading for types 1
+// and 9 (the same strips, type 1's fade half as fast), and for type 8 as two halves each that slide apart from the
+// middle, doors opening on the new shot.
 // The copy is what the CPU read from RAM, and RT64 renders that at the game's own 320x240 for it, so it holds the 4:3
 // frame and none of the wide picture's sides: drawn as the game draws it, it was stretched sideways, jumping wider as
 // the transition began, and kept at 4:3 it was a box in the middle with the new shot and its HUD at its sides.
@@ -92,7 +94,8 @@ uint32_t strips_from = 0;
 
 bool wide_transition(uint8_t* rdram) {
     const uint32_t type = rd_w(rdram, MG_TYPE);
-    return (rd_w(rdram, MG_MODE) == 0) && ((type == 8) || (type == 9)) && (rd_w(rdram, MG_COPY) == COPY_ADDR);
+    return (rd_w(rdram, MG_MODE) == 0) && ((type == 1) || (type == 8) || (type == 9)) &&
+        (rd_w(rdram, MG_COPY) == COPY_ADDR);
 }
 
 // Writes the copy's display list: the 240 rows of the frame before, 6 at a time (TMEM's 4 KiB), copied (the RDP's copy
