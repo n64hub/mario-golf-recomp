@@ -129,4 +129,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   its pace).
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
-  format), for unattended runs. A swing is three presses of A: start, power, impact.
+  format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/soak_plan.txt` plays one
+  round of Tournament, Ring Shot, Training and Mini-Golf in three minutes for a soak that fails on a crash or a hang,
+  each step waiting on the game's RAM (its header lists the addresses: the menu screen, the Play Modes cursor, the
+  pause and its menu).
