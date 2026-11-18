@@ -112,8 +112,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker. The course's terrain is never drawn at its coarsest level of detail (`us.toml`):
-  its edges left cracks beside finer blocks at a high resolution. Its players take turns on one view, never a split screen,
-  so N64Recomp-browser's docs/new-recomp.md item 1a (split screen) isn't in its row.
+  its edges left cracks beside finer blocks at a high resolution. Its players take turns on one view, never a split screen.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact.
