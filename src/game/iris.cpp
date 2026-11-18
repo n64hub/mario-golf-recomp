@@ -8,14 +8,23 @@
 // the shape was drawn wider than it is, by the window's width over a 4:3 one's.
 //
 // nuGfxTaskStart sends each frame's display list, and title.cpp's hook there calls mg_iris_fix with it: it finds the
-// mask's rectangle and sends it through a buffer that draws it kept at its aspect (G_EX_ASPECT_ADJUST) and from the
-// window's left edge to its right one, its coordinates past the 4:3 frame's sides, under a scissor as wide as it, its s
-// moved back by as many texels as the rectangle grew to the left. The mask's texels past the 4:3 frame are what the
-// console would show there: black while the shape is inside the frame. The scissor's sides are the rectangle's own
-// coordinates, not the window's edges (G_EX_ORIGIN_LEFT and G_EX_ORIGIN_RIGHT): RT64 puts those at the HUD's edges, which
-// its HUD Ratio setting (Clamp 16:9 by default) holds in from the sides of a window wider than 16:9, and the course
-// showed in a strip down each side through the wipe. The scissor and the aspect are set back after it. The buffers are this file's in RDRAM, above the 4 MB the game uses. With Aspect Ratio Original, or a window
-// no wider than 4:3, nothing changes.
+// mask's rectangle and sends it through a buffer that draws it as RT64's extended texture rectangle stretched to the
+// picture (G_EX_ASPECT_STRETCH), from the 4:3 frame's left edge to its right one, its texture step across multiplied
+// by as much as the stretch widens it and its s moved so the shape's middle stays at the screen's: the shape keeps its
+// own aspect about the middle, and its black spans the picture as RT64 stretches a screen's fill across it. The game's
+// own scissor, the 3D's (8 to 312), clips it where the wide picture's course ends, so nothing of the course shows
+// past it, as with ball.cpp's and backdrop.cpp's rectangles. The mask's texels past the 4:3 frame's sides are what the
+// console would show there: black while the shape is inside the frame.
+//
+// The mask gives RT64 no scissor of its own. RT64 judges a frame by the scissors drawn in it: it keeps a frame's 2D at
+// its own aspect only while they are 4:3-shaped, and widens the 3D only where its scissor spans theirs. A scissor out
+// to the window's edges (raw coordinates past the 4:3 frame's sides) made each frame of a wipe wide-shaped, and RT64
+// stretched its 2D across the window: Course Select, the main menu, the hole's name and the HUD, which jumped back to
+// their own shape as the wipe ended. One as wide as the 4:3 frame (0 to 320, which the 3D's 8 to 312 doesn't span) held
+// the course at 4:3 through the wipe, the sides black. Its sides given as the window's (G_EX_ORIGIN_LEFT and
+// G_EX_ORIGIN_RIGHT) land at the HUD's edges instead, which HUD Ratio's Clamp 16:9 holds in from a wider window's, and
+// the course showed in a strip down each side. With Aspect Ratio Original, or a window no wider than 4:3, nothing
+// changes. The buffers are this file's in RDRAM, above the 4 MB the game uses.
 
 #include <cmath>
 #include <cstdint>
@@ -29,12 +38,11 @@ namespace {
 
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
-constexpr uint32_t G_DL_NOPUSH = 1, G_SC_NON_INTERLACE = 0;
+constexpr uint32_t G_DL_NOPUSH = 1;
 
 // The mask's rectangle, in quarter pixels.
 constexpr uint32_t MASK_LEFT = 8 * 4, MASK_RIGHT = 312 * 4, MASK_TOP = 0, MASK_BOTTOM = 272 * 4;
 constexpr int SCREEN_WIDTH = 320;
-constexpr int SCREEN_HEIGHT = 240;
 
 // Above ball.cpp's buffers. The renderer may read a list a frame or more after the game sends it.
 constexpr uint32_t BUFFER_BASE = 0x80780000;
@@ -80,11 +88,9 @@ bool is_mask(uint32_t addr) {
            (w0 & 0xFFF) == MASK_BOTTOM && (d >> 16) == (d & 0xFFFF);
 }
 
-// The rectangle at addr (its three commands) replaced by a branch to a buffer that draws it at its aspect across the
-// window, and branches back after it. left is the window's left edge in the 4:3 frame's pixels (negative): the
-// rectangle's coordinates are the 4:3 frame's and run past it, since RT64 spans a rectangle aligned to the window's
-// sides with its texture as wide as its coordinates say, not as the window is.
-void widen(uint32_t addr, float left) {
+// The rectangle at addr (its three commands) replaced by a branch to a buffer that draws it stretched to the picture,
+// scale times as wide as the 4:3 frame, with its texture step across scale times as large, and branches back after it.
+void widen(uint32_t addr, float scale) {
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
     Writer out{ buffer };
@@ -94,29 +100,30 @@ void widen(uint32_t addr, float left) {
     uint32_t st = rd_w(addr + 12), d = rd_w(addr + 20);
     uint32_t tile = (w1 >> 24) & 7;
     int32_t s = int16_t(st >> 16), t = int16_t(st & 0xFFFF);
-    uint32_t dsdx = d >> 16, dtdy = d & 0xFFFF;
-    // The rectangle from the window's left edge to its right one, in the 4:3 frame's quarter pixels, and s at its left
-    // edge: dsdx is s5.10 texels a pixel, s is s10.5.
-    int32_t ulx = int32_t(std::floor(left)) * 4;
-    int32_t lrx = SCREEN_WIDTH * 4 - ulx;
-    int32_t s_left = s - (int32_t(MASK_LEFT) - ulx) * int32_t(dsdx) / 128;
+    int32_t dsdx = int16_t(d >> 16);
+    uint32_t dtdy = d & 0xFFFF;
+    // s at the screen's middle, then at the 4:3 frame's left edge with the larger step: dsdx is s5.10 texels a pixel, s
+    // is s10.5, and the rectangle's coordinates are quarter pixels.
+    int32_t wide_dsdx = int32_t(std::lround(dsdx * double(scale)));
+    if (wide_dsdx > INT16_MAX) {
+        wide_dsdx = INT16_MAX;
+    }
+    double s_middle = s + (SCREEN_WIDTH / 2.0 - MASK_LEFT / 4.0) * dsdx / 32.0;
+    int32_t s_left = int32_t(std::lround(s_middle - (SCREEN_WIDTH / 2.0) * wide_dsdx / 32.0));
     if (s_left < INT16_MIN) {
         s_left = INT16_MIN;
+    }
+    if (s_left > INT16_MAX) {
+        s_left = INT16_MAX;
     }
 
     gEXEnable(c);
     out.put(c, 1);
-    gEXSetRectAspect(c, G_EX_ASPECT_ADJUST);
+    gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXPushScissor(c);
-    out.put(c, 1);
-    gEXSetScissor(c, G_SC_NON_INTERLACE, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx / 4, 0, lrx / 4, SCREEN_HEIGHT);
-    out.put(c, 2);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx & 0xFFFF, w1 & 0xFFF, lrx & 0xFFFF, w0 & 0xFFF, tile,
-                        s_left & 0xFFFF, t & 0xFFFF, dsdx, dtdy);
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, 0, w1 & 0xFFF, SCREEN_WIDTH * 4, w0 & 0xFFF, tile,
+                        s_left & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy);
     out.put(c, 3);
-    gEXPopScissor(c);
-    out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
     out.put((G_DL << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
@@ -144,7 +151,7 @@ extern "C" void mg_iris_fix(uint8_t* rdram, uint32_t list) {
             // Read only here, once a list holds the mask.
             float scale = mg_wide_scale();
             if (scale > 1.0f) {
-                widen(addr, float(SCREEN_WIDTH) / 2.0f * (1.0f - scale));
+                widen(addr, scale);
             }
             break;
         }
