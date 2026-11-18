@@ -106,7 +106,7 @@ func = "func_8008FF20"
 before_vram = 0x80090658
 text = "{ float mg_sun_bound_x(float); ctx->f2.fl = mg_sun_bound_x(ctx->f2.fl); }"
 
-# The golfers' joints paired joint by joint in the frames RT64 draws between the game's (src/game/golfer.cpp): where
+# The golfers' joints blended whole in the frames RT64 draws between the game's (src/game/golfer.cpp): where
 # the function that draws a golfer stores the display list's head back, its call of the model's body is wrapped in a
 # matrix group of the golfer's own. $v0 is the head, $s2 the model's struct.
 [[patches.hook]]

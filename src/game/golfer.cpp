@@ -1,22 +1,22 @@
-// The golfers' joints in the frames RT64 draws between the game's: each joint moves from where it was to where it goes,
-// rather than from where another joint was.
+// The golfers' joints in the frames RT64 draws between the game's: each joint blended from where it was to where it
+// goes, whole.
 //
 // func_80057FFC draws a golfer (the Play Modes screen's, character select's, the course's): it points segment 2 at the
 // model's joint matrices, loads the matrix that places it, calls the model's body display list (the model's struct,
 // at 0x801F43F0 plus 0x18C a slot, holds it at +0x64), which loads each joint's matrix from segment 2 and draws that
-// part, and ends with a G_POPMTX and a pipe sync. The game tells RT64 nothing about which matrix is which, so to draw a
-// frame between two of the game's RT64 pairs each matrix of the new frame with the nearest one of the last frame among
-// the parts drawn alike, and moves it from there. A joint that turns far in one game frame can be nearer another part
-// that looks alike: as Wario shakes his fist on the Play Modes screen, his raised upper arm was paired with another part
-// and slid in from there, so for a frame or two his sleeve hung at his belly with his glove up at his face, then jumped
-// back to his shoulder.
+// part, and ends with a G_POPMTX and a pipe sync. RT64 left to itself blends a matrix in two ways that broke Wario's
+// fist-shake on the Play Modes screen. It splits each matrix into a rotation, a scale and a skew and blends those, and
+// for his raised upper arm between two of the game's frames with it up at his face that took a half turn: in every
+// frame drawn between, the sleeve swung down to his belly and back while his glove stayed up. And it blends a matrix's
+// position only while it moves at about the pace it did the frame before, so as a new move starts, the upper arm,
+// jumping further than it was moving, was drawn at once at its new place, his belly, while the glove beside it was
+// still blended from his face.
 //
-// So the body's call is wrapped in an RT64 matrix group of the golfer's own (its extended GBI), ordered linearly: the
-// joints are paired by their order within it, the first joint's matrix with the first's of the last frame and so on, as
-// the model loads them in the same order every frame. Its ID is made from the model's struct and its body list, so a
-// golfer pairs only with the same golfer drawn the frame before, never with one drawn in another slot or a new model
-// loaded into it. Position, rotation and scale stay RT64's automatic choices, as for a matrix in no group: only the
-// pairing changes.
+// So the body's call is wrapped in an RT64 matrix group of the golfer's own (its extended GBI): its matrices blended
+// element by element, not split, their positions always, and paired by their order, the first joint's matrix with the
+// first's of the last frame and so on, as the model loads them in the same order every frame. Its ID is made from the
+// model's struct and its body list, so a golfer pairs only with the same golfer drawn the frame before, never with one
+// drawn in another slot or a new model loaded into it.
 //
 // us.toml hooks the function where it stores the display list's head back (0x80058AA4), with the head and the model's
 // struct in hand. If the last three commands it wrote are the body's call, the G_POPMTX and the pipe sync, the call is
@@ -111,7 +111,7 @@ extern "C" void mg_golfer_end(uint8_t* rdram, uint32_t head, uint32_t model) {
     GfxCommand c[2];
     gEXEnable(c);
     out.put(c, 1);
-    // RT64's own settings for a matrix in no group (its TransformGroup), but for the ID and the ordering.
+    // Blended whole, its position always, in order; the vertices and texture coordinates as RT64 does with no group.
     gEXMatrixGroupSimple(c, group_id(model, body), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_INTERPOLATE,
                          G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO,
                          G_EX_ORDER_LINEAR, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
