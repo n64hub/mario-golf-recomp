@@ -200,3 +200,27 @@ text = "{ void mg_credits_picture_begin(uint8_t*, uint32_t); mg_credits_picture_
 func = "func_ovl16_801F7554"
 before_vram = 0x801F8000
 text = "{ void mg_credits_picture_end(uint8_t*, uint32_t); mg_credits_picture_end(rdram, (uint32_t)ctx->r29); }"
+
+# The Game Boy Color's golfers (Kid, Sherry, Azalea and Joe) at character select, with the General tab's Game Boy
+# Golfers option (src/game/config.cpp). On a console they come only through a Transfer Pak holding Mario Golf for the
+# Game Boy Color: overlay 15's link reads the golfers the cart holds into RAM for the session (0x800FF1E8, 0x8C bytes
+# each, never the N64 save), and func_8005CA48 puts each into character select's grid, stats and names. The game has
+# the four of its own, their stats and names in its data (0x800C2B40-0x800C2B60: drives of 500, 400, 300 and 200
+# yards, test values by the look of them), which func_8005CA48 puts in instead
+# while debug flag 0x54 is on (func_800299F4's test). The flag's other reader, func_8005C674, sets the grid's every
+# other golfer unlocked, so the flag itself isn't set: after each of func_8005CA48's three tests of it, the answer is
+# on while the option is On, and as the game has it with Original.
+[[patches.hook]]
+func = "func_8005CA48"
+before_vram = 0x8005CBD8
+text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
+
+[[patches.hook]]
+func = "func_8005CA48"
+before_vram = 0x8005CC1C
+text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
+
+[[patches.hook]]
+func = "func_8005CA48"
+before_vram = 0x8005CD18
+text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
