@@ -111,8 +111,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   own shape across the wide picture, and `src/game/card.cpp` keeps the old shot a dissolve fades out at 4:3, both where
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
-  or it stands away from the hole and its marker. The course's terrain is never drawn at its coarsest level of detail (`us.toml`):
-  its edges left cracks beside finer blocks at a high resolution. Its players take turns on one view, never a split screen.
+  or it stands away from the hole and its marker, and draws them between game frames only with
+  `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. The course's terrain is
+  never drawn at its coarsest level of detail (`us.toml`): its edges left cracks beside finer blocks at a high
+  resolution. Its players take turns on one view, never a split screen.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact.
