@@ -1,0 +1,1 @@
+- **The Game Boy golfers:** a new option, Game Boy Golfers on the General tab, puts Kid, Sherry, Azalea and Joe, the golfers of Mario Golf for the Game Boy Color, at character select, with the names and stats the game has for them (issue 82). On a console they come only through a Transfer Pak holding the Game Boy game. It is Original (off) unless you turn it on.

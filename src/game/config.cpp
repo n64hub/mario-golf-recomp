@@ -1,12 +1,29 @@
 // The settings: RecompFrontend's General, Controls, Graphics, Sound and Mods tabs, with its default bindings. Its own
 // Graphics options carry what a recomp needs: Resolution and MS Anti-Aliasing (high resolution), Framerate
-// (interpolation to the display's rate) and Aspect Ratio and HUD Placement (widescreen).
+// (interpolation to the display's rate) and Aspect Ratio and HUD Placement (widescreen). The General tab adds the
+// game's own option: Game Boy Golfers (patches/gb_golfers.c), which the patch reads through mg_gb_golfers.
 
 #include <filesystem>
 
+#include "recomp.h"
 #include "recompui/config.h"
 #include "util/file.h"
 #include "mg.h"
+
+namespace {
+    constexpr const char* gb_golfers_id = "gb_golfers";
+
+    enum class GbGolfers : uint32_t {
+        Original,
+        On,
+    };
+}
+
+// Whether character select offers Kid, Sherry, Azalea and Joe (patches/gb_golfers.c): 1 with Game Boy Golfers On.
+extern "C" void mg_gb_golfers(uint8_t*, recomp_context* ctx) {
+    auto value = recompui::config::get_general_config().get_option_value(gb_golfers_id);
+    ctx->r2 = std::get<uint32_t>(value) == static_cast<uint32_t>(GbGolfers::On) ? 1 : 0;
+}
 
 void mg::init_config() {
     std::filesystem::path app_dir = recompui::file::get_app_folder_path();
@@ -18,7 +35,16 @@ void mg::init_config() {
     general_options.has_rumble_strength = true;
     general_options.has_gyro_sensitivity = true;
     general_options.has_mouse_sensitivity = true;
-    recompui::config::create_general_tab(general_options);
+    recomp::config::Config& general = recompui::config::create_general_tab(general_options);
+    general.add_enum_option(
+        gb_golfers_id,
+        "Game Boy Golfers",
+        "Puts Kid, Sherry, Azalea and Joe, the golfers of Mario Golf for the Game Boy Color, at character select, with "
+        "the names and stats the game has for them. <recomp-color primary>Original</recomp-color> leaves them out: on "
+        "a console they come only through a Transfer Pak holding the Game Boy game, which this version doesn't have.",
+        {{GbGolfers::Original, "Original"}, {GbGolfers::On, "On"}},
+        GbGolfers::Original
+    );
     recompui::config::create_controls_tab();
     recompui::config::create_graphics_tab();
     recompui::config::create_sound_tab();
