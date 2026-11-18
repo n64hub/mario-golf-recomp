@@ -132,4 +132,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/frame_plan.txt` walks
   every screen a player meets (the intro, the menus, each mode, the end credits) as a plan for frame dumps of the
   desktop build, waiting on RAM so its runs keep step; its header says its steps, how it moves between modes and what
-  each wait reads. A scene a fault turns up in that it doesn't reach is added to it with the fix.
+  each wait reads. A scene a fault turns up in that it doesn't reach is added to it with the fix. `tools/soak_plan.txt`
+  plays one round of Tournament, Ring Shot, Training and Mini-Golf in three minutes for a soak that fails on a crash
+  or a hang, each step waiting on the game's RAM (its header lists the addresses: the menu screen, the Play Modes
+  cursor, the pause and its menu).

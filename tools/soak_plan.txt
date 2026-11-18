@@ -1,0 +1,92 @@
+# Mario Golf's soak plan: one round through the game's modes and scenes, three minutes with the boot, played on the
+# Linux build by a soak (frame_dump.mjs --soak 180), which fails on a Crash: line, the program exiting, or the picture
+# standing still for 10 s, saying whether the game's RAM went on changing (a frozen picture) or not (a hang). Its steps
+# are capture_window.ps1's plan steps, plus `<t> random <key>,...`, which presses those keys at random until
+# `<t> random off`. It failed v0.1.6 (a hang one second into Training's random hole changes) and passes v0.1.30.
+#
+# A round: the logos, the intro and the title, the main menu, character select and Play Modes; a tee shot of
+# Tournament on Toad Highlands (the hole's flyover, the flight, the cut to the green), Save and Quit by the save menu;
+# Ring Shot's hole and a shot through its rings, Return to Menu; Training's hole picker with its hole changed at random
+# for a few seconds (where v0.1.6 hung), then that hole's flyover and tee, Return to Menu; Mini-Golf's first hole and a
+# putt, Return to Menu; random presses of the main menu's cursor until the time is up. Each hole's flyover is skipped
+# with A, or the round doesn't fit. Each `shot` is a picture of where the round got to.
+#
+# Times are seconds since the program started; each until waits on the game's RAM (the USA ROM's addresses, syms/)
+# and moves the later steps on by its wait, so the round keeps step with the game, not the clock. Overlays: the loaded
+# byte at the head of each 0x28-byte entry of the overlay table at 0x800B5F58 (CLAUDE.md, The code): 8 the title, 3 the
+# main menu and the menus after it, 4 a hole's flyover. The menu screen is 0x801EFFA0 (0 the main menu, 1 Character
+# Select, 5 Play Modes, 6 a mode's course or hole select), the Play Modes cursor the low byte of 0x801323A8 (0
+# Tournament, 1 Get Character, 2 Ring Shot, 3 Speed Golf, 4 Stroke, 5 Mini-Golf, 6 Training; it stays where it was
+# left and wraps), the pause 1 in the low byte of 0x800C306C, and the pause menu's cursor the low byte of 0x80224924,
+# whose last item, W from the first, is Save and Quit (by the save menu) or Return to Menu; the main menu is waited for
+# with A pressed, which a save menu takes and the main menu's zoom drops. Keys are the keyboard's defaults: Enter
+# Start, Space A, WASD the stick.
+
+# The logos and the intro run by themselves; Start at the title, then at the main menu.
+55 until 0x800B6098 0xFF000000 0x01000000 60 Enter
+58 until 0x800B5FD0 0xFF000000 0x01000000 30 Enter
+
+# Tournament on Toad Highlands: one tee shot, then Save and Quit.
+59 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+60 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+61 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+62 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+62.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+64 key Space
+64.7 key Space
+65.4 key Space
+73 shot tournament
+74.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+76 until 0x80224924 0x000000FF 0x00000005 15 W
+76.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+
+# Ring Shot: straight into its hole, a shot through the rings, Return to Menu.
+77.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+78.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+79.5 until 0x801323A8 0x000000FF 0x2 15 D
+80.8 key Space
+81.8 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+82.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+83.8 key Space
+84.5 key Space
+85.2 key Space
+92 shot ring_shot
+93.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+95 until 0x80224924 0x000000FF 0x00000005 15 W
+95.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+
+# Training on Toad Highlands: its hole picker, the hole changed at random (D and A; W and S change the course, whose
+# pause menu then has other items), that hole's flyover to the tee, Return to Menu (the ninth of its pause menu's
+# items).
+96.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+97.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+98.5 until 0x801323A8 0x000000FF 0x6 15 D
+99.5 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+100.5 random D,A
+105.5 random off
+106 shot training_hole
+106.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+106.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+107.5 shot training_tee
+108.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+110 until 0x80224924 0x000000FF 0x00000008 15 W
+110.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+
+# Mini-Golf on Luigi's Garden (left of Training): hole 1's flyover and a putt, Return to Menu.
+111.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+112.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+113.5 until 0x801323A8 0x000000FF 0x5 15 A
+114.5 key Space
+116.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+116.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+118 key Space
+118.7 key Space
+119.4 key Space
+128 shot mini_golf
+129.5 until 0x800C306C 0x000000FF 0x00000001 20 Enter
+131 until 0x80224924 0x000000FF 0x00000005 15 W
+131.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+133.5 shot main_menu
+
+# The main menu's cursor, at random, until the time is up.
+134 random W,S
