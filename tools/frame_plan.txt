@@ -1,0 +1,209 @@
+# Mario Golf's frame-dump plan: one run of the desktop build through every screen a player meets, played in a 16:9, a
+# 4:3 and a 32:9 window while the build dumps its frames, the three dumps then checked against each other by machine.
+# A check fails only what a plan plays, so a scene a player reports a fault in that this doesn't reach is added here by
+# the work that fixes it.
+# Each line is a step at seconds since the program started: `key <name>` presses and releases a key in the window,
+# `shot <name>` captures it, `poke <addr> <value>` writes a 32-bit word of RDRAM, and
+# `until <addr> <mask> <value> <timeout s> [key]` waits until the word at addr anded with mask is value, pressing key
+# every 1.5 s meanwhile if it isn't yet; the later steps move on by its wait, so the three runs keep step with the game,
+# not the clock, and an until unmet by its timeout fails the run. Addresses are the USA ROM's (syms/).
+# Overlays: the loaded byte at the head of each 0x28-byte entry of the overlay table at 0x800B5F58 (CLAUDE.md, The
+# code; tools/shader_survey.js): 8 the title, 3 the main menu and the menus after it, 4 a hole's flyover, 2 any hole
+# (with 11 in most modes, 13 in Ring Shot and Training), 16 the end credits. Keys are the keyboard's defaults: Enter
+# Start, Space A, WASD the stick. A press can be lost on a busy host (a late step's keys also come in a burst, which
+# the game takes as one), so each step whose miss would leave the plan out of step presses until RAM shows it took: the
+# menu screen (0x801EFFA0: 0 the main menu, 1 Character Select, 5 Play Modes, 6 a mode's course or hole select), the
+# Play Modes cursor (the low byte of 0x801323A8, the mode from 0 in the order below), Training's hole (0x800F72F0,
+# from 1), the pause (1 in the low byte of 0x800C306C while paused) and its menu's cursor (the low byte of
+# 0x80224924, the item from 0), whose last item, W from the first, is Save and Quit (by the save menu) or Return to
+# Menu; the main menu is waited for with A pressed, which a save menu takes and the main menu's zoom drops.
+
+# The logos and the intro: the golfers one by one, Luigi's swing and its crossfade to the overhead shot.
+3 shot 00_logos
+28 shot 01_intro
+55 until 0x800B6098 0xFF000000 0x01000000 60 Enter
+58 shot 02_title
+# The main menu zooms in over the title, its sign bobbing; a press in its first half second is dropped.
+58 until 0x800B5FD0 0xFF000000 0x01000000 30 Enter
+61 shot 03_main_menu
+# Character select and Plum, then the play modes turned through all seven:
+# Tournament, Get Character, Ring Shot, Speed Golf, Stroke, Mini-Golf, Training.
+61.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+63 shot 04_character_select
+64 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+65.5 shot 05_play_modes
+66.5 until 0x801323A8 0x000000FF 0x6 15 D
+67.5 until 0x801323A8 0x000000FF 0x0 15 D
+68.5 shot 06_play_modes_turned
+
+# Tournament on Toad Highlands: course select's card opening, the iris into hole 1 and its flyover (overlay 4), a tee
+# shot's flight and the cut to the view from the green, a second shot; Save and Quit by the save menu to the main menu.
+69.5 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+71 shot 07_course_select
+72 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+73 shot 08_hole_open
+73 until 0x800B5FF8 0xFF000000 0x00000000 60
+74 shot 09_tournament_tee
+74.5 key Space
+75.2 key Space
+75.9 key Space
+78.9 shot 10_tournament_flight
+86.9 shot 11_tournament_landing
+87.4 key Space
+88.1 key Space
+88.8 key Space
+91.8 shot 12_tournament_second
+99.8 shot 13_tournament_second_landing
+100.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+102.3 shot 14_tournament_pause
+102.3 until 0x80224924 0x000000FF 0x00000005 15 W
+102.8 shot 15_tournament_quit
+102.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+104.8 shot 16_tournament_main_menu
+
+# Ring Shot: straight into its hole's "Give it a Shot!" flyover, a shot through the rings, Return to Menu.
+105.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+106.8 shot 17_character_select
+107.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+109.3 shot 18_play_modes
+110.3 until 0x801323A8 0x000000FF 0x2 15 D
+111.1 shot 19_ring_shot_mode
+111.6 key Space
+112.6 shot 20_ring_shot_pressed
+112.6 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+113.6 shot 21_ring_shot_open
+113.6 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+114.6 shot 22_ring_shot_tee
+115.1 key Space
+115.8 key Space
+116.5 key Space
+119.5 shot 23_ring_shot_flight
+127.5 shot 24_ring_shot_landing
+128.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+130 shot 25_ring_shot_pause
+130 until 0x80224924 0x000000FF 0x00000005 15 W
+130.5 shot 26_ring_shot_quit
+130.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+132.5 shot 27_ring_shot_main_menu
+
+# Mini-Golf on Luigi's Garden (overlay 2): its course select, hole 1's flyover and a putt that drops, the view of
+# the cup with its stars and the score card, then hole 2's camera swooping in behind the tee.
+133 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+134.5 shot 28_character_select
+135.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+137 shot 29_play_modes
+138 until 0x801323A8 0x000000FF 0x5 15 D
+139 key Space
+140.5 shot 30_mini_golf_select
+141.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+141.5 until 0x800B5FF8 0xFF000000 0x00000000 60
+142.5 shot 31_mini_golf_tee
+143 key Space
+143.7 key Space
+144.4 key Space
+147.4 shot 32_mini_golf_flight
+155.4 shot 33_mini_golf_landing
+159.4 key Space
+161.4 shot 34_mini_golf_next
+161.4 until 0x800B5FF8 0xFF000000 0x00000000 60
+162.4 shot 35_mini_golf_hole2
+163.4 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+164.9 shot 36_mini_golf_pause
+164.9 until 0x80224924 0x000000FF 0x00000005 15 W
+165.4 shot 37_mini_golf_quit
+165.4 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+167.4 shot 38_mini_golf_main_menu
+
+# Get Character: a match against a computer golfer, whose turn the camera follows.
+167.9 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+169.4 shot 39_character_select
+170.4 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+171.9 shot 40_play_modes
+172.9 until 0x801323A8 0x000000FF 0x1 15 D
+173.9 key Space
+175.4 shot 41_get_character_select
+176.4 key Space
+177.9 shot 42_get_character_course
+178.9 key Space
+178.9 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+178.9 until 0x800B5FF8 0xFF000000 0x00000000 60
+179.9 shot 43_get_character_tee
+180.4 key Space
+181.1 key Space
+181.8 key Space
+184.8 shot 44_get_character_flight
+192.8 shot 45_get_character_landing
+200.8 shot 46_get_character_rival
+208.8 shot 47_get_character_rival2
+209.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+211.3 shot 48_get_character_pause
+211.3 until 0x80224924 0x000000FF 0x00000005 15 W
+211.8 shot 49_get_character_quit
+211.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+213.8 shot 50_get_character_main_menu
+
+# Training: its hole picker over the course map, hole 2 picked (it hung there once), A through its flyover to the
+# tee, left from there (a shot ends on a menu that Start doesn't pause); its pause menu has nine items, the last Return
+# to Menu.
+214.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+215.8 shot 51_character_select
+216.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+218.3 shot 52_play_modes
+219.3 until 0x801323A8 0x000000FF 0x6 15 D
+220.3 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+221.8 shot 53_training_select
+222.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
+224.3 shot 54_training_hole
+224.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+224.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+225.3 shot 55_training_tee
+226.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+227.8 shot 56_training_pause
+227.8 until 0x80224924 0x000000FF 0x00000008 15 W
+228.3 shot 57_training_quit
+228.3 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+230.3 shot 58_training_main_menu
+
+# Speed Golf, last: Lakitu starts the clock (a press before is lost), and the golfer runs to the ball after the
+# shot; its pause menu has five items, and its Quit Game asks first, NO lit, which A answers, back in play. (No word in
+# RAM was found to hold which of YES and NO is lit, and A toggles it, so the plan never takes YES.)
+230.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+232.3 shot 59_character_select
+233.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+234.8 shot 60_play_modes
+235.8 until 0x801323A8 0x000000FF 0x3 15 D
+236.8 key Space
+238.3 shot 61_speed_golf_select
+239.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+239.3 until 0x800B5FF8 0xFF000000 0x00000000 60
+240.3 shot 62_speed_golf_tee
+244.3 shot 63_speed_golf_lakitu
+244.8 key Space
+245.5 key Space
+246.2 key Space
+249.2 shot 64_speed_golf_flight
+257.2 shot 65_speed_golf_landing
+263.2 shot 66_speed_golf_run
+264.2 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+265.7 shot 67_speed_golf_pause
+265.7 until 0x80224924 0x000000FF 0x00000004 15 W
+266.2 shot 68_speed_golf_quit
+266.7 key Space
+269.7 shot 69_speed_golf_ask
+269.7 until 0x800C306C 0x000000FF 0x00000000 15 Space
+271.2 shot 70_speed_golf_resumed
+
+# The end credits, which a round can't reach in minutes: from Speed Golf's round the round's state machine is set
+# to its credits state (0x801B6088 = 7, 0x800C30AC = 0xF) and the fade between (scene 0xC at 0x800BB020) let through
+# (0x800C401C = 0), then the credits (scene 0x1E) play whole, the names rising beside the course in its box, until
+# their timer (0x801F89A4) passes 0xE00, and the Congratulations picture fades in.
+271.7 poke 0x801B6088 7
+271.7 poke 0x800C30AC 0xF
+271.7 until 0x800BB020 0xFFFFFFFF 0xC 30
+271.7 poke 0x800C401C 0
+271.7 until 0x800BB020 0xFFFFFFFF 0x1E 60
+274.7 shot 71_credits_start
+314.7 shot 72_credits_names
+314.7 until 0x801F89A4 0xFFFFFE00 0xE00 240
+334.7 shot 73_credits_picture
+337.7 end

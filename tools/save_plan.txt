@@ -1,7 +1,6 @@
-# The save run of the desktop save check (N64Recomp-browser's tools/frame_dump.mjs --saves, through
-# tools/remote_frame_dump.sh, with tools/load_plan.txt; frame_dump.mjs's header says what it checks): a round of
+# The save run of the desktop save check (with tools/load_plan.txt, the saves behind symlinks): a round of
 # Tournament on Toad Highlands begun with one tee shot and left by the pause menu's Save and Quit, which writes the
-# SRAM (saves/mariogolf64.n64.us.1.0.bin). The steps are tools/capture_window.ps1's plus frame_dump's `saves`; times
+# SRAM (saves/mariogolf64.n64.us.1.0.bin). The steps are capture_window.ps1's plus frame_dump's `saves`; times
 # are seconds since the program started, and each until moves the later steps on by its wait.
 #
 # The game keeps the SRAM's 32 KB in RAM at 0x8012F720 and reads it in at boot. A round left by Save and Quit is the
