@@ -29,7 +29,8 @@
 // A rectangle that reads the copy of the frame before that a transition draws (card.cpp's, of the picture RT64 drew,
 // already scaled, or the game's own in its z-buffer) is left as it is, and so is one iris.cpp has already sent through
 // a buffer of its own, so us.toml calls mg_iris_fix first. The buffers are this file's in RDRAM, above the 4 MB the game
-// uses. With Aspect Ratio Original nothing changes.
+// uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D screen drawn in a frame with 3D,
+// goes through the same scaling from credits.cpp (mg_screen_fill_range).
 
 #include <cmath>
 #include <cstdint>
@@ -244,28 +245,19 @@ bool rect_next(uint32_t addr, uint32_t end) {
     return false;
 }
 
-} // namespace
-
-extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
-    g_rdram = rdram;
-    if ((list & 7) != 0 || !mg_aspect_expand() || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY))) {
-        return;
+// How much a screen is scaled, false if not at all: in a window no wider than 4:3 the frame fills its width; in a wider
+// one, its height, and as much of the width. With Aspect Ratio Original, not at all.
+bool set_fill() {
+    if (!mg_aspect_expand()) {
+        return false;
     }
-    // In a window no wider than 4:3 the frame fills its width; in a wider one, its height, and as much of the width.
     float width = SCREEN_WIDTH * mg_wide_scale();
     g_fill = std::fmin(SCREEN_HEIGHT / INNER_HEIGHT, width / INNER_WIDTH);
-    if (g_fill <= 1.0f) {
-        return;
-    }
+    return g_fill > 1.0f;
+}
 
-    uint32_t end = list;
-    for (uint32_t i = 0; i < MAX_COMMANDS && (rd_w(end) >> 24) != G_ENDDL; i++) {
-        end += 8;
-    }
-    if ((rd_w(end) >> 24) != G_ENDDL) {
-        return;
-    }
-
+// The commands from list to end scaled: rectangles, scissors and viewports, rectangles point sampled.
+void fill(uint32_t list, uint32_t end) {
     uint32_t texture = 0;
     bool copy = false;
     for (uint32_t addr = list; addr < end; addr += 8) {
@@ -296,4 +288,35 @@ extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
             addr += 16;
         }
     }
+}
+
+} // namespace
+
+extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
+    g_rdram = rdram;
+    if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY)) || !set_fill()) {
+        return;
+    }
+    uint32_t end = list;
+    for (uint32_t i = 0; i < MAX_COMMANDS && (rd_w(end) >> 24) != G_ENDDL; i++) {
+        end += 8;
+    }
+    if ((rd_w(end) >> 24) != G_ENDDL) {
+        return;
+    }
+    fill(list, end);
+}
+
+// The commands from list to end, a 2D screen another file found in a frame that isn't all one (credits.cpp's), scaled
+// the same way.
+extern "C" void mg_screen_fill_range(uint8_t* rdram, uint32_t list, uint32_t end) {
+    g_rdram = rdram;
+    if (set_fill()) {
+        fill(list, end);
+    }
+}
+
+// Whether mg_screen_fill_range would scale a screen now.
+extern "C" bool mg_screen_fills() {
+    return set_fill();
 }

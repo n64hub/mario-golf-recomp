@@ -180,3 +180,15 @@ text = "{ void mg_card_strips_begin(uint8_t*); mg_card_strips_begin(rdram); }"
 func = "func_800957F0"
 before_vram = 0x80095878
 text = "{ void mg_card_strips_end(uint8_t*); mg_card_strips_end(rdram); }"
+
+# The staff credits' last picture at the picture's full height (src/game/credits.cpp): where the credits' drawing
+# (func_ovl16_801F7554) begins the picture's strips, and where it puts back the list's head it keeps at sp + 0x10.
+[[patches.hook]]
+func = "func_ovl16_801F7554"
+before_vram = 0x801F7D9C
+text = "{ void mg_credits_picture_begin(uint8_t*, uint32_t); mg_credits_picture_begin(rdram, (uint32_t)ctx->r29); }"
+
+[[patches.hook]]
+func = "func_ovl16_801F7554"
+before_vram = 0x801F8000
+text = "{ void mg_credits_picture_end(uint8_t*, uint32_t); mg_credits_picture_end(rdram, (uint32_t)ctx->r29); }"
