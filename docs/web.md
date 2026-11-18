@@ -59,11 +59,12 @@ Two more plans play what the regular one doesn't reach:
 
 ## The shader list
 
-`src/rt64_shaders.txt` holds 321 shaders in eight sections: the boot's (the logos, the intro, the title and the
-menus to a course), one for each of the six courses, from Toad Highlands to Mario Star, and Mini-Golf's. It is
-recorded by code: the boot and Toad Highlands with `tools/shader_plan.json`, the other five courses and Mini-Golf with
-`tools/shader_plan_courses.json`, which opens them on a new save by the GameShark's Have All Courses (the list's header
-says what each section plays and how to record it again). A play that draws what the list lacks prints the shaders it
+`src/rt64_shaders.txt` holds 375 shaders in nine sections: the boot's (the logos, the intro, the title and the
+menus to a course), one for each of the six courses, from Toad Highlands to Mario Star, Mini-Golf's and the staff
+credits'. It is recorded by code: the boot and Toad Highlands with `tools/shader_plan.json`, the other five courses,
+Mini-Golf and the credits with `tools/shader_plan_courses.json`, which opens the courses on a new save by the
+GameShark's Have All Courses and reaches the credits by setting a round to its credits state (the list's header says
+what each section plays and how to record it again). A play that draws what the list lacks prints the shaders it
 missed (`play_page.mjs` counts the misses), which go into the section it was in.
 
 ## How it plays
