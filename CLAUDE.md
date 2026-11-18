@@ -104,7 +104,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
   wide picture's sides, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
-  sides, where the game's scissor cuts them, and while any of them is in the picture, and puts the sky in a matrix group whose clouds RT64 slides
+  sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, and puts the sky in a matrix group whose clouds RT64 slides
   between the game's frames, `src/game/ball.cpp` draws the ball's sprites and the stars in the view of the cup on into
   the wide picture's sides, where the game cuts them at the screen's, and `src/game/title.cpp` scales the title's painting, a 2D screen
   RT64 keeps at 4:3, to the picture's full height, `src/game/iris.cpp` draws the iris wipe between screens at its
