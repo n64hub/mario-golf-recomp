@@ -132,4 +132,6 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/soak_plan.txt` plays one
   round of Tournament, Ring Shot, Training and Mini-Golf in three minutes for a soak that fails on a crash or a hang,
   each step waiting on the game's RAM (its header lists the addresses: the menu screen, the Play Modes cursor, the
-  pause and its menu).
+  pause and its menu). `tools/save_plan.txt` and `tools/load_plan.txt` are the desktop save check (N64Recomp-browser's
+  `tools/frame_dump.mjs --saves`): a Tournament round left by Save and Quit, and after a restart, with the saves behind
+  symlinks, that round read back off the SRAM into its copy in RAM at 0x8012F720 (their headers say which words).
