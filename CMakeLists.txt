@@ -102,6 +102,11 @@ set(RT64_EXPAND_SCREEN_VERTICES ON)
 # too, as with Emscripten, or the flagstick stood still for a game frame while the green moved under it and shook at
 # its foot, a step a game frame (issue 53).
 set(RT64_INTERPOLATE_SCREEN_VERTICES ON)
+# Ring Shot's rings sample a 32x32 map the game rebuilds from strips of the frame each frame, often fewer rows of it
+# than 32: here on the desktop too, as with Emscripten, a texture whose texcoords reach past the rows RT64 copied of
+# such a framebuffer comes from what RAM holds (RT64_TILE_COPY_TMEM_FALLBACK), or the rings drew black now and then
+# (issue 65).
+set(RT64_TILE_COPY_TMEM_FALLBACK ON)
 # The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
 # memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
 # every target, the runtime's too, so that each maps KUSEG the same way.
