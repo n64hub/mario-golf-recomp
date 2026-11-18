@@ -42,7 +42,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
 - The scope is the game as it plays, plus what a web page needs (RT64 interpolation to the display's rate, resolution
   Auto), plus modern enhancements: each an option with an Original value that plays as the console does, none
   changing how the game plays, but for what a console gets only through an accessory the recompilation lacks, made
-  from the game's own data: the Game Boy Golfers option (`patches/gb_golfers.c`). USA only.
+  from the game's own data: the Game Boy Golfers option (`us.toml`). USA only.
 - Code from any other Mario Golf project may be read for what it changes, but nothing that isn't the decomp's (MIT) or
   CC0 is copied.
 - Write for a stranger, in the present tense: nothing about a contributor's machine, servers, paths or accounts, and
@@ -86,8 +86,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   `saves/mariogolf64.n64.us.1.0.bin`.
 - **The Transfer Pak.** The game looks for one for its link with the Game Boy Color game; `src/game/libultra.cpp`
   answers that none is plugged in, as on a console with none. The link (overlay 15) only reads the four Game Boy
-  golfers into RAM for the session, never into the save. The game has the four of its own behind debug flag 0x54,
-  which the General tab's Game Boy Golfers option turns on (`patches/gb_golfers.c`).
+  golfers into RAM for the session, never into the save. The game has the four of its own, which character select
+  offers in their place behind debug flag 0x54: the General tab's Game Boy Golfers option answers that flag on there
+  alone (`us.toml`), since its other reader unlocks every golfer.
 - **Threads** (`main.cpp` names them): 0 the PI manager or the VI manager (by priority), 1 idle, 3 the game's main at
   priority 10, 4 NuSystem's graphics thread, 5 its task manager or the controllers (by priority), 17-19 the
   scheduler's threads.
