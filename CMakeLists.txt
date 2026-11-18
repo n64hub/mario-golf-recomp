@@ -88,7 +88,8 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # order each frame, out on the fairway in a flyover and jumping about as a shot is aimed. The far hills behind a
 # course are 2D strips whose texture the game scrolls as the camera turns and which it moves up and down as the camera
 # pitches, so RT64 slides the texture and moves the strips in the frames between (RT64_INTERPOLATE_RECT_SCROLLS), or
-# they stepped a game frame at a time against the trees and fairway in front.
+# they stepped a game frame at a time against the trees and fairway in front. It pairs them as the game drew them, so
+# the end credits' lines, which rise a pixel a game frame, keep their place sideways near the bottom too.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
