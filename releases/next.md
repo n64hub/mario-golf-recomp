@@ -1,0 +1,1 @@
+- **No more one-frame flashes of a half-drawn picture:** when a frame ran late, the next one could flash for a single frame half-drawn, or in the pose after it. On the Play Modes screen, Charlie's and Wario's arms lost a forearm or jumped ahead. The browser page has the same fix.
