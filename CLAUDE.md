@@ -113,7 +113,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker, and draws them between game frames only with
-  `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. The course's terrain is
+  `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. Ring Shot's rings sample a
+  32x32 map the game rebuilds each frame from strips of the picture, often fewer than its 32 rows, which RT64 draws from
+  what RAM holds only with `RT64_TILE_COPY_TMEM_FALLBACK`, or they draw solid black now and then. The course's terrain is
   never drawn at its coarsest level of detail (`us.toml`): its edges left cracks beside finer blocks at a high
   resolution. Its players take turns on one view, never a split screen.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
