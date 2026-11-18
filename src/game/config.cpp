@@ -1,8 +1,8 @@
 // The settings: RecompFrontend's General, Controls, Graphics, Sound and Mods tabs, with its default bindings. Its own
 // Graphics options carry what a recomp needs: Resolution and MS Anti-Aliasing (high resolution), Framerate
 // (interpolation to the display's rate) and Aspect Ratio and HUD Placement (widescreen). The General tab adds the
-// game's own option: Game Boy Golfers, which us.toml's hooks in character select (func_8005CA48) read through
-// mg_gb_golfers and mg_gb_golfers_setup.
+// game's own options: Game Boy Golfers and Game Boy Golfers' Stats (disabled while the first is Original), which
+// us.toml's hooks in character select (func_8005CA48) read through mg_gb_golfers and mg_gb_golfers_setup.
 
 #include <cstdint>
 #include <filesystem>
@@ -13,16 +13,26 @@
 
 namespace {
     constexpr const char* gb_golfers_id = "gb_golfers";
+    constexpr const char* gb_golfer_stats_id = "gb_golfer_stats";
 
     enum class GbGolfers : uint32_t {
         Original,
-        NormalStats,
-        TestStats,
+        On,
     };
 
-    GbGolfers gb_golfers() {
+    enum class GbGolferStats : uint32_t {
+        Normal,
+        Test,
+    };
+
+    bool gb_golfers_on() {
         auto value = recompui::config::get_general_config().get_option_value(gb_golfers_id);
-        return static_cast<GbGolfers>(std::get<uint32_t>(value));
+        return std::get<uint32_t>(value) == static_cast<uint32_t>(GbGolfers::On);
+    }
+
+    GbGolferStats gb_golfer_stats() {
+        auto value = recompui::config::get_general_config().get_option_value(gb_golfer_stats_id);
+        return static_cast<GbGolferStats>(std::get<uint32_t>(value));
     }
 
     // A halfword of the game's RAM at a KSEG0 address, as the runtime keeps it (each 32-bit word in the host's order).
@@ -43,17 +53,16 @@ namespace {
     int16_t test_stats[4][3];
 }
 
-// Whether character select offers Kid, Sherry, Azalea and Joe (us.toml's hooks in func_8005CA48): 1 unless Game Boy
-// Golfers is Original.
+// Whether character select offers Kid, Sherry, Azalea and Joe (us.toml's hooks in func_8005CA48): 1 with Game Boy
+// Golfers On.
 extern "C" int mg_gb_golfers() {
-    return gb_golfers() != GbGolfers::Original ? 1 : 0;
+    return gb_golfers_on() ? 1 : 0;
 }
 
 // The same, at func_8005CA48's first test, before its path for the flag writes anything: with the golfers on, the
-// stats that path gives them (D_800C2B48 on) are set to the option's, Normal Stats' or Test Stats'.
+// stats that path gives them (D_800C2B48 on) are set to Game Boy Golfers' Stats', Normal or Test.
 extern "C" int mg_gb_golfers_setup(uint8_t* rdram) {
-    GbGolfers mode = gb_golfers();
-    if (mode == GbGolfers::Original) {
+    if (!gb_golfers_on()) {
         return 0;
     }
     if (!stats_read) {
@@ -68,7 +77,7 @@ extern "C" int mg_gb_golfers_setup(uint8_t* rdram) {
         }
         stats_read = true;
     }
-    const int16_t (*stats)[3] = mode == GbGolfers::TestStats ? test_stats : normal_stats;
+    const int16_t (*stats)[3] = gb_golfer_stats() == GbGolferStats::Test ? test_stats : normal_stats;
     for (uint32_t i = 0; i < 4; i++) {
         ram_half(rdram, test_carry + 2 * i) = stats[i][0];
         ram_half(rdram, test_loft + 2 * i) = stats[i][1];
@@ -91,16 +100,24 @@ void mg::init_config() {
     general.add_enum_option(
         gb_golfers_id,
         "Game Boy Golfers",
-        "Puts Kid, Sherry, Azalea and Joe, the golfers of Mario Golf for the Game Boy Color, at character select. "
-        "<recomp-color primary>Normal Stats</recomp-color> gives them the clubs the game has for them, drives of "
-        "205-210 yards. <recomp-color primary>Test Stats</recomp-color> gives them the developers' test values the "
-        "game also holds: Kid drives 500 yards, Sherry 400, Azalea 300 and Joe 200. "
-        "<recomp-color primary>Original</recomp-color> leaves them out: on a console they come only through a "
-        "Transfer Pak holding the Game Boy game, which this version doesn't have.",
-        {{GbGolfers::Original, "Original"}, {GbGolfers::NormalStats, "NormalStats", "Normal Stats"},
-         {GbGolfers::TestStats, "TestStats", "Test Stats"}},
+        "Puts Kid, Sherry, Azalea and Joe, the golfers of Mario Golf for the Game Boy Color, at character select, "
+        "with the stats Game Boy Golfers' Stats picks. <recomp-color primary>Original</recomp-color> leaves them out: "
+        "on a console they come only through a Transfer Pak holding the Game Boy game, which this version doesn't "
+        "have.",
+        {{GbGolfers::Original, "Original"}, {GbGolfers::On, "On"}},
         GbGolfers::Original
     );
+    general.add_enum_option(
+        gb_golfer_stats_id,
+        "Game Boy Golfers' Stats",
+        "The Game Boy golfers' stats. <recomp-color primary>Normal</recomp-color>: the clubs the game has for them, "
+        "drives of 205-210 yards, about as long as the other golfers. "
+        "<recomp-color primary>Test</recomp-color>: the developers' test values the game also holds, Kid driving 500 "
+        "yards, Sherry 400, Azalea 300 and Joe 200.",
+        {{GbGolferStats::Normal, "Normal"}, {GbGolferStats::Test, "Test"}},
+        GbGolferStats::Normal
+    );
+    general.add_option_disable_dependency(gb_golfer_stats_id, gb_golfers_id, GbGolfers::Original);
     recompui::config::create_controls_tab();
     recompui::config::create_graphics_tab();
     recompui::config::create_sound_tab();

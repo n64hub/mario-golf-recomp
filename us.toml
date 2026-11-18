@@ -210,8 +210,8 @@ text = "{ void mg_credits_picture_end(uint8_t*, uint32_t); mg_credits_picture_en
 # instead while debug flag 0x54 is on (func_800299F4's test), writing those stats over each one's driver. The flag's
 # other reader, func_8005C674, sets the grid's every other golfer unlocked, so the flag itself isn't set: after each
 # of func_8005CA48's three tests of it, the answer is on unless the option is Original. The first, before anything is
-# written, also sets the stats that path writes to the option's: the clubs table's own (Normal Stats) or the test
-# values (Test Stats).
+# written, also sets the stats that path writes to the second option's, Game Boy Golfers' Stats: the clubs table's own
+# (Normal) or the test values (Test).
 [[patches.hook]]
 func = "func_8005CA48"
 before_vram = 0x8005CBD8
