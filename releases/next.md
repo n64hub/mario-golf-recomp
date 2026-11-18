@@ -1,1 +1,0 @@
-- **The title and the menus fill a wide window's height:** with Aspect Ratio Expand in a window wider than 4:3, the title, the main menu and the menus after it are drawn to the window's top and bottom, centred with black at their sides, instead of as a smaller box with black on all four sides (the game's own border, which a TV's edge hid). The browser page has the same fix.
