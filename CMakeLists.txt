@@ -97,6 +97,11 @@ set(RT64_INTERPOLATE_RECT_SCROLLS ON)
 # projections (RT64_EXPAND_SCREEN_VERTICES), or in a picture wider than 4:3 the flagstick stood away from the hole and
 # from the pin's marker, further out the further it was from the picture's middle.
 set(RT64_EXPAND_SCREEN_VERTICES ON)
+# Those screen positions are the game frame's own, so at a display rate above the game's 30 RT64 draws each between
+# the game frame before's and its own in the frames between (RT64_INTERPOLATE_SCREEN_VERTICES), here on the desktop
+# too, as with Emscripten, or the flagstick stood still for a game frame while the green moved under it and shook at
+# its foot, a step a game frame (issue 53).
+set(RT64_INTERPOLATE_SCREEN_VERTICES ON)
 # The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
 # memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
 # every target, the runtime's too, so that each maps KUSEG the same way.
