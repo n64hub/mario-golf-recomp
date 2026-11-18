@@ -114,8 +114,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   or it stands away from the hole and its marker, and draws them between game frames only with
   `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. The course's terrain is
   never drawn at its coarsest level of detail (`us.toml`): its edges left cracks beside finer blocks at a high
-  resolution. Its players take turns on one view, never a split screen,
-  so N64Recomp-browser's docs/new-recomp.md item 1a (split screen) isn't in its row.
+  resolution. Its players take turns on one view, never a split screen.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact.
