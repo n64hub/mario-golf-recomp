@@ -7,8 +7,12 @@
   "ONE, the first golfer and a Tournament with A, turns the course select right once a course (the selected one is the byte",
   "at 0x801323B6: Koopa Cup, Shy Guy International, Yoshi Championship, Boo Classic, Mario Open), and plays the course's",
   "first hole: its flyover, three shots from the tee with the pause menu between, on the game's clock",
-  "(tools/shader_survey.js). Its last section, mini_golf, takes the play modes' Mini-Golf (five presses right) in place of a",
-  "Tournament: a course of its own, whose hole is overlay 2 where the others' is 11."
+  "(tools/shader_survey.js). Its section mini_golf takes the play modes' Mini-Golf (five presses right) in place of a",
+  "Tournament: a course of its own, whose hole is overlay 2 where the others' is 11. Its last section, credits,",
+  "is the staff credits (scene 0x1E at 0x800BB020, overlay 16), which a plan can't play its way to: from Toad",
+  "Highlands' first tee, the round's state machine is set to its credits state (0x801B6088 = 7, 0x800C30AC = 0xF) and",
+  "the fade between (scene 0xC) let through (0x800C401C = 0); then the credits play whole, the names and the course in",
+  "its box, to the Congratulations picture, which fades in once their timer (0x801F89A4) passes 0xE20."
  ],
  "load": [
   [
@@ -1695,6 +1699,122 @@
     ],
     [
      "clock"
+    ]
+   ]
+  },
+  {
+   "name": "credits",
+   "steps": [
+    [
+     "keep",
+     false
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     150
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     150
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "hold",
+     "Space",
+     " ",
+     32,
+     150
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "pressUntil",
+     "Space",
+     " ",
+     32,
+     150,
+     2500,
+     "loaded(11)",
+     30000
+    ],
+    [
+     "need",
+     "until(()=>!loaded(4),60000)"
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "shot",
+     "credits_tee.png"
+    ],
+    [
+     "keep",
+     true
+    ],
+    [
+     "need",
+     "new Promise((ok) => { n64w(0x801B6088, 7); n64w(0x800C30AC, 0xF); const from = Date.now(); const t = setInterval(() => { const scene = n64r(0x800BB020); if (scene === 0xC) n64w(0x800C401C, 0); if (scene === 0x1E || Date.now() - from > 60000) { clearInterval(t); ok(scene === 0x1E); } }, 20); })"
+    ],
+    [
+     "wait",
+     5000
+    ],
+    [
+     "shot",
+     "credits_start.png"
+    ],
+    [
+     "need",
+     "until(() => n64r(0x800BB020) === 0x1E && n64r(0x801F89A4) >= 0x600, 180000)"
+    ],
+    [
+     "shot",
+     "credits_names.png"
+    ],
+    [
+     "need",
+     "until(() => n64r(0x800BB020) === 0x1E && n64r(0x801F89A4) >= 0xE20, 240000)"
+    ],
+    [
+     "wait",
+     3000
+    ],
+    [
+     "shot",
+     "credits_fade.png"
+    ],
+    [
+     "wait",
+     20000
+    ],
+    [
+     "shot",
+     "credits_picture.png"
+    ],
+    [
+     "wait",
+     5000
     ]
    ]
   }
