@@ -5,10 +5,10 @@
 #
 # A round: the logos, the intro and the title, the main menu, character select and Play Modes; a tee shot of
 # Tournament on Toad Highlands (the hole's flyover, the flight, the cut to the green), Save and Quit by the save menu;
-# Ring Shot's hole and a shot through its rings, Return to Menu; Mini-Golf's first hole, a putt, its cup and score
-# card, then hole 2; Training's hole picker with its hole changed at random for a few seconds (where v0.1.6 hung),
-# then that hole's flyover and tee, Return to Menu; random presses of the main menu's cursor until the time is up.
-# Each `shot` is a picture of where the round got to.
+# Ring Shot's hole and a shot through its rings, Return to Menu; Training's hole picker with its hole changed at random
+# for a few seconds (where v0.1.6 hung), then that hole's flyover and tee, Return to Menu; Mini-Golf's first hole and a
+# putt, Return to Menu; random presses of the main menu's cursor until the time is up. Each hole's flyover is skipped
+# with A, or the round doesn't fit. Each `shot` is a picture of where the round got to.
 #
 # Times are seconds since the program started; each until waits on the game's RAM (the USA ROM's addresses, syms/)
 # and moves the later steps on by its wait, so the round keeps step with the game, not the clock. Overlays: the loaded
@@ -30,62 +30,61 @@
 64 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
 66 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
 67.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-68.5 until 0x800B5FF8 0xFF000000 0x00000000 60
-69.5 key Space
-70.2 key Space
-70.9 key Space
+68.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+70 key Space
+70.7 key Space
+71.4 key Space
 79 shot tournament
-81 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-82.5 until 0x80224924 0x000000FF 0x00000005 15 W
-83 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+80.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+82 until 0x80224924 0x000000FF 0x00000005 15 W
+82.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 
 # Ring Shot: straight into its hole, a shot through the rings, Return to Menu.
-85.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-88 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-90.5 until 0x801323A8 0x000000FF 0x2 15 D
-91.8 key Space
-92.8 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-93.8 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-95.3 key Space
-96 key Space
-96.7 key Space
-104.7 shot ring_shot
-107.7 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-109.2 until 0x80224924 0x000000FF 0x00000005 15 W
-109.7 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-
-# Mini-Golf on Luigi's Garden: hole 1's flyover and a putt, the cup and the score card, then hole 2.
-112.2 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-114.7 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-117.2 until 0x801323A8 0x000000FF 0x5 15 D
-118.2 key Space
-120.7 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-120.7 until 0x800B5FF8 0xFF000000 0x00000000 60
-122.2 key Space
-122.9 key Space
-123.6 key Space
-134.6 shot mini_golf
-138.6 key Space
-140.6 until 0x800B5FF8 0xFF000000 0x00000000 60
-142.6 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-144.1 until 0x80224924 0x000000FF 0x00000005 15 W
-144.6 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+85 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+87.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+90 until 0x801323A8 0x000000FF 0x2 15 D
+91.3 key Space
+92.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+93.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+94.8 key Space
+95.5 key Space
+96.2 key Space
+103 shot ring_shot
+104.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+106 until 0x80224924 0x000000FF 0x00000005 15 W
+106.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 
 # Training: its hole picker, the hole changed at random, that hole's flyover to the tee, Return to Menu (the ninth
 # of its pause menu's items).
-147.1 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-149.6 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-152.1 until 0x801323A8 0x000000FF 0x6 15 D
-153.1 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
-154 random D,A,W,S
-160 random off
-160.5 shot training_hole
-161 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-161 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-162 shot training_tee
-163 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-164.5 until 0x80224924 0x000000FF 0x00000008 15 W
-165 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+109 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+111.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+114 until 0x801323A8 0x000000FF 0x6 15 D
+115 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+116 random D,A,W,S
+121 random off
+121.5 shot training_hole
+122 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+122 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+123 shot training_tee
+124 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+125.5 until 0x80224924 0x000000FF 0x00000008 15 W
+126 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+
+# Mini-Golf on Luigi's Garden (left of Training): hole 1's flyover and a putt, Return to Menu.
+128.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+131 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+133.5 until 0x801323A8 0x000000FF 0x5 15 A
+134.5 key Space
+136.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+136.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+138 key Space
+138.7 key Space
+139.4 key Space
+148 shot mini_golf
+149.5 until 0x800C306C 0x000000FF 0x00000001 20 Enter
+151 until 0x80224924 0x000000FF 0x00000005 15 W
+151.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+153.5 shot main_menu
 
 # The main menu's cursor, at random, until the time is up.
-167 random W,S
+154 random W,S
