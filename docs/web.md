@@ -10,8 +10,7 @@ What is the game's own stays here: the `EMSCRIPTEN` branches of `CMakeLists.txt`
 list's header says how to record it again), the play plan (`tools/play_plan.json`) and the survey it shares with the
 shader plan (`tools/shader_survey.js`). The rest is N64Recomp-browser's: `docs/porting.md` (WebGPU and the shaders,
 prebuilt shader lists, Emscripten), `docs/playing.md` (playing and measuring a page), `docs/forks.md` and
-`docs/findings.md`. Every play of this game's page is a line in N64Recomp-browser's `plays.jsonl` (game `mg`), never a
-record here. The page is published at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/).
+`docs/findings.md`. The page is published at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/).
 
 ## Build it
 
@@ -74,8 +73,7 @@ desktop GPU the page draws well above the display's rate at the canvas's size. F
 the game waiting before it starts and Toad Highlands' as the course first draws, under the page's panel, and on
 Windows its compositor holds it to about 30 frames a second. Render to RAM is on, its copy landing a list late
 (`src/main/main.cpp` says why): the card the last frame of a shot turns over on between shots is that copy, and no
-play has seen the game's CPU write to a frame with the copy pending (RT64 prints a line each time it does). Every
-play's numbers are lines in N64Recomp-browser's `plays.jsonl` (game `mg`).
+play has seen the game's CPU write to a frame with the copy pending (RT64 prints a line each time it does).
 
 The extended plan at 3840x2000, about five minutes on Mario Star, runs nothing out: Chrome's GPU process grew from 1.5
 to 1.9 GB over it and Firefox's from 2.2 to 2.8 GB. Four stand-in pads play four golfers, each from the pad that

@@ -1,7 +1,7 @@
 {
  "header": [
   "The page's extended plan for N64Recomp-browser's tools/play_page.mjs (5 minutes at most), for a long play of the game's",
-  "busiest screens, a course's flyovers and shots, at 3840 wide (docs/new-recomp.md's W9): the boot to the main menu as",
+  "busiest screens, a course's flyovers and shots, at 3840 wide: the boot to the main menu as",
   "tools/play_plan.json has it, then a Tournament on Mario Star, the last course, opened by the GameShark's Have All",
   "Courses as tools/shader_plan_courses.json does, and its first four holes: each hole's flyover, one shot from the tee,",
   "then the pause menu's Give Up (four presses down, A, left to YES, A) to the next hole, whose number is the byte at",
