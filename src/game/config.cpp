@@ -41,8 +41,10 @@ void mg::init_config() {
         gb_golfers_id,
         "Game Boy Golfers",
         "Puts Kid, Sherry, Azalea and Joe, the golfers of Mario Golf for the Game Boy Color, at character select, with "
-        "the names and stats the game has for them. <recomp-color primary>Original</recomp-color> leaves them out: on "
-        "a console they come only through a Transfer Pak holding the Game Boy game, which this version doesn't have.",
+        "the stats the game itself holds for them. They look like the developers' test values: Kid drives 500 yards, "
+        "Sherry 400, Azalea 300 and Joe 200, where a console's golfers bring their stats from the Game Boy save. "
+        "<recomp-color primary>Original</recomp-color> leaves them out: on a console they come only through a "
+        "Transfer Pak holding the Game Boy game, which this version doesn't have.",
         {{GbGolfers::Original, "Original"}, {GbGolfers::On, "On"}},
         GbGolfers::Original
     );

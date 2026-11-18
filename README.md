@@ -20,7 +20,7 @@ four players each play a controller of their own. Not played yet: the courses pa
 a saved tournament continued after a restart, and several pads at once. On a window wider than 4:3 the course reaches
 its edges and the HUD its sides, with the menus in the middle 4:3. The Game Boy Color link through the Transfer Pak is
 not there, but the General tab's Game Boy Golfers option puts Kid, Sherry, Azalea and Joe at character select with the
-stats the game has for them.
+stats the game itself holds for them, test values by the look of them (Kid drives 500 yards).
 
 It plays in a browser too, at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/) (`docs/web.md`), and the
 desktop builds for Windows and Linux are on the [Releases](https://github.com/n64hub/mario-golf-recomp/releases) page.
