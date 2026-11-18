@@ -1,1 +1,0 @@
-- **The end credits' last picture in a wide window:** with Aspect Ratio Expand in a window wider than 4:3, the Congratulations picture that ends the credits keeps its shape, filling the window's height with black at its sides, as the title and the menus do. Before, it was stretched across the whole window until Start was pressed (issue 63). The browser page has the same fix.
