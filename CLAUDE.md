@@ -129,4 +129,6 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   its pace).
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
-  format), for unattended runs. A swing is three presses of A: start, power, impact.
+  format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/frame_plan.txt` is the
+  plan N64Recomp-browser's `tools/frame_dump.mjs` checks the picture by, in a 16:9, a 4:3 and a 32:9 window (its header
+  says how).

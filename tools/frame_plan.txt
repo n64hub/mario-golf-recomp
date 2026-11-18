@@ -1,0 +1,37 @@
+# The plan N64Recomp-browser's tools/frame_dump.mjs plays the desktop build by to check its picture by machine, in a
+# 16:9, a 4:3 and a 32:9 window, with its tools/frame_check.mjs: the frames drawn between the game's, the culling at
+# the 4:3 view's sides and the middle of a wide picture against the 4:3 window's (its header says how).
+#
+#   node tools/frame_dump.mjs --game <release dir> --exe MarioGolfRecompiled --game-id mariogolf64.n64.us.1.0
+#       --rom <rom> --plan <this file> --out <dir> --window 1280x720,960x720,2560x720 --seconds 0-150
+#
+# It plays the opening's attract until the game's frame counter (0x800B67F0, 30 a second) reaches 0x500, then Start
+# through the title to the main menu, A through Play Modes and Course Select into hole 1, and stops once its flyover
+# ends (overlay 4's loaded word, 0x800B5FF8, cleared): the tee's HUD is moved out to the wide picture's sides by
+# design (src/game/hud.cpp), which the middle check reads as unlike the 4:3 window's. Each key waits on the frame
+# counter, not the clock, so the three windows, which draw at different rates, play the same: pressed at a time, the
+# 32:9 run's opening fell behind and its fade showed another shot. A key in the main menu's zoom is dropped
+# (CLAUDE.md, Input), so the menus wait for overlay 3 (0x800B5FD0) and then a counter step. Each overlay's entry is
+# 0x28 bytes from 0x800B5F58, its loaded word's top byte 1 while it is loaded (tools/shader_survey.js reads the same).
+2 shot opening
+3 until 0x800B67F0 0xFFFFFF80 0x00000500 120
+3 key Enter
+4 until 0x800B6098 0xFF000000 0x01000000 30
+4 shot title
+5 until 0x800B67F0 0xFFFFFF80 0x00000580 30
+5 key Enter
+6 until 0x800B5FD0 0xFF000000 0x01000000 30
+6 until 0x800B67F0 0xFFFFFF80 0x00000600 30
+6 shot main_menu
+6 key Space
+7 until 0x800B67F0 0xFFFFFF80 0x00000680 30
+7 key Space
+8 until 0x800B67F0 0xFFFFFF80 0x00000700 30
+8 key Space
+9 until 0x800B67F0 0xFFFFFF80 0x00000780 30
+9 shot course_select
+9 key Space
+10 until 0x800B6110 0xFF000000 0x01000000 40 Space
+11 shot hole_open
+12 until 0x800B5FF8 0xFF000000 0x00000000 60
+12 end
