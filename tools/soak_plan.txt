@@ -26,65 +26,66 @@
 58 until 0x800B5FD0 0xFF000000 0x01000000 30 Enter
 
 # Tournament on Toad Highlands: one tee shot, then Save and Quit.
-61.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-64 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-66 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
-67.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-68.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-70 key Space
-70.7 key Space
-71.4 key Space
-79 shot tournament
-80.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-82 until 0x80224924 0x000000FF 0x00000005 15 W
-82.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+59 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+60 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+61 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+62 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+62.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+64 key Space
+64.7 key Space
+65.4 key Space
+73 shot tournament
+74.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+76 until 0x80224924 0x000000FF 0x00000005 15 W
+76.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 
 # Ring Shot: straight into its hole, a shot through the rings, Return to Menu.
-85 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-87.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-90 until 0x801323A8 0x000000FF 0x2 15 D
-91.3 key Space
-92.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-93.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-94.8 key Space
-95.5 key Space
-96.2 key Space
-103 shot ring_shot
-104.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-106 until 0x80224924 0x000000FF 0x00000005 15 W
-106.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+77.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+78.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+79.5 until 0x801323A8 0x000000FF 0x2 15 D
+80.8 key Space
+81.8 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+82.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+83.8 key Space
+84.5 key Space
+85.2 key Space
+92 shot ring_shot
+93.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+95 until 0x80224924 0x000000FF 0x00000005 15 W
+95.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 
-# Training: its hole picker, the hole changed at random, that hole's flyover to the tee, Return to Menu (the ninth
-# of its pause menu's items).
-109 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-111.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-114 until 0x801323A8 0x000000FF 0x6 15 D
-115 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
-116 random D,A,W,S
-121 random off
-121.5 shot training_hole
-122 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-122 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-123 shot training_tee
-124 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-125.5 until 0x80224924 0x000000FF 0x00000008 15 W
-126 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+# Training on Toad Highlands: its hole picker, the hole changed at random (D and A; W and S change the course, whose
+# pause menu then has other items), that hole's flyover to the tee, Return to Menu (the ninth of its pause menu's
+# items).
+96.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+97.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+98.5 until 0x801323A8 0x000000FF 0x6 15 D
+99.5 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+100.5 random D,A
+105.5 random off
+106 shot training_hole
+106.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+106.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+107.5 shot training_tee
+108.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+110 until 0x80224924 0x000000FF 0x00000008 15 W
+110.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 
 # Mini-Golf on Luigi's Garden (left of Training): hole 1's flyover and a putt, Return to Menu.
-128.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-131 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-133.5 until 0x801323A8 0x000000FF 0x5 15 A
-134.5 key Space
-136.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-136.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-138 key Space
-138.7 key Space
-139.4 key Space
-148 shot mini_golf
-149.5 until 0x800C306C 0x000000FF 0x00000001 20 Enter
-151 until 0x80224924 0x000000FF 0x00000005 15 W
-151.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-153.5 shot main_menu
+111.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+112.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+113.5 until 0x801323A8 0x000000FF 0x5 15 A
+114.5 key Space
+116.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+116.5 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+118 key Space
+118.7 key Space
+119.4 key Space
+128 shot mini_golf
+129.5 until 0x800C306C 0x000000FF 0x00000001 20 Enter
+131 until 0x80224924 0x000000FF 0x00000005 15 W
+131.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+133.5 shot main_menu
 
 # The main menu's cursor, at random, until the time is up.
-154 random W,S
+134 random W,S
