@@ -1,4 +1,4 @@
-# The load run of the desktop save check (N64Recomp-browser's tools/frame_dump.mjs --saves), after
+# The load run of the desktop save check (a save run and a load run, the saves behind symlinks), after
 # tools/save_plan.txt, the program started again in the same folder: at the main menu the game has read the SRAM, and
 # the round Save and Quit left is in RAM (0x80131718 = 1, the holes' order at 0x8013194C on) only if it came off the
 # file: a first boot has zeros there. Nothing is written by then. Then Tournament continues the round, which the game
