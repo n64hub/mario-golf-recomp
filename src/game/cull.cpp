@@ -1,7 +1,7 @@
 // How much wider than the game's 4:3 the picture is: the window's aspect ratio over 4:3 with the Graphics tab's Aspect
 // Ratio Expand, where RT64 widens the picture to the window, and 1 with Original, or in a window no wider than 4:3,
 // where the game's own 4:3 fills the picture. The course's culling reads it (patches/cull.c), and so does the sun's
-// light on the sky (src/game/backdrop.cpp).
+// light on the sky (src/game/backdrop.cpp), and the title's and menus' scale (src/game/screen.cpp).
 #include <cstdint>
 
 #include "recomp.h"
@@ -22,6 +22,11 @@ float mg_wide_scale() {
         }
     }
     return scale;
+}
+
+// Whether RT64 widens the picture to the window (Aspect Ratio Expand), however wide the window is.
+bool mg_aspect_expand() {
+    return ultramodern::renderer::get_graphics_config().ar_option == ultramodern::renderer::AspectRatio::Expand;
 }
 
 extern "C" void mg_cull_width_scale(uint8_t*, recomp_context* ctx) {
