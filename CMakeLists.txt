@@ -88,7 +88,10 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # order each frame, out on the fairway in a flyover and jumping about as a shot is aimed. The far hills behind a
 # course are 2D strips whose texture the game scrolls as the camera turns and which it moves up and down as the camera
 # pitches, so RT64 slides the texture and moves the strips in the frames between (RT64_INTERPOLATE_RECT_SCROLLS), or
-# they stepped a game frame at a time against the trees and fairway in front.
+# they stepped a game frame at a time against the trees and fairway in front. The strip that crosses the top of the
+# picture the game cuts there, its top held at the scissor's as the rest move, and RT64 pairs it as such (rt64 8868f0d),
+# or a line of sky showed under it as the camera panned. It pairs them as the game drew them, so the end credits'
+# lines, which rise a pixel a game frame, keep their place sideways near the bottom too.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
@@ -257,6 +260,7 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/game/card.cpp
     ${CMAKE_SOURCE_DIR}/src/game/credits.cpp
     ${CMAKE_SOURCE_DIR}/src/game/iris.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/golfer.cpp
 )
 if (MG_PATCHES)
     target_sources(MarioGolfRecompiled PRIVATE ${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp)

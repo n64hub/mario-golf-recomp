@@ -117,7 +117,11 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   32x32 map the game rebuilds each frame from strips of the picture, often fewer than its 32 rows, which RT64 draws from
   what RAM holds only with `RT64_TILE_COPY_TMEM_FALLBACK`, or they draw solid black now and then. The course's terrain is
   never drawn at its coarsest level of detail (`us.toml`): its edges left cracks beside finer blocks at a high
-  resolution. Its players take turns on one view, never a split screen.
+  resolution. Its players take turns on one view, never a split screen. `src/game/golfer.cpp` puts each golfer's
+  joints in a matrix group of its own, each joint's matrix blended whole between the game's frames and its position
+  always, or Wario's upper arm as he shakes his fist on the Play Modes screen swung through his belly (RT64 blends a
+  matrix split into rotation and scale) or jumped there ahead of his glove (it blends a position only while it keeps
+  its pace).
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact.
