@@ -112,10 +112,9 @@ extern "C" void mg_golfer_end(uint8_t* rdram, uint32_t head, uint32_t model) {
     gEXEnable(c);
     out.put(c, 1);
     // RT64's own settings for a matrix in no group (its TransformGroup), but for the ID and the ordering.
-    gEXMatrixGroupDecomposed(c, group_id(model, body), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_AUTO,
-                             G_EX_COMPONENT_AUTO, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_AUTO,
-                             G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE,
-                             G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+    gEXMatrixGroupSimple(c, group_id(model, body), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_INTERPOLATE,
+                         G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO,
+                         G_EX_ORDER_LINEAR, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
     out.put(c, 2);
     out.put((uint32_t(G_DL) << 24) | (G_DL_PUSH << 16), body);
     gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
