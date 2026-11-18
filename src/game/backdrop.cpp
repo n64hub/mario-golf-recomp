@@ -27,6 +27,11 @@
 // back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through mg_sun_bound_x, a us.toml hook that moves
 // the x they compare toward the screen's middle by as much as the wide picture reaches past 4:3, so the light is drawn
 // until the last of it leaves the picture. With Aspect Ratio Original, or a window no wider than 4:3, nothing changes.
+// Nor does it where the 3D doesn't fill the screen (the end credits' character preview, a window that shrinks to the
+// screen's right part over black, and the small view of where the ball lands), under a scissor of its own: in the
+// credits the light widened there, and drawn for a sun the game would have left out, showed as an orange block on the
+// black beside the window. So both read the scissor the game last
+// set before the sky, and leave the light as the game draws it unless that is the 3D's whole one.
 //
 // The sky's clouds slide on every frame drawn as the camera turns, with the course in front of them, rather than a step
 // a game frame. The sky is the first thing func_80091110 draws: three triangles, under a modelview matrix of their
@@ -56,7 +61,7 @@ constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_
 constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2;
 constexpr uint32_t G_DL_NOPUSH = 1, G_TX_MIRROR = 1;
 constexpr uint32_t G_VTX = 0x01, G_TRI1 = 0x05, G_TRI2 = 0x06, G_QUAD = 0x07, G_MTX = 0xDA, G_MOVEWORD = 0xDB;
-constexpr uint32_t G_RDPPIPESYNC = 0xE7;
+constexpr uint32_t G_RDPPIPESYNC = 0xE7, G_SETSCISSOR = 0xED;
 // G_MTX's parameter byte, which F3DEX2 sends with G_MTX_PUSH flipped: set for a projection, clear for a modelview.
 constexpr uint32_t G_MTX_PROJECTION = 0x04;
 constexpr uint32_t G_MTX_MODELVIEW = 0x00;
@@ -76,6 +81,10 @@ constexpr int SCREEN_WIDTH = 320;
 // The game's scissor for the 3D and the sky, in pixels: a rectangle past it is cut at the 4:3 frame's sides.
 constexpr int SCISSOR_LEFT = 8;
 constexpr int SCISSOR_RIGHT = 312;
+constexpr int SCISSOR_TOP = 8;
+constexpr int SCISSOR_BOTTOM = 232;
+// How far back from the sky the game's last G_SETSCISSOR is looked for, in commands.
+constexpr uint32_t SCISSOR_LOOKBACK = 4096;
 // func_8008FF20 draws the sun's light only while the sun is less than this far past a side of the 4:3 screen (its
 // -64 and 384), in pixels: the light's half-width.
 constexpr float SUN_REACH = 64.0f;
@@ -92,6 +101,8 @@ constexpr int MAX_RECTS = 4;
 uint8_t* g_rdram;
 uint32_t g_start;
 bool g_open = false;
+// Whether the scissor the sky is drawn under is the 3D's whole one, so the light may be widened past it.
+bool g_full = true;
 uint32_t g_next_buffer = 0;
 
 uint32_t rd_w(uint32_t addr) {
@@ -220,6 +231,23 @@ void widen_all(uint32_t start, uint32_t end) {
     }
 }
 
+// Whether the last G_SETSCISSOR before addr in the display list is the 3D's whole one (8, 8)-(312, 232), or covers
+// it. True where none is found: the course's frame sets that one first.
+bool full_scissor(uint32_t addr) {
+    for (uint32_t n = 0; n < SCISSOR_LOOKBACK && addr >= 8 && (addr & 0x7FFFFF) >= 8; n++) {
+        addr -= 8;
+        uint32_t w0 = rd_w(addr);
+        if ((w0 >> 24) == G_SETSCISSOR) {
+            uint32_t w1 = rd_w(addr + 4);
+            int ulx = int((w0 >> 12) & 0xFFF), uly = int(w0 & 0xFFF); // quarter pixels
+            int lrx = int((w1 >> 12) & 0xFFF), lry = int(w1 & 0xFFF);
+            return ulx <= SCISSOR_LEFT * 4 && uly <= SCISSOR_TOP * 4 && lrx >= SCISSOR_RIGHT * 4 &&
+                   lry >= SCISSOR_BOTTOM * 4;
+        }
+    }
+    return true;
+}
+
 // The sky's draw between start and end (its modelview matrix, the G_VTX of its vertices and its triangles) put in a
 // matrix group whose texture coordinates RT64 interpolates. False if it isn't there or a buffer didn't fit.
 bool tag_sky(uint32_t start, uint32_t end) {
@@ -301,7 +329,7 @@ bool tag_sky(uint32_t start, uint32_t end) {
 // picture reaches further, so that the light is drawn while any of it is in the picture.
 extern "C" float mg_sun_bound_x(float x) {
     float scale = mg_wide_scale();
-    if (scale <= 1.0f) {
+    if (scale <= 1.0f || !g_full) {
         return x;
     }
     float half = SCREEN_WIDTH / 2.0f;
@@ -312,6 +340,7 @@ extern "C" void mg_backdrop_begin(uint8_t* rdram) {
     g_rdram = rdram;
     g_start = rd_w(MG_GFX_HEAD);
     g_open = true;
+    g_full = full_scissor(g_start);
 }
 
 extern "C" void mg_backdrop_end(uint8_t* rdram) {
@@ -321,5 +350,8 @@ extern "C" void mg_backdrop_end(uint8_t* rdram) {
     g_open = false;
     g_rdram = rdram;
     tag_sky(g_start, rd_w(MG_GFX_HEAD));
-    widen_all(g_start, rd_w(MG_GFX_HEAD));
+    if (g_full) {
+        widen_all(g_start, rd_w(MG_GFX_HEAD));
+    }
+    g_full = true;
 }
