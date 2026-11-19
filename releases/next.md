@@ -1,0 +1,1 @@
+- **The far ball moves smoothly in flight:** at a display rate above the game's 30, a ball far from the camera, drawn as a dot of colour two pixels by one, now moves on every frame the display shows, to a quarter pixel, where it held its place for a whole game frame and then stepped a pixel ([#96](https://github.com/n64hub/mario-golf-recomp/issues/96)).
