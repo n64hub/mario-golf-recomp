@@ -200,14 +200,14 @@ void black_border(uint32_t addr) {
     }
 }
 
-// The rows below the border under a strip of a screen's color image that ends there (the old frame the stage select
-// of Ring Shot holds as its slats close, 6 rows a strip and 2 the last): the strip loaded only its own rows, so drawn
-// on to the screen's bottom it repeated its last row there, a band of streaks. Here the strip stays as it is and two
-// strips of 4 rows each follow it, each loading its own rows of the image as the game loads its strips (the image's
-// address moved down by as many rows, the tiles' rows the same), then the game's own image, load and tile are put
-// back for what follows. The commands go in one of the buffers black_border uses, the strip's place in the list
-// calling them.
-void rows_below(uint32_t addr, uint32_t inside) {
+// The rows outside the border beside a strip of a screen's color image that starts or ends at it (the old frame Ring
+// Shot's stage select holds while its slats close, 6 rows a strip and 2 the last): the strip loads only its own rows,
+// so drawn on past the border it showed rows its tile doesn't hold, black above it and its last row repeated below, a
+// band of streaks. Here the strip stays as it is and strips of 4 rows each draw screen rows first to last (0 to 8, or
+// 232 to 240), each loading its own rows of the same image as the game loads its strips (its tile's rows moved by as
+// many, its t with them), then the game's own load and tile are put back for what follows. The commands go in one of
+// the buffers black_border uses, the strip's place in the list calling them.
+void outside_rows(uint32_t addr, uint32_t first, uint32_t last, uint32_t inside) {
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
     uint32_t out = buffer;
@@ -218,22 +218,22 @@ void rows_below(uint32_t addr, uint32_t inside) {
     };
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
     uint32_t tile = (w1 >> 24) & 7;
-    uint32_t uly = w1 & 0xFFF;
-    uint32_t row_bytes = ((g_timg0 & 0xFFF) + 1) * 2;
+    int32_t uly = int32_t(w1 & 0xFFF) / 4;
     for (uint32_t i = 0; i < 3; i++) {
         put(rd_w(addr + i * 8), rd_w(addr + i * 8 + 4));
     }
-    for (uint32_t row = BORDER_BOTTOM / 4; row < SCREEN_BOTTOM / 4; row += 4) {
-        put(g_timg0, g_texture + (row - uly / 4) * row_bytes);
+    for (uint32_t row = first; row < last; row += 4) {
+        uint32_t rows = last - row < 4 ? last - row : 4;
+        uint32_t ult = uint32_t(int32_t(g_load0 & 0xFFF) + (int32_t(row) - uly) * 4);
+        uint32_t lrt = ult + (rows - 1) * 4;
         put(G_RDPLOADSYNC << 24, 0);
-        put(g_load0, (g_load1 & ~0xFFFu) | ((g_load0 & 0xFFF) + 3 * 4));
+        put((g_load0 & ~0xFFFu) | ult, (g_load1 & ~0xFFFu) | lrt);
         put(G_RDPPIPESYNC << 24, 0);
-        put(g_size0[tile], (g_size1[tile] & ~0xFFFu) | ((g_size0[tile] & 0xFFF) + 3 * 4));
-        put((w0 & ~0xFFFu) | ((row + 4) * 4 - inside), (w1 & ~0xFFFu) | (row * 4));
-        put(rd_w(addr + 8), rd_w(addr + 12));
+        put((g_size0[tile] & ~0xFFFu) | ult, (g_size1[tile] & ~0xFFFu) | lrt);
+        put((w0 & ~0xFFFu) | ((row + rows) * 4 - inside), (w1 & ~0xFFFu) | (row * 4));
+        put(rd_w(addr + 8), (rd_w(addr + 12) & 0xFFFF0000) | (ult * 8));
         put(rd_w(addr + 16), rd_w(addr + 20));
     }
-    put(g_timg0, g_texture);
     put(G_RDPLOADSYNC << 24, 0);
     put(g_load0, g_load1);
     put(G_RDPPIPESYNC << 24, 0);
@@ -247,14 +247,15 @@ void rows_below(uint32_t addr, uint32_t inside) {
     }
 }
 
-// Whether the strip at addr reads its image a row a line from its tile's first row, of a 16-bit image a load of 4
-// rows of fits in TMEM: what rows_below draws the rows below it with.
+// Whether the strip at addr, of a screen's color image, reads it a row a line from its tile's first row, the image
+// 16-bit and 4 of its rows a load that fits in TMEM, with as many rows of the image above its tile as the border's:
+// what outside_rows draws the rows past the border with.
 bool strip_of_rows(uint32_t addr) {
     uint32_t tile = (rd_w(addr + 4) >> 24) & 7;
     uint32_t t = rd_w(addr + 12) & 0xFFFF, dtdy = rd_w(addr + 20) & 0xFFFF;
     uint32_t ult = g_load0 & 0xFFF;
-    return dtdy == 0x400 && t == ult * 8 && (g_size0[tile] & 0xFFF) == ult && ((g_timg0 >> 19) & 3) == 2 &&
-           ((g_timg0 & 0xFFF) + 1) * 2 * 4 <= 4096;
+    return is_screen(g_texture) && dtdy == 0x400 && t == ult * 8 && (g_size0[tile] & 0xFFF) == ult &&
+           ((g_timg0 >> 19) & 3) == 2 && ((g_timg0 & 0xFFF) + 1) * 2 * 4 <= 4096 && ult >= BORDER_TOP;
 }
 
 // The opening's sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
@@ -355,7 +356,9 @@ void rect(uint32_t addr) {
     }
     // A strip wholly above the border has its bottom above the screen's top, which wraps past its bottom (lry is
     // unsigned): left as it is.
-    if (!game_copy && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
+    // A strip of a screen's color image has the rows above drawn by outside_rows.
+    bool above = uly == BORDER_TOP && strip_of_rows(addr);
+    if (!game_copy && !above && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
         // t is 10.5 fixed point, dtdy 5.10: a row of the rectangle steps t by dtdy / 32.
         uint32_t half1 = rd_w(addr + 12);
         int32_t t = int16_t(half1 & 0xFFFF);
@@ -373,7 +376,7 @@ void rect(uint32_t addr) {
     w0 = rd_w(addr);
     // Only a copy of the frame has the lines below: a texture of the hills ends at their last row, which the RDP
     // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down. A strip
-    // of the frame, which loads only its own rows, has the rows below drawn by rows_below.
+    // of the frame, which loads only its own rows, has the rows below drawn by outside_rows.
     bool below = false;
     if (is_screen(g_texture) && lry == BORDER_BOTTOM - inside) {
         if (strip_of_rows(addr)) {
@@ -410,8 +413,11 @@ void rect(uint32_t addr) {
         w0 = (w0 & ~(0xFFFu << 12)) | ((lrx + SCREEN_RIGHT - BORDER_RIGHT) << 12);
     }
     wr_w(addr, w0);
-    if (below) {
-        rows_below(addr, inside);
+    if (above) {
+        outside_rows(addr, 0, BORDER_TOP / 4, inside);
+    }
+    else if (below) {
+        outside_rows(addr, BORDER_BOTTOM / 4, SCREEN_BOTTOM / 4, inside);
     }
     if (game_copy && !g_blacked) {
         g_blacked = true;
