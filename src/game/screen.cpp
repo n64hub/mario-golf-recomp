@@ -26,6 +26,11 @@
 //   the screen's sides lose what scaling it to the full height takes them past the frame's, 2.9 of its 325.7 columns
 //   at each side;
 // - each viewport is a copy scaled the same way, so a model drawn on a menu (the golfer) grows with it.
+// Only what is drawn to the screen is scaled: while the color image is another (G_SETCIMG of a width other than the
+// screen's), the commands are left as the game wrote them. Metal Mario's shine on Play Modes is a 32x32 map the game
+// draws each frame from rectangles, strips of the screen and a mix of textures, into a color image of its own, and
+// scaled about the screen's middle they covered only its upper left 23x26, so whatever of him sampled the rest of the
+// map drew black: nearly half his face, cap and body.
 // A rectangle that reads the copy of the frame before that a transition draws (card.cpp's, of the picture RT64 drew,
 // already scaled, or the game's own in its z-buffer) is left as it is, and so is one iris.cpp has already sent through
 // a buffer of its own, so us.toml calls mg_iris_fix first. The buffers are this file's in RDRAM, above the 4 MB the game
@@ -45,7 +50,7 @@ namespace {
 
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
-constexpr uint32_t G_SETSCISSOR = 0xED, G_MOVEMEM = 0xDC, G_SETTIMG = 0xFD, G_SETOTHERMODE_H = 0xE3;
+constexpr uint32_t G_SETSCISSOR = 0xED, G_MOVEMEM = 0xDC, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETOTHERMODE_H = 0xE3;
 constexpr uint32_t G_VTX = 0x01, G_TRI1 = 0x05, G_TRI2 = 0x06, G_QUAD = 0x07, G_DL_NOPUSH = 1;
 // G_MOVEMEM of a viewport (G_MV_VIEWPORT, 16 bytes).
 constexpr uint32_t MOVEMEM_VIEWPORT_W0 = 0xDC080008;
@@ -231,14 +236,16 @@ bool is_rect(uint32_t addr) {
            (rd_w(addr + 16) >> 24) == G_RDPHALF_2;
 }
 
-// Whether the next thing drawn after addr is a texture rectangle, not a model.
+// Whether the next thing drawn after addr is a texture rectangle on the screen, not a model or something drawn into
+// another color image.
 bool rect_next(uint32_t addr, uint32_t end) {
     for (addr += 8; addr < end; addr += 8) {
         uint32_t op = rd_w(addr) >> 24;
         if (op == G_TEXRECT) {
             return true;
         }
-        if (op == G_VTX || op == G_TRI1 || op == G_TRI2 || op == G_QUAD || op == G_DL || op == G_ENDDL) {
+        if (op == G_VTX || op == G_TRI1 || op == G_TRI2 || op == G_QUAD || op == G_DL || op == G_ENDDL ||
+            op == G_SETCIMG) {
             return false;
         }
     }
@@ -256,10 +263,12 @@ bool set_fill() {
     return g_fill > 1.0f;
 }
 
-// The commands from list to end scaled: rectangles, scissors and viewports, rectangles point sampled.
+// The commands from list to end that draw to the screen scaled: rectangles, scissors and viewports, rectangles point
+// sampled.
 void fill(uint32_t list, uint32_t end) {
     uint32_t texture = 0;
     bool copy = false;
+    bool screen = true;
     for (uint32_t addr = list; addr < end; addr += 8) {
         uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
         uint32_t op = w0 >> 24;
@@ -268,6 +277,14 @@ void fill(uint32_t list, uint32_t end) {
         }
         else if (w0 == SET_CYCLE_TYPE) {
             copy = (w1 == G_CYC_COPY);
+        }
+        else if (op == G_SETCIMG) {
+            screen = (w0 & 0xFFF) + 1 == uint32_t(SCREEN_WIDTH);
+        }
+        else if (!screen) {
+            if (op == G_TEXRECT && is_rect(addr)) {
+                addr += 16;
+            }
         }
         else if (w0 == SET_TEXTURE_FILTER) {
             if (w1 != G_TF_POINT && rect_next(addr, end)) {
