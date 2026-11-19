@@ -1,30 +1,38 @@
-// The course at the picture's full height (RT64's Aspect Ratio Expand): the 3D, the sky and the far hills go on through
-// the game's own border at the top and the bottom, rather than leaving 8 of the 240 lines black at each, in any window.
+// The course to the picture's edges (RT64's Aspect Ratio Expand): the 3D, the sky and the far hills go on through the
+// game's own border on all four sides, rather than leaving 8 of the 240 lines black at the top and the bottom and 8 of
+// the 320 columns at each side, which RT64 widens with the picture, in any window.
 //
 // The game draws every screen inside a border of its own, the scissor 8, 8 to 312, 232, the 304x224 a TV's edge left in
-// sight. On a hole the 3D's viewport is the whole 320x240, the sky is three triangles in it and the far hills texture
-// rectangles drawn before the course, so only that scissor kept them out of the top and bottom 8 lines. RT64 widens the
-// 3D past the scissor's sides to the window's, but not past its top and bottom. Here each such scissor is made 8, 0 to
-// 312, 240: RT64 still takes it as the 3D's whole screen (it widens one within 10% of 4:3, and 304x240 is), so the
-// course goes on to the window's top and bottom as well as its sides.
+// sight. On a hole, and in the opening's golfers, the 3D's viewport is the whole 320x240, the sky three triangles in it
+// and the far hills texture rectangles drawn before the course, so only that scissor kept them out of the border. RT64
+// widens the 3D past 4:3 by its scissor: the frame's widest one is the screen it maps to the window, so a 3D under 8 to
+// 312 ended 8/320 of the window's width short of each side. Here each such scissor is made the screen's, 0, 0 to 320,
+// 240, and the course reaches the window's edges.
 //
-// The far hills (func_80091110, backdrop.cpp's) are strips of a texture, each a texture rectangle as wide as the 3D,
-// whose tops the game cuts at the border, the strip's texture starting as many rows further in (0x80091934-0x800919AC):
-// a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose texture starts past its
-// first row has those rows put back, up to 8, so the hills reach the picture's top where the course does.
-// A strip wholly above the border has its bottom where it was (above the screen's top, which wraps to a large lry, is
-// left as it is). A full-width one that ends at the border's bottom (the hills' last, which runs on to it) runs on to the picture's.
-// A rectangle that copies a frame (a transition's, screen.cpp's GAME_COPY, card.cpp's past the game's RAM) is left as
-// it is: it holds only the 304x224.
+// RT64 also stretches across the window only a rectangle as wide as that widest scissor, so each texture rectangle as
+// wide as the 3D drawn to the screen runs on to the screen's sides, its texture's start moved back with its left. Those
+// are the far hills, and the frame before where the game draws it again from its color image (as it does while a golfer
+// swings and the ball flies, and the course isn't drawn again) or from its own copy (GAME_COPY: the pause's), whose
+// columns past the border hold the course as it was drawn. The hills (func_80091110, backdrop.cpp's) are strips of a
+// texture whose tops the game cuts at the border, the strip's texture starting as many rows further in
+// (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
+// texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
+// course does; one wholly above the border has its bottom where it was (above the screen's top, which wraps to a large
+// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's; the hills' last
+// strip, whose texture ends there, stays (the sky goes on below it, where the course doesn't). The pause's copy holds only the 224 lines inside the border (all 320 columns), so the pause
+// keeps the black above and below it that the console draws, filled before its first strip (otherwise those lines kept
+// whatever was drawn there before the pause), and its last strip, which the game runs on past the copy's end, stops
+// at the border.
 // Lakitu Mode's letterbox bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its
-// buffer, under the scissor this file makes, and reach the picture's top and bottom by hud.cpp's hand.
+// buffer, under the scissor this file makes, and reach the picture's edges by hud.cpp's hand.
 //
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
-// lists it calls, in RAM (the game's and this program's buffers), while the game is on a hole (overlay 2 loaded) and not
-// in the end credits (overlay 16), which draw the course in a box of their own. It rewrites what it finds in place, the
-// game's lists that are its data too, so with Aspect Ratio Original, or off a hole, it puts any scissor it made back as
-// the game wrote it: Original keeps the console's border. Only the scissors and rectangles drawn to the screen (a
-// color image 320 wide) are changed.
+// lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 9 loaded)
+// or on a hole (overlay 2, the attract demo's too) but not in the end credits (overlay 16), which draw the course in a
+// box of their own. It rewrites what it finds in place, the game's lists that are its data too, so with Aspect Ratio
+// Original, or elsewhere, it puts any scissor it made back as the game wrote it: Original keeps the console's border.
+// The game sets the screen's scissor itself too, so the one made here carries a mark the RDP and RT64 never read. Only
+// the scissors and rectangles drawn to the screen (a color image 320 wide, not the z-buffer) are changed.
 
 #include <cstdint>
 
@@ -45,7 +53,7 @@ constexpr uint32_t BUFFER_BASE = 0x807B0000, BUFFER_SIZE = 0x100, BUFFER_COUNT =
 // overlay and the end credits'.
 constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28, HOLE_OVERLAY = 2, INTRO_OVERLAY = 9, CREDITS_OVERLAY = 16;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
-constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 240 * 2, GAME_RAM = 0x00800000;
+constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 224 * 2, GAME_RAM = 0x00800000;
 
 // The border's scissor and the screen's, as G_SETSCISSOR's coordinates (quarter pixels). The game sets the screen's
 // itself too (around its clears), so the one made here carries a mark in a bit of the second word neither the RDP nor
@@ -73,6 +81,31 @@ uint32_t g_zimg;
 uint32_t g_cycle;
 bool g_blacked;
 uint32_t g_next_buffer;
+// The screen's color images the game has drawn to (it keeps three, in turn), the latest first: a texture that is one
+// is a copy of a frame.
+constexpr int SCREENS = 4;
+uint32_t g_screens[SCREENS];
+
+void saw_screen(uint32_t image) {
+    for (int i = 0; i < SCREENS; i++) {
+        if (g_screens[i] == image) {
+            return;
+        }
+    }
+    for (int i = SCREENS - 1; i > 0; i--) {
+        g_screens[i] = g_screens[i - 1];
+    }
+    g_screens[0] = image;
+}
+
+bool is_screen(uint32_t image) {
+    for (int i = 0; i < SCREENS; i++) {
+        if (image != 0 && g_screens[i] == image) {
+            return true;
+        }
+    }
+    return false;
+}
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -139,15 +172,15 @@ void black_border(uint32_t addr) {
 
 // The texture rectangle at addr (G_TEXRECT, then its texture coordinates, G_RDPHALF_1: s and t, and steps,
 // G_RDPHALF_2: dsdx and dtdy), on a hole drawn at the frame's full height, if it is as wide as the 3D and drawn to the
-// screen: its top at the border's put back as far as its texture starts past its first row, up to 8 rows, and its
-// bottom at the border's moved to the screen's (in copy mode a rectangle's lower right is inside it, so there the
-// border's last line is 231). That puts back the far hills' rows the game cut, runs their last rectangle to the bottom,
-// and draws the frame before whole where the game copies it from its color image (as it does while a golfer swings and
-// the ball flies, and the course isn't drawn again). The rectangles are written anew each frame, so this needs no
-// undoing. A rectangle from the game's own copy of the course (GAME_COPY: the pause's) holds only the 224 lines inside
-// the border, so the border's lines go black before the first of it, as the console draws them; otherwise they kept
-// whatever was drawn there before the pause, the course undimmed. One from card.cpp's copy, past the game's RAM, is
-// card.cpp's.
+// screen: its top at the border's put back as far as its texture starts past its first row, up to 8 rows, its bottom
+// at the border's moved to the screen's where its texture is one of the screen's color images (in copy mode a
+// rectangle's lower right is inside it, so there the border's last line is 231), and its sides at the screen's. That
+// puts back the far hills' rows the game cut, and draws the frame before whole where the game copies it from its color
+// image (as it does while a golfer swings and the ball flies, and the course isn't drawn again). The rectangles are
+// written anew each frame, so this needs no undoing. A rectangle from the game's own copy of the course (GAME_COPY: the
+// pause's) holds only the 224 lines inside the border, so the screen goes black before the first of it, as the console
+// draws the border's lines; otherwise they kept whatever was drawn there before the pause, the course undimmed. One
+// from card.cpp's copy, past the game's RAM, is card.cpp's.
 void rect(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
     uint32_t ulx = (w1 >> 12) & 0xFFF, uly = w1 & 0xFFF, lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF;
@@ -176,8 +209,15 @@ void rect(uint32_t addr) {
     bool copy = g_cycle == G_CYC_COPY;
     uint32_t inside = copy ? 4 : 0;
     w0 = rd_w(addr);
-    if (!game_copy && lry == BORDER_BOTTOM - inside) {
+    // Only a copy of the frame has the lines below: a texture of the hills ends at their last row, which the RDP
+    // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down.
+    if (is_screen(g_texture) && lry == BORDER_BOTTOM - inside) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+    }
+    // The pause's copy holds the 224 lines inside the border, and its last strip runs on past them, into what lies
+    // after the copy: it stops at the border.
+    if (game_copy && uly < BORDER_BOTTOM && lry > BORDER_BOTTOM - inside) {
+        w0 = (w0 & ~0xFFFu) | (BORDER_BOTTOM - inside);
     }
     // Its sides at the screen's, its texture's start moved back with its left: s is 10.5 fixed point and dsdx 5.10, so
     // a quarter pixel steps s by dsdx / 128, or a quarter of that in copy mode, where dsdx is 4 for a texel a pixel.
@@ -223,6 +263,9 @@ void walk(uint32_t list, int depth) {
             }
             case G_SETCIMG:
                 g_screen = (w0 & 0xFFF) + 1 == 320 && (w1 & 0x1FFFFFFF) != g_zimg;
+                if (g_screen) {
+                    saw_screen(w1 & 0x1FFFFFFF);
+                }
                 break;
             case G_SETZIMG:
                 g_zimg = w1 & 0x1FFFFFFF;
