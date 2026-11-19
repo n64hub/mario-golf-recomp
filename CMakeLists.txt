@@ -91,7 +91,10 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # they stepped a game frame at a time against the trees and fairway in front. The strip that crosses the top of the
 # picture the game cuts there, its top held at the scissor's as the rest move, and RT64 pairs it as such (rt64 8868f0d),
 # or a line of sky showed under it as the camera panned. It pairs them as the game drew them, so the end credits'
-# lines, which rise a pixel a game frame, keep their place sideways near the bottom too.
+# lines, which rise a pixel a game frame, keep their place sideways near the bottom too. The end credits cut from one
+# golfer to the next between cameras that hold still, by less than RT64's turn and jump for a cut: a camera that held
+# still and then turns or jumps far in one frame cuts too (rt64 57778cd), or a frame between drew the next golfer
+# partway from one camera to the other.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
@@ -103,7 +106,9 @@ set(RT64_EXPAND_SCREEN_VERTICES ON)
 # Those screen positions are the game frame's own, so at a display rate above the game's 30 RT64 draws each between
 # the game frame before's and its own in the frames between (RT64_INTERPOLATE_SCREEN_VERTICES), here on the desktop
 # too, as with Emscripten, or the flagstick stood still for a game frame while the green moved under it and shook at
-# its foot, a step a game frame (issue 53).
+# its foot, a step a game frame (issue 53). The ball's tracer re-uses two vertices for each of its segments, so a
+# projection's writes pair as a whole group, and only when they moved together (rt64 04c76f2), or a frame between drew
+# a long grey triangle across the course in a ball's flight.
 set(RT64_INTERPOLATE_SCREEN_VERTICES ON)
 # Ring Shot's rings sample a 32x32 map the game rebuilds from strips of the frame each frame, often fewer rows of it
 # than 32: here on the desktop too, as with Emscripten, a texture whose texcoords reach past the rows RT64 copied of
