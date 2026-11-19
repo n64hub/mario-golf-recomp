@@ -326,10 +326,10 @@ void game_scissor(Writer& out, uint32_t mode, int ulx, int uly, int lrx, int lry
 // from the scissor's left to its right (8 to 312), left a column of the course showing at their left ends. Such a
 // rectangle starts at the screen's left instead, its texture moved with it, and the scissor cuts it at the 3D's border.
 // Its texture coordinates are the next command's (G_RDPHALF_1: s and t), its steps the one after (G_RDPHALF_2).
-// On a hole drawn at the frame's full height (border.cpp), such a rectangle at the border's top or bottom (a bar) runs on
-// to the screen's, its texture moved with its top, or the course showed above the top bar and below the bottom one:
-// true then, and it is drawn under the game's scissor at the screen's full height, the rest of the HUD under the
-// game's own, which keeps what the game hides behind the border (the swing meter below it before it rises) hidden.
+// On a hole drawn to the screen's edges (border.cpp), such a rectangle at the border's top or bottom (a bar) runs on to
+// the screen's top or bottom and its right side, its texture moved with its top, or the course showed past the bars:
+// true then, and it is drawn under the screen's whole scissor, the rest of the HUD under the game's own, which keeps
+// what the game hides behind the border (the swing meter below it before it rises) hidden.
 bool spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx, int sc_uly, int sc_lrx, int sc_lry) {
     uint32_t ulx = (rect.w1 >> 12) & 0xFFF, lrx = (rect.w0 >> 12) & 0xFFF;
     uint32_t uly = rect.w1 & 0xFFF, lry = rect.w0 & 0xFFF;
