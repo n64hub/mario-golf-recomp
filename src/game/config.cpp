@@ -2,11 +2,15 @@
 // Graphics options carry what a recomp needs: Resolution and MS Anti-Aliasing (high resolution), Framerate
 // (interpolation to the display's rate) and Aspect Ratio and HUD Placement (widescreen). The General tab adds the
 // game's own options: Game Boy Golfers and Game Boy Golfers' Stats (disabled while the first is Original), which
-// us.toml's hooks in character select (func_8005CA48) read through mg_gb_golfers and mg_gb_golfers_setup.
+// us.toml's hooks in character select (func_8005CA48) read through mg_gb_golfers and mg_gb_golfers_setup, and
+// mg_gb_golfers_clubs works out the four golfers' shots once they are in.
 
 #include <cstdint>
+#include <chrono> // TEMP
+#include <cstdio> // TEMP
 #include <filesystem>
 
+#include "recomp.h"
 #include "recompui/config.h"
 #include "util/file.h"
 #include "mg.h"
@@ -84,6 +88,31 @@ extern "C" int mg_gb_golfers_setup(uint8_t* rdram) {
         ram_half(rdram, test_curve + 2 * i) = stats[i][2];
     }
     return 1;
+}
+
+// The game's own working-out of how a club's shot flies (func_80043EA4, its argument the club's index in the clubs
+// table, D_800BB264 less 0xC, 0x34 bytes a club): it fills the club's words at +0x18, +0x1C and +0x20 and its halves at
+// +0x28, +0x2A and +0x2C, which a swing reads, from its carry, loft and curve.
+extern "C" void func_80043EA4(uint8_t* rdram, recomp_context* ctx);
+
+// At the end of func_8005CA48 (us.toml), with the golfers on: each of the four's 14 clubs worked out by func_80043EA4,
+// as the Transfer Pak's link does for a golfer it reads (func_80044254). The game works out only the first 14 golfers'
+// clubs as it boots (func_800444B8, which copies them from a table of its own), so without this the four's clubs fly
+// nowhere: a swing moved the ball a few hundredths of a yard, and it stayed on the tee all round (issue 90). Each
+// time, since Game Boy Golfers' Stats may have changed their drivers. A copy of the context makes the calls, so the
+// function's registers are as they were.
+extern "C" void mg_gb_golfers_clubs(uint8_t* rdram, recomp_context* ctx) {
+    if (!gb_golfers_on()) {
+        return;
+    }
+    auto t0 = std::chrono::steady_clock::now(); // TEMP
+    recomp_context call = *ctx;
+    for (uint32_t club = first_id * 14; club < (first_id + 4) * 14; club++) {
+        call.r4 = club;
+        func_80043EA4(rdram, &call);
+    }
+    static int calls = 0; // TEMP
+    fprintf(stderr, "TEMP gb clubs call %d: %lld us\n", ++calls, (long long)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count()); // TEMP
 }
 
 void mg::init_config() {
