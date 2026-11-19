@@ -31,6 +31,8 @@
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
 
+bool mg_border_fills(uint8_t* rdram);
+
 namespace {
 
 // F3DEX2's commands and flags this reads (the decomp's include/PR/gbi.h).
@@ -54,7 +56,7 @@ constexpr int MG_HUD_SCISSOR_ULX = 8, MG_HUD_SCISSOR_ULY = 8, MG_HUD_SCISSOR_LRX
 // HUD placed at 16:9 in any window, or at the window's sides up to 21:9.
 constexpr int WIDE_MARGIN = 14;
 
-constexpr int SCREEN_WIDTH = 320;
+constexpr int SCREEN_WIDTH = 320, SCREEN_HEIGHT = 240;
 constexpr int SCREEN_MIDDLE = SCREEN_WIDTH / 2;
 // A piece whose middle is this close to the screen's stays in the middle.
 constexpr int MIDDLE_ZONE = 40;
@@ -68,6 +70,8 @@ constexpr uint32_t BUFFER_COUNT = 8;
 constexpr uint32_t MAX_COMMANDS = 3000;
 
 uint8_t* g_rdram;
+// Whether this frame's hole is drawn at the frame's full height (border.cpp).
+bool g_full;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -311,8 +315,13 @@ void scissor(Writer& out, uint32_t mode, int ulx, int uly, int lrx, int lry) {
 }
 
 // The game's scissor, unaligned: RT64 places it as the game's, and stretches it with a rectangle that spans it.
+// On a hole drawn at the frame's full height (border.cpp) the border's top and bottom are the screen's.
 void game_scissor(Writer& out, uint32_t mode, int ulx, int uly, int lrx, int lry) {
     GfxCommand c[2];
+    if (g_full && uly == MG_HUD_SCISSOR_ULY && lry == MG_HUD_SCISSOR_LRY) {
+        uly = 0;
+        lry = SCREEN_HEIGHT;
+    }
     gEXSetScissor(c, mode, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx, uly, lrx, lry);
     out.put(c, 2);
 }
@@ -322,18 +331,30 @@ void game_scissor(Writer& out, uint32_t mode, int ulx, int uly, int lrx, int lry
 // from the scissor's left to its right (8 to 312), left a column of the course showing at their left ends. Such a
 // rectangle starts at the screen's left instead, its texture moved with it, and the scissor cuts it at the 3D's border.
 // Its texture coordinates are the next command's (G_RDPHALF_1: s and t), its steps the one after (G_RDPHALF_2).
-void spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx, int sc_lrx) {
+// On a hole drawn at the frame's full height (border.cpp), such a rectangle at the border's top or bottom (a bar) runs on
+// to the screen's, its texture moved with its top, or the course showed above the top bar and below the bottom one.
+void spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx, int sc_uly, int sc_lrx, int sc_lry) {
     uint32_t ulx = (rect.w1 >> 12) & 0xFFF, lrx = (rect.w0 >> 12) & 0xFFF;
+    uint32_t uly = rect.w1 & 0xFFF, lry = rect.w0 & 0xFFF;
     if (ulx == 0 || ulx != uint32_t(sc_ulx) * 4 || lrx != uint32_t(sc_lrx) * 4 || (half1.w0 >> 24) != G_RDPHALF_1 ||
         (half2.w0 >> 24) != G_RDPHALF_2) {
         return;
     }
-    // s is 10.5 fixed point, dsdx 5.10, ulx in quarter pixels.
-    int32_t s = int16_t(half1.w1 >> 16);
-    int32_t dsdx = int16_t(half2.w1 >> 16);
+    // s and t are 10.5 fixed point, dsdx and dtdy 5.10, ulx and uly in quarter pixels.
+    int32_t s = int16_t(half1.w1 >> 16), t = int16_t(half1.w1 & 0xFFFF);
+    int32_t dsdx = int16_t(half2.w1 >> 16), dtdy = int16_t(half2.w1 & 0xFFFF);
     s -= int32_t(ulx) * dsdx / 128;
     rect.w1 &= ~(0xFFFu << 12);
-    half1.w1 = (uint32_t(uint16_t(s)) << 16) | (half1.w1 & 0xFFFF);
+    if (g_full && sc_uly == MG_HUD_SCISSOR_ULY && sc_lry == MG_HUD_SCISSOR_LRY) {
+        if (uly == uint32_t(sc_uly) * 4) {
+            t -= int32_t(uly) * dtdy / 128;
+            rect.w1 &= ~0xFFFu;
+        }
+        if (lry == uint32_t(sc_lry) * 4) {
+            rect.w0 = (rect.w0 & ~0xFFFu) | uint32_t(SCREEN_HEIGHT * 4);
+        }
+    }
+    half1.w1 = (uint32_t(uint16_t(s)) << 16) | uint16_t(t);
 }
 
 void anchor(uint32_t start, uint32_t end) {
@@ -467,7 +488,7 @@ void anchor(uint32_t start, uint32_t end) {
             viewport_w1 = cmd.w1;
         }
         if (op == G_TEXRECT && !sc_wide && i + 2 < count) {
-            spanning_rect_from_left(cmd, g_cmds[i + 1], g_cmds[i + 2], sc_ulx, sc_lrx);
+            spanning_rect_from_left(cmd, g_cmds[i + 1], g_cmds[i + 2], sc_ulx, sc_uly, sc_lrx, sc_lry);
         }
         out.put(cmd.w0, cmd.w1);
     }
@@ -505,5 +526,6 @@ extern "C" void mg_hud_end(uint8_t* rdram) {
     }
     g_open = false;
     g_rdram = rdram;
+    g_full = mg_border_fills(rdram);
     anchor(g_start, rd_w(MG_GFX_HEAD));
 }
