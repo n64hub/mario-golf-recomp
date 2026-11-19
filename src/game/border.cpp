@@ -18,14 +18,17 @@
 // (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
 // texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
 // course does; one wholly above the border has its bottom where it was (above the screen's top, which wraps to a large
-// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's; the hills' last
-// strip, whose texture ends there, stays (the sky goes on below it, where the course doesn't). One over the whole of
-// the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's copy holds only
-// the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it that the console
-// draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the pause), and its
-// last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox bars, rectangles
-// as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor this file makes,
-// and reach the picture's edges by hud.cpp's hand.
+// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's; one drawn in
+// strips that each load only their own rows (the old frame Ring Shot's stage select holds while its slats close) has
+// strips of the rows below drawn after its last; the hills' last strip, whose texture ends there, stays (the sky goes
+// on below it, where the course doesn't), but a texture already drawn taller than its tile (the sky behind that stage
+// select) goes on to the screen's bottom, or the lines below kept whatever an earlier frame left there. One over the
+// whole of the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's copy
+// holds only the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it that
+// the console draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the
+// pause), and its last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox
+// bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
+// this file makes, and reach the picture's edges by hud.cpp's hand.
 //
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
 // lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 7 loaded;
@@ -46,6 +49,7 @@ namespace {
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETZIMG = 0xFE, G_SPNOOP = 0x00;
 constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6;
+constexpr uint32_t G_LOADTILE = 0xF4, G_SETTILESIZE = 0xF2, G_RDPLOADSYNC = 0xE6, G_RDPPIPESYNC = 0xE7;
 // G_SETOTHERMODE_H's cycle type (G_MDSFT_CYCLETYPE) and its copy and fill values; black as a fill of 16-bit pixels.
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
 // Past billboard.cpp's buffers: 16 of 0x100 bytes.
@@ -84,6 +88,11 @@ uint32_t g_zimg;
 uint32_t g_cycle;
 bool g_blacked;
 uint32_t g_next_buffer;
+// The last G_SETTIMG's first word (its format, size and width), the last G_LOADTILE, and each tile's last
+// G_SETTILESIZE.
+uint32_t g_timg0;
+uint32_t g_load0, g_load1;
+uint32_t g_size0[8], g_size1[8];
 // The screen's color images the game has drawn to (it keeps three, in turn), the latest first: a texture in one (each
 // strip's texture image is its own first row) is a copy of a frame.
 constexpr int SCREENS = 4;
@@ -174,6 +183,63 @@ void black_border(uint32_t addr) {
     }
 }
 
+// The rows below the border under a strip of a screen's color image that ends there (the old frame the stage select
+// of Ring Shot holds as its slats close, 6 rows a strip and 2 the last): the strip loaded only its own rows, so drawn
+// on to the screen's bottom it repeated its last row there, a band of streaks. Here the strip stays as it is and two
+// strips of 4 rows each follow it, each loading its own rows of the image as the game loads its strips (the image's
+// address moved down by as many rows, the tiles' rows the same), then the game's own image, load and tile are put
+// back for what follows. The commands go in one of the buffers black_border uses, the strip's place in the list
+// calling them.
+void rows_below(uint32_t addr, uint32_t inside) {
+    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+    uint32_t out = buffer;
+    auto put = [&](uint32_t w0, uint32_t w1) {
+        wr_w(out, w0);
+        wr_w(out + 4, w1);
+        out += 8;
+    };
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
+    uint32_t tile = (w1 >> 24) & 7;
+    uint32_t uly = w1 & 0xFFF;
+    uint32_t row_bytes = ((g_timg0 & 0xFFF) + 1) * 2;
+    for (uint32_t i = 0; i < 3; i++) {
+        put(rd_w(addr + i * 8), rd_w(addr + i * 8 + 4));
+    }
+    for (uint32_t row = BORDER_BOTTOM / 4; row < SCREEN_BOTTOM / 4; row += 4) {
+        put(g_timg0, g_texture + (row - uly / 4) * row_bytes);
+        put(G_RDPLOADSYNC << 24, 0);
+        put(g_load0, (g_load1 & ~0xFFFu) | ((g_load0 & 0xFFF) + 3 * 4));
+        put(G_RDPPIPESYNC << 24, 0);
+        put(g_size0[tile], (g_size1[tile] & ~0xFFFu) | ((g_size0[tile] & 0xFFF) + 3 * 4));
+        put((w0 & ~0xFFFu) | ((row + 4) * 4 - inside), (w1 & ~0xFFFu) | (row * 4));
+        put(rd_w(addr + 8), rd_w(addr + 12));
+        put(rd_w(addr + 16), rd_w(addr + 20));
+    }
+    put(g_timg0, g_texture);
+    put(G_RDPLOADSYNC << 24, 0);
+    put(g_load0, g_load1);
+    put(G_RDPPIPESYNC << 24, 0);
+    put(g_size0[tile], g_size1[tile]);
+    put(G_ENDDL << 24, 0);
+    wr_w(addr, G_DL << 24);
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
+    for (uint32_t i = 1; i < 3; i++) {
+        wr_w(addr + i * 8, G_SPNOOP << 24);
+        wr_w(addr + i * 8 + 4, 0);
+    }
+}
+
+// Whether the strip at addr reads its image a row a line from its tile's first row, of a 16-bit image a load of 4
+// rows of fits in TMEM: what rows_below draws the rows below it with.
+bool strip_of_rows(uint32_t addr) {
+    uint32_t tile = (rd_w(addr + 4) >> 24) & 7;
+    uint32_t t = rd_w(addr + 12) & 0xFFFF, dtdy = rd_w(addr + 20) & 0xFFFF;
+    uint32_t ult = g_load0 & 0xFFF;
+    return dtdy == 0x400 && t == ult * 8 && (g_size0[tile] & 0xFFF) == ult && ((g_timg0 >> 19) & 3) == 2 &&
+           ((g_timg0 & 0xFFF) + 1) * 2 * 4 <= 4096;
+}
+
 // The texture rectangle at addr (G_TEXRECT, then its texture coordinates, G_RDPHALF_1: s and t, and steps,
 // G_RDPHALF_2: dsdx and dtdy), on a hole drawn at the frame's full height, if it is as wide as the 3D and drawn to the
 // screen: its top at the border's put back as far as its texture starts past its first row, up to 8 rows, its bottom
@@ -229,9 +295,27 @@ void rect(uint32_t addr) {
     }
     w0 = rd_w(addr);
     // Only a copy of the frame has the lines below: a texture of the hills ends at their last row, which the RDP
-    // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down.
+    // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down. A strip
+    // of the frame, which loads only its own rows, has the rows below drawn by rows_below.
+    bool below = false;
     if (is_screen(g_texture) && lry == BORDER_BOTTOM - inside) {
-        w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+        if (strip_of_rows(addr)) {
+            below = true;
+        }
+        else {
+            w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+        }
+    }
+    // A texture drawn taller than its tile already repeats its last row (the sky behind Ring Shot's stage select, a
+    // tile of 4 rows over as many as 224), so it goes on to the screen's bottom as it is; otherwise the lines below it
+    // kept whatever an earlier frame left there.
+    if (copy && !game_copy && !is_screen(g_texture) && (lry == BORDER_BOTTOM || lry == BORDER_BOTTOM - inside)) {
+        uint32_t tile = (rd_w(addr + 4) >> 24) & 7;
+        uint32_t tile_rows = ((g_size1[tile] & 0xFFF) - (g_size0[tile] & 0xFFF)) / 4 + 1;
+        uint32_t top = rd_w(addr + 4) & 0xFFF;
+        if (top < lry && (lry - top) / 4 > tile_rows) {
+            w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+        }
     }
     // The pause's copy holds the 224 lines inside the border, and its last strip runs on past them, into what lies
     // after the copy: it stops at the border.
@@ -254,6 +338,9 @@ void rect(uint32_t addr) {
         w0 = (w0 & ~(0xFFFu << 12)) | ((lrx + SCREEN_RIGHT - BORDER_RIGHT) << 12);
     }
     wr_w(addr, w0);
+    if (below) {
+        rows_below(addr, inside);
+    }
     if (game_copy && !g_blacked) {
         g_blacked = true;
         black_border(addr);
@@ -296,6 +383,15 @@ void walk(uint32_t list, int depth) {
                 break;
             case G_SETTIMG:
                 g_texture = w1 & 0x1FFFFFFF;
+                g_timg0 = w0;
+                break;
+            case G_LOADTILE:
+                g_load0 = w0;
+                g_load1 = w1;
+                break;
+            case G_SETTILESIZE:
+                g_size0[(w1 >> 24) & 7] = w0;
+                g_size1[(w1 >> 24) & 7] = w1;
                 break;
             case G_SETSCISSOR:
                 scissor(addr);
@@ -327,6 +423,13 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_zimg = 0;
     g_cycle = 0;
     g_blacked = false;
+    g_timg0 = 0;
+    g_load0 = 0;
+    g_load1 = 0;
+    for (int i = 0; i < 8; i++) {
+        g_size0[i] = 0;
+        g_size1[i] = 0;
+    }
     uint32_t start = in_ram(list);
     if (start != 0) {
         walk(start, 0);
