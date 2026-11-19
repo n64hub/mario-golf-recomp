@@ -63,6 +63,21 @@
 // with the last frame's as before and slides that step of its texture between them as it does a scroll. widen()
 // puts a cut at the left back in whole pixels and keeps the fraction in s, and puts the squeezed rectangle's left
 // edge on the whole pixel RT64 would, its texture starting as much further on. Whatever the window's shape.
+//
+// And the far hills keep the width they have in the 4:3 frame. func_80091110 draws them after the light, as strips of
+// a panorama 512 texels across that repeats across s (its tile's mask), each 4 rows of it, a copy-mode texture
+// rectangle across the 3D's whole width at a texel a pixel. border.cpp runs each on to the screen's sides, and RT64
+// stretches a rectangle as wide as the screen across the window, so in a window wider than 4:3 the hills were wider
+// than the course in front of them by as much, and where border.cpp stopped short of them (it read the light's
+// extended rectangle as the end of the list; border.cpp's header) they drew at their own width inside the 4:3 frame,
+// so as the camera turned past the sun they jumped between the two. Each strip is drawn instead from a buffer of this
+// file's (STRIP_BASE), its rectangle the game's own but for its texture's step and start: stretched to the picture
+// (G_EX_ASPECT_STRETCH, so the same with border.cpp or without it), its step as much faster as the picture is wider
+// than 4:3 and its start as much earlier as the picture reaches past the 4:3 frame on the left, so each texel stays a
+// 4:3 pixel wide and where the game puts it, the panorama going on at the sides. The start is kept within one repeat
+// of the texture, which draws the same, so border.cpp can move it back further as it runs the strip to the screen's
+// side. The light is drawn before the hills, so where they cover the sun it stays behind them, as in the 4:3 frame:
+// it showed past that frame's sides only where the hills ended there.
 
 #include <algorithm>
 #include <cmath>
