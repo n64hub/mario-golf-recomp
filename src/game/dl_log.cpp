@@ -46,7 +46,7 @@ void walk(uint32_t list, int depth, int& budget) {
             break;
         }
         case 0xFF: fprintf(g_log, "%*sCIMG w%u %08X\n", depth * 2, "", (w0 & 0xFFF) + 1, w1); break;
-        case 0xFE: if(0) fprintf(g_log, "%*sZIMG %08X\n", depth * 2, "", w1); break;
+        case 0xFE: fprintf(g_log, "%*sZIMG %08X\n", depth * 2, "", w1); break;
         case 0xF7: if(0) fprintf(g_log, "%*sFILLCOLOR %08X\n", depth * 2, "", w1); break;
         case 0xF9: if(0) fprintf(g_log, "%*sBLENDCOLOR %08X\n", depth * 2, "", w1); break;
         case 0xFA: if(0) fprintf(g_log, "%*sPRIMCOLOR %08X\n", depth * 2, "", w1); break;
@@ -56,8 +56,9 @@ void walk(uint32_t list, int depth, int& budget) {
         case 0xF6:
             fprintf(g_log, "%*sFILLRECT %.2f,%.2f %.2f,%.2f\n", depth * 2, "", qx(w1), qy(w1), qx(w0), qy(w0));
             break;
+        case 0xFD: fprintf(g_log, "%*sTIMG w%u %08X\n", depth * 2, "", (w0 & 0xFFF) + 1, w1); break;
         case 0xE4: case 0xE5:
-            if (!((w1 & 0xFFF) <= 32 || (w0 & 0xFFF) >= 924)) break;
+            if (((w0 >> 12) & 0xFFF) - ((w1 >> 12) & 0xFFF) < 1000 && !((w1 & 0xFFF) <= 32 || (w0 & 0xFFF) >= 924)) break;
             fprintf(g_log, "%*sTEXRECT %.2f,%.2f %.2f,%.2f\n", depth * 2, "", qx(w1), qy(w1), qx(w0), qy(w0));
             break;
         case 0xDC:
