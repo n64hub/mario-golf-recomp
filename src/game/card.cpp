@@ -24,6 +24,9 @@
 // that reads a framebuffer stretched across the picture, as the framebuffer it reads was drawn, so the doors slide
 // over the whole width, and in a 4:3 menu the old one's black sides come with it.
 //
+// screen.cpp's wipe between the title and the main menu makes its copy of the frame before the same way, into an image
+// of its own (mg_copy_frame_list).
+//
 // Any other strips the drawer draws (another mode or type, a copy elsewhere) keep their 4:3 shape in the middle of the
 // picture (gEXSetRectAspect(G_EX_ASPECT_ADJUST) around them). The drawer's other transitions need nothing: its tiles
 // (type 10) are each narrower than the screen, and the card that turns over to a course's next shot (type 2) is a
@@ -98,17 +101,17 @@ bool wide_transition(uint8_t* rdram) {
         (rd_w(rdram, MG_COPY) == COPY_ADDR);
 }
 
-// Writes the copy's display list: the 240 rows of the frame before, 6 at a time (TMEM's 4 KiB), copied (the RDP's copy
-// mode) into the image, then the frame's own framebuffer and state back.
-void write_copy_list(uint32_t from, uint32_t to) {
-    uint32_t* c = copy_list;
+// Writes a copy's display list at list: the 240 rows of the frame before, 6 at a time (TMEM's 4 KiB), copied (the RDP's
+// copy mode) into image, then the frame's own framebuffer and state back.
+void write_copy_list(uint32_t* list, uint32_t image, uint32_t from, uint32_t to) {
+    uint32_t* c = list;
     auto cmd = [&c](uint32_t w0, uint32_t w1) { *c++ = w0; *c++ = w1; };
     auto ex = [&cmd](const GfxCommand& g) { cmd(g.values.word0, g.values.word1); };
     GfxCommand g[1];
     cmd(0xE7000000, 0);                         // G_RDPPIPESYNC
     gEXPushOtherMode(g); ex(g[0]);
     gEXPushScissor(g); ex(g[0]);
-    cmd(0xFF10013F, image_addr);                // G_SETCIMG: RGBA16, 320 wide
+    cmd(0xFF10013F, image);                     // G_SETCIMG: RGBA16, 320 wide
     cmd(0xED000000, (320 << 14) | (240 << 2));  // G_SETSCISSOR (0, 0)-(320, 240)
     cmd(0xE3000A01, 0x00200000);                // G_SETOTHERMODE_H: G_CYC_COPY
     cmd(0xE3001001, 0x00000000);                // G_SETOTHERMODE_H: G_TT_NONE
@@ -136,6 +139,23 @@ void write_copy_list(uint32_t from, uint32_t to) {
 
 } // namespace
 
+// A copy of the frame before for screen.cpp's tile wipe, in a block of its own: writes its display list, which copies
+// the framebuffer at from into a 320x240 image and sets the framebuffer at to back, and returns the list's address
+// (to be called with gEXSetRDRAMExtended on), the image's in *image.
+extern "C" uint32_t mg_copy_frame_list(uint8_t* rdram, uint32_t from, uint32_t to, uint32_t* image) {
+    static uint32_t* list = nullptr;
+    static uint32_t list_addr = 0, image_at = 0;
+    if (list == nullptr) {
+        uint8_t* block = static_cast<uint8_t*>(recomp::alloc(rdram, COPY_LIST_CMDS * 8 + IMAGE_BYTES + 64));
+        list = reinterpret_cast<uint32_t*>(block);
+        list_addr = 0x80000000U + uint32_t(block - rdram);
+        image_at = (list_addr + COPY_LIST_CMDS * 8 + 63) & ~63U;
+    }
+    write_copy_list(list, image_at, from, to);
+    *image = image_at;
+    return list_addr;
+}
+
 extern "C" void mg_card_check(uint8_t* rdram) {
     starting = (rd_w(rdram, MG_COPY_FLAG) != 0);
     if (starting) {
@@ -156,7 +176,7 @@ extern "C" void mg_card_strips_begin(uint8_t* rdram) {
             copy_list_addr = 0x80000000U + uint32_t(block - rdram);
             image_addr = (copy_list_addr + COPY_LIST_CMDS * 8 + 63) & ~63U;
         }
-        write_copy_list(rd_w(rdram, MG_LAST_CFB), rd_w(rdram, MG_CFB));
+        write_copy_list(copy_list, image_addr, rd_w(rdram, MG_LAST_CFB), rd_w(rdram, MG_CFB));
         gEXSetRDRAMExtended(c, 1);
         put(rdram, c[0]);
         put(rdram, 0xDE000000, copy_list_addr); // G_DL
