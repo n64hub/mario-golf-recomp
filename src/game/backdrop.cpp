@@ -3,16 +3,16 @@
 // picture.
 //
 // The sky behind the course has the sun's light drawn on it in screen space, where the sun is: a texture rectangle, a
-// square around the sun as tall as it is wide (from the sun's x less its size plus one to its x plus its size, the
-// size the game's, which on Training's hole 10 shrinks from 64 to 32 as the camera follows a drive), over a 64-texel
-// texture whose s and t are mirrored past it, so a square 128 pixels across shows it and its mirror image and one 64
-// across it once, in a pale colour, before the course. func_8008FF20 draws it. Where the sun is near or past the
-// screen's left side, the game cuts the rectangle at 0 and starts its texture as far in as it cut (wholly past it, the
-// rectangle is cut to nothing); on the right it lets the rectangle run past 320. Either way the game's scissor, the 3D's (8 to 312), cuts it at the 4:3 frame's side. RT64
-// widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that scissor, so
-// in a wider window the light was cut along a vertical line at that frame's side, with the plain sky beyond. And the
-// game draws the light only while the sun is within 64 pixels of the screen, so with the sun further out the light went
-// at once, though the wide picture still showed some of it.
+// square around the sun as tall as it is wide (from the sun's x less its size plus one to its x plus its size, the size
+// the game's, which on Training's hole 10 shrinks from 64 to 32 as the camera follows a drive), over a 64-texel texture
+// whose s and t are mirrored past it, so a square 128 pixels across shows it and its mirror image and one 64 across it
+// once, in a pale colour, before the course. func_8008FF20 draws it. Where the sun is near or past the screen's left
+// side, the game cuts the rectangle at 0 and starts its texture as far in as it cut (wholly past it, the rectangle is
+// cut to nothing); on the right it lets the rectangle run past 320. Either way the game's scissor, the 3D's (8 to 312),
+// cuts it at the 4:3 frame's side. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in
+// the 4:3 frame, under that scissor, so in a wider window the light was cut along a vertical line at that frame's side,
+// with the plain sky beyond. And the game draws the light only while the sun is within 64 pixels of the screen, so with
+// the sun further out the light went at once, though the wide picture still showed some of it.
 //
 // func_80091110 draws the sky with it (and the course's backdrop), twice a frame, from func_8002DC10, the frame's
 // drawing; it is asm in the decomp, so as with the HUD (src/game/hud.cpp) its commands are rewritten rather than the
@@ -22,20 +22,20 @@
 // start again, the rectangle as far past the side as that takes, and one cut to nothing is put back as wide as the
 // square is tall (its height the game's own, or as much more as it cut at the top, read from t as the cut on the left
 // is from s). Run on to the mirrored texture's end there instead (128 texels), a sun of size 32 drew the texture's
-// mirrored copy 64 pixels right of the sun, as a second sun. It is drawn as RT64's extended texture rectangle
-// stretched to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's own
-// scissor, the 3D's, clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the screen's middle by as much,
-// so the light keeps its shape. A scissor of its own, widened past 4:3 in the 4:3 frame's coordinates, doesn't hold it:
-// the light reaches the black border past the 3D, which nothing clears. Those commands go to a buffer of this file's in
-// RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a branch
-// back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through mg_sun_bound_x, a us.toml hook that moves
-// the x they compare toward the screen's middle by as much as the wide picture reaches past 4:3, so the light is drawn
-// until the last of it leaves the picture. With Aspect Ratio Original, or a window no wider than 4:3, nothing changes.
-// Nor does it where the 3D doesn't fill the screen (the end credits' character preview, a window that shrinks to the
-// screen's right part over black, and the small view of where the ball lands), under a scissor of its own: in the
-// credits the light widened there, and drawn for a sun the game would have left out, showed as an orange block on the
-// black beside the window. So both read the scissor the game last set before the sky, and leave the light as the game
-// draws it unless that is the 3D's whole one.
+// mirrored copy 64 pixels right of the sun, as a second sun. It is drawn as RT64's extended texture rectangle stretched
+// to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's own scissor, the 3D's,
+// clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the screen's middle by as
+// much, so the light keeps its shape. A scissor of its own, widened past 4:3 in the 4:3 frame's coordinates, doesn't
+// hold it: the light reaches the black border past the 3D, which nothing clears. Those commands go to a buffer of this
+// file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a
+// branch back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through mg_sun_bound_x, a us.toml hook that
+// moves the x they compare toward the screen's middle by as much as the wide picture reaches past 4:3, so the light is
+// drawn until the last of it leaves the picture. With Aspect Ratio Original, or a window no wider than 4:3, nothing
+// changes. Nor does it where the 3D doesn't fill the screen (the end credits' character preview, a window that shrinks
+// to the screen's right part over black, and the small view of where the ball lands), under a scissor of its own: in
+// the credits the light widened there, and drawn for a sun the game would have left out, showed as an orange block on
+// the black beside the window. So both read the scissor the game last set before the sky, and leave the light as the
+// game draws it unless that is the 3D's whole one.
 //
 // The sky's clouds slide on every frame drawn as the camera turns, with the course in front of them, rather than a step
 // a game frame. The sky is the first thing func_80091110 draws: three triangles, under a modelview matrix of their
