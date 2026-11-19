@@ -44,13 +44,14 @@
 // before (card.cpp's mg_copy_frame_list: the whole picture, as RT64 drew it), and each tile is drawn at the place it is
 // scaled to, reading that image at the same place (wipe_tile), so the old screen is the picture it was until its tiles
 // go. RT64 draws the image at the window's width, so a tile reads its columns 1 / wide of a column apart, about the
-// middle. The buffers are this file's in RDRAM, above the 4 MB the game
-// uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D screen drawn in a frame with 3D,
-// goes through the same scaling from credits.cpp (mg_screen_fill_range).
+// middle. The wipe's second frame is drawn while the game swaps the two overlays, neither of them loaded, so a wipe
+// under way is scaled on through it and keeps its image to its last tile; let go of there, its tiles drew at 4:3 that
+// frame, inside a black band, and from the next each copied that shrunk picture anew. The buffers are this file's in
+// RDRAM, above the 4 MB the game uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D
+// screen drawn in a frame with 3D, goes through the same scaling from credits.cpp (mg_screen_fill_range).
 
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
@@ -90,8 +91,6 @@ constexpr uint32_t BUFFER_SIZE = 0x40;
 constexpr uint32_t BUFFER_COUNT = 1024;
 // The commands read from a list, at most.
 constexpr uint32_t MAX_COMMANDS = 0x8000;
-// How many of the wipe's tiles go each frame.
-constexpr int TILES_GONE_A_FRAME = 4;
 
 uint8_t* g_rdram;
 uint32_t g_next_buffer = 0;
@@ -275,12 +274,8 @@ bool rect_next(uint32_t addr, uint32_t end) {
 // as RT64 drew it, scaled) into an image of card.cpp's; each tile then reads that image at its scaled place.
 uint32_t g_cimg = 0;          // the color image in effect while the list is read
 uint32_t g_last_cimg = 0;     // the screen's color image at the end of the frame before's list
-bool g_tiles = false;
-int g_tile_count = 0;         // whether this frame's list has the wipe's tiles
+bool g_tiles = false;         // whether this frame's list has the wipe's tiles
 uint32_t g_wipe_image = 0;    // the image a wipe under way reads, 0 if none
-int g_wipe_left = 0;          // the tiles the wipe drew in its last frame that had any
-int g_wipe_gap = 0;           // the frames since then without tiles
-int g_dbg_after = 0;
 
 // The commands of the tile whose G_SETTIMG of the game's copy is at at, rewritten to read the wipe's image at the place
 // the tile is scaled to, and the address past its rectangle; 0 if it isn't a tile of that shape (left as it is). A tile
@@ -312,14 +307,12 @@ uint32_t wipe_tile(uint32_t at, uint32_t end) {
         }
     }
     if (rect == 0) {
-        fprintf(stderr, "DBGW tile no-rect at %08X\n", at);
         return 0;
     }
     uint32_t w0 = rd_w(rect), w1 = rd_w(rect + 4), st = rd_w(rect + 12), d = rd_w(rect + 20);
     uint32_t ulx = ((w1 >> 12) & 0xFFF) >> 2, uly = (w1 & 0xFFF) >> 2;
     uint32_t lrx = ((w0 >> 12) & 0xFFF) >> 2, lry = (w0 & 0xFFF) >> 2;
     if (d != 0x04000400 || ulx < 8 || uly < 8 || st != ((((ulx - 8) << 5) << 16) | ((uly - 8) << 5))) {
-        fprintf(stderr, "DBGW tile shape d=%08X ul=%u,%u st=%08X\n", d, ulx, uly, st);
         return 0;
     }
     int x0 = edge(scale_x(float(ulx)), SCREEN_WIDTH), y0 = edge(scale_y(float(uly)), SCREEN_HEIGHT);
@@ -385,7 +378,6 @@ uint32_t wipe_tile(uint32_t at, uint32_t end) {
     wr_w(rect, (G_DL << 24) | (G_DL_NOPUSH << 16));
     wr_w(rect + 4, buffer & 0x1FFFFFFF);
     g_tiles = true;
-    g_tile_count++;
     return rect + 24;
 }
 
@@ -411,13 +403,6 @@ void fill(uint32_t list, uint32_t end) {
         uint32_t op = w0 >> 24;
         if (op == G_SETTIMG) {
             texture = w1 & 0x1FFFFFFF;
-            if (w0 == 0xFD10012F && texture == GAME_COPY) {
-                static uint32_t last_list = 0;
-                if (last_list != list) {
-                    last_list = list;
-                    fprintf(stderr, "DBGW copy-timg list=%08X screen=%d cimg=%08X last=%08X image=%08X\n", list, screen, g_cimg, g_last_cimg, g_wipe_image);
-                }
-            }
             if (screen && w0 == 0xFD10012F && texture == GAME_COPY && g_cimg != 0 &&
                 (g_wipe_image != 0 || g_last_cimg != 0)) {
                 uint32_t past = wipe_tile(addr, end);
@@ -465,19 +450,9 @@ void fill(uint32_t list, uint32_t end) {
 
 extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
     g_rdram = rdram;
+    // A wipe under way goes on through its second frame, in which the game swaps the two overlays and neither is loaded.
     bool wiping = g_wipe_image != 0;
     if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY) || wiping) || !set_fill()) {
-        static int prev_state = -1; int state = loaded(MENU_OVERLAY) * 2 + loaded(TITLE_OVERLAY);
-        if (g_last_cimg != 0 || g_wipe_image != 0 || state != prev_state || g_dbg_after-- > 0) {
-            prev_state = state;
-            fprintf(stderr, "DBGW skip list=%08X menu=%d title=%d fill=%d\n", list, loaded(MENU_OVERLAY), loaded(TITLE_OVERLAY), set_fill());
-            int copies = 0, rects = 0;
-            for (uint32_t q = list, k = 0; k < MAX_COMMANDS && (rd_w(q) >> 24) != G_ENDDL; q += 8, k++) {
-                if (rd_w(q) == 0xFD10012F && (rd_w(q + 4) & 0x1FFFFFFF) == GAME_COPY) copies++;
-                if ((rd_w(q) >> 24) == G_TEXRECT) rects++;
-            }
-            fprintf(stderr, "DBGW   skipped list: %d copy tiles, %d rects\n", copies, rects);
-        }
         g_wipe_image = 0;
         g_last_cimg = 0;
         return;
@@ -490,36 +465,9 @@ extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
         return;
     }
     g_tiles = false;
-    g_tile_count = 0;
     g_cimg = 0;
     fill(list, end);
-    {
-        static bool was = false;
-        if (g_tiles) g_dbg_after = 20;
-        if (g_tiles || was || g_dbg_after-- > 0) {
-            fprintf(stderr, "DBGW frame list=%08X n=%d tiles=%d image=%08X cimg=%08X last=%08X wide=%.3f\n", list, g_tile_count, g_tiles, g_wipe_image, g_cimg, g_last_cimg, mg_wide_scale());
-        }
-        if (!g_tiles && was) {
-            for (uint32_t a = list; a < end; a += 8) {
-                uint32_t op = rd_w(a) >> 24;
-                if (op == G_SETTIMG || op == G_SETCIMG || op == G_DL || op == 0xF6 || op == G_SETSCISSOR) {
-                    fprintf(stderr, "DBGW   cmd %08X %08X\n", rd_w(a), rd_w(a + 4));
-                }
-                else if (op == G_TEXRECT) {
-                    fprintf(stderr, "DBGW   rect %08X %08X\n", rd_w(a), rd_w(a + 4));
-                }
-            }
-        }
-        was = g_tiles;
-    }
-    if (g_tiles) {
-        g_wipe_left = g_tile_count;
-        g_wipe_gap = 0;
-    }
-    else if (g_wipe_image != 0 && g_wipe_left > TILES_GONE_A_FRAME && ++g_wipe_gap < 2) {
-        // A frame of the wipe without its tiles: the image is kept for the rest.
-    }
-    else {
+    if (!g_tiles) {
         g_wipe_image = 0;
     }
     g_last_cimg = g_cimg;
