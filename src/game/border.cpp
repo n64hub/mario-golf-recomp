@@ -23,13 +23,13 @@
 // draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last 8
 // lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below it,
 // where the course doesn't). One drawn in strips that each load only their own rows (the old frame Ring Shot's stage
-// select holds while its slats close) has strips of the rows below drawn after its last. One over the whole of the
-// border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's copy holds only the
-// 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it that the console
-// draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the pause), and its
-// last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox bars, rectangles
-// as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor this file makes,
-// and reach the picture's edges by hud.cpp's hand.
+// select holds while its slats close) has strips of the rows above its first and below its last drawn with them. One
+// over the whole of the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's
+// copy holds only the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it
+// that the console draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the
+// pause), and its last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox
+// bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
+// this file makes, and reach the picture's edges by hud.cpp's hand.
 //
 // The opening's sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws:
 // backdrop.cpp's) ends a few lines below the screen's top at most of its camera's heights, its near edge (vertices 0, 3
