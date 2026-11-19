@@ -1,6 +1,7 @@
 // The ball, the stars around the cup and the sun's lens flare past the 4:3 frame's sides (RT64's Aspect Ratio Expand):
 // the ball, its shadow, its trail, the ring of stars around the cup and the flare's circles go on into the wide
-// picture's sides with the course, rather than being cut along a vertical line at the 4:3 frame's side.
+// picture's sides with the course, rather than being cut along a vertical line at the 4:3 frame's side. And the ball's
+// sprites where the ball is, to a quarter of a pixel, not the whole pixel the game rounds it to (the last paragraph).
 //
 // Up close (the view of the cup the game cuts to as a putt reaches it, with no HUD) the ball is not a model: it is
 // texture rectangles drawn where the game works out the ball is on the screen, a sprite of the ball, of its shadow and
@@ -32,11 +33,24 @@
 // branch back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no
 // wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
 //
-// RT64 slides 3D between the game's frames to the display's rate (Framerate Display) but draws a rectangle where the
-// game last put it, so as a fast ball rolls its 3D logo can sit a little off the sprite between frames, as it does
-// without this file; at the game's own rate it stays on the ball.
+// The ball's sprites are also put where the ball is on the screen, to a quarter of a pixel, rather than on the whole
+// pixel the game rounds it to. The game works out where on the screen the ball is, and its shadow, with func_80065650,
+// which truncates x and y to whole pixels (its out[0] and out[1]), and func_ovl0_801FE370 draws each rectangle around
+// that pixel: the ball's sprite near or its dots far, its shadow, and the coloured marker over it (overlay 7, the
+// intro's, draws its ball with its own two of the same kind). Every console pixel
+// is several of a modern window's, and RT64 draws the course under them at its full resolution and moves it smoothly,
+// so the sprites stepped over the grass a whole console pixel at a time as the camera drifted, and wiggled at a high
+// display rate. us.toml hooks func_80065650 where it truncates x and y, and while the ball is drawn
+// (mg_ball_begin to mg_ball_end) mg_ball_project_x and _y note each point and what was dropped; mg_ball_end then moves
+// a rectangle whose middle across is a noted point's x by that fraction, rounded to the quarter pixel a rectangle's
+// corners take. It keeps the game's size, so RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with
+// the last frame's rectangle and slides it between the two frames at the display's rate. This happens whatever the
+// window's shape, and before a rectangle at a side is widened. The game still rounds a sprite's size to whole pixels,
+// so a frame in which the ball's sprite grows or shrinks by one isn't slid.
 
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 
 #define F3DEX_GBI_2
@@ -69,10 +83,29 @@ constexpr uint32_t MAX_COMMANDS = 20000;
 // Rectangles rewritten in one call, at most (the ball, its shadow and its trail, or the stars and the flare).
 constexpr int MAX_RECTS = 64;
 
+// The point on the screen func_80065650 works out, before it adds the screen's middle (the decomp's data at 0x800E1738
+// and 0x800E173C, in pixels).
+constexpr uint32_t MG_SCREEN_MIDDLE_X = 0x800E1738;
+constexpr uint32_t MG_SCREEN_MIDDLE_Y = 0x800E173C;
+// Points noted while the ball is drawn, at most (the ball and its shadow, and the far balls' and their shadows').
+constexpr int MAX_SPOTS = 1024;
+
 uint8_t* g_rdram;
 uint32_t g_start;
 bool g_open = false;
 uint32_t g_next_buffer = 0;
+
+// A point func_80065650 truncated: the whole pixel it gives (with the screen's middle added) and what it dropped, a
+// fraction of a pixel either side.
+struct Spot {
+    int x, y;
+    float dx, dy;
+};
+Spot g_spots[MAX_SPOTS];
+int g_spot_count = 0;
+bool g_have_x = false;
+int g_x;
+float g_dx;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -171,6 +204,52 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     return true;
 }
 
+// The rectangle at addr moved by the fraction of a pixel the point it is drawn around lost, if it is one: its middle
+// across on a noted point's x, and that point's y within it, the nearest to its middle down if more than one (the ball
+// is as tall as it is wide, its shadow flatter). It keeps the game's size, so RT64 still pairs it with the last frame's
+// and slides it between the two. One at or past a side of the screen is left for widen().
+void nudge(uint32_t addr) {
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
+    int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
+    int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
+    if (ulx <= 0 || lrx >= SCREEN_WIDTH || lrx <= ulx || uly <= 0 || lry >= SCREEN_HEIGHT || ((ulx + lrx) & 1) != 0) {
+        return;
+    }
+    int mid_x = (ulx + lrx) / 2, mid_y = uly + (lrx - ulx) / 2;
+    const Spot* best = nullptr;
+    for (int i = 0; i < g_spot_count; i++) {
+        const Spot& spot = g_spots[i];
+        if (spot.x * 4 != mid_x || spot.y * 4 < uly - 4 || spot.y * 4 > std::max(lry, mid_y) + 4) {
+            continue;
+        }
+        if (best == nullptr || std::abs(spot.y * 4 - mid_y) < std::abs(best->y * 4 - mid_y)) {
+            best = &spot;
+        }
+    }
+    if (best == nullptr) {
+        return;
+    }
+    int dx = int(std::lround(best->dx * 4)), dy = int(std::lround(best->dy * 4));
+    if ((dx == 0 && dy == 0) || ulx + dx <= 0 || lrx + dx >= SCREEN_WIDTH || uly + dy <= 0 || lry + dy >= SCREEN_HEIGHT) {
+        return;
+    }
+    wr_w(addr, (w0 & 0xFF000000) | (uint32_t(lrx + dx) << 12) | uint32_t(lry + dy));
+    wr_w(addr + 4, (w1 & 0xFF000000) | (uint32_t(ulx + dx) << 12) | uint32_t(uly + dy));
+}
+
+void nudge_all(uint32_t start, uint32_t end) {
+    if (g_spot_count == 0 || end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
+        return;
+    }
+    for (uint32_t addr = start; addr + 24 <= end; addr += 8) {
+        if ((rd_w(addr) >> 24) == G_TEXRECT && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
+            (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
+            nudge(addr);
+            addr += 16;
+        }
+    }
+}
+
 void widen_all(uint32_t start, uint32_t end) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
@@ -207,19 +286,48 @@ void widen_all(uint32_t start, uint32_t end) {
 
 } // namespace
 
-extern "C" void mg_ball_begin(uint8_t* rdram) {
+// head: the word the caller keeps the display list's head in, MG_GFX_HEAD or a copy of it (as mg_ball_end's).
+extern "C" void mg_ball_begin(uint8_t* rdram, uint32_t head) {
     g_rdram = rdram;
-    g_start = rd_w(MG_GFX_HEAD);
+    g_start = rd_w(head);
     g_open = true;
+    g_spot_count = 0;
+    g_have_x = false;
 }
 
-// head: the word the caller keeps the display list's head in, MG_GFX_HEAD or a copy of it. Each caller copies the head
-// from MG_GFX_HEAD before its call, so mg_ball_begin reads it there.
+// value: the point's x or y on the screen before func_80065650 truncates it and adds the screen's middle. y follows x.
+extern "C" void mg_ball_project_x(uint8_t* rdram, float value) {
+    if (!g_open) {
+        return;
+    }
+    g_rdram = rdram;
+    float whole = std::trunc(value);
+    g_x = int(whole) + int32_t(rd_w(MG_SCREEN_MIDDLE_X));
+    g_dx = value - whole;
+    g_have_x = true;
+}
+
+extern "C" void mg_ball_project_y(uint8_t* rdram, float value) {
+    if (!g_open || !g_have_x) {
+        return;
+    }
+    g_have_x = false;
+    if (g_spot_count >= MAX_SPOTS || !std::isfinite(value) || !std::isfinite(g_dx)) {
+        return;
+    }
+    g_rdram = rdram;
+    float whole = std::trunc(value);
+    g_spots[g_spot_count++] = { g_x, int(whole) + int32_t(rd_w(MG_SCREEN_MIDDLE_Y)), g_dx, value - whole };
+}
+
+// head: the word the caller keeps the display list's head in, the same as mg_ball_begin's.
 extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     if (!g_open) {
         return;
     }
     g_open = false;
     g_rdram = rdram;
-    widen_all(g_start, rd_w(head));
+    uint32_t end = rd_w(head);
+    nudge_all(g_start, end);
+    widen_all(g_start, end);
 }
