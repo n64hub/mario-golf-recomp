@@ -126,7 +126,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   joints in a matrix group of its own, each joint's matrix blended whole between the game's frames and its position
   always, or Wario's upper arm as he shakes his fist on the Play Modes screen swung through his belly (RT64 blends a
   matrix split into rotation and scale) or jumped there ahead of his glove (it blends a position only while it keeps
-  its pace).
+  its pace). `src/game/billboard.cpp` puts each of the course's billboards (its trees and Bomb-ombs, one quad scaled to
+  each) in a matrix group of its scale, so RT64 pairs one between the game's frames only with one of its own size, or
+  a Bomb-omb coming into view as a tree left it was drawn halfway to the tree's size for a frame.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/frame_plan.txt` walks
