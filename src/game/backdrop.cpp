@@ -63,6 +63,21 @@
 // with the last frame's as before and slides that step of its texture between them as it does a scroll. widen()
 // puts a cut at the left back in whole pixels and keeps the fraction in s, and puts the squeezed rectangle's left
 // edge on the whole pixel RT64 would, its texture starting as much further on. Whatever the window's shape.
+//
+// And the far hills keep the width they have in the 4:3 frame. func_80091110 draws them after the light, as strips of
+// a panorama 512 texels across that repeats across s (its tile's mask), each 4 rows of it, a copy-mode texture
+// rectangle across the 3D's whole width at a texel a pixel. border.cpp runs each on to the screen's sides, and RT64
+// stretches a rectangle as wide as the screen across the window, so in a window wider than 4:3 the hills were wider
+// than the course in front of them by as much, and where border.cpp stopped short of them (it read the light's
+// extended rectangle as the end of the list; border.cpp's header) they drew at their own width inside the 4:3 frame,
+// so as the camera turned past the sun they jumped between the two. Each strip is drawn instead from a buffer of this
+// file's (STRIP_BASE), its rectangle the game's own but for its texture's step and start: stretched to the picture
+// (G_EX_ASPECT_STRETCH, so the same with border.cpp or without it), its step as much faster as the picture is wider
+// than 4:3 and its start as much earlier as the picture reaches past the 4:3 frame on the left, so each texel stays a
+// 4:3 pixel wide and where the game puts it, the panorama going on at the sides. The start is kept within one repeat
+// of the texture, which draws the same, so border.cpp can move it back further as it runs the strip to the screen's
+// side. The light is drawn before the hills, so where they cover the sun it stays behind them, as in the 4:3 frame:
+// it showed past that frame's sides only where the hills ended there.
 
 #include <algorithm>
 #include <cmath>
@@ -78,7 +93,7 @@ namespace {
 
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
-constexpr uint32_t G_SETTILESIZE = 0xF2;
+constexpr uint32_t G_SETTILESIZE = 0xF2, G_SETTILE = 0xF5;
 constexpr uint32_t G_DL_NOPUSH = 1;
 constexpr uint32_t G_VTX = 0x01, G_TRI1 = 0x05, G_TRI2 = 0x06, G_QUAD = 0x07, G_MTX = 0xDA, G_MOVEWORD = 0xDB;
 constexpr uint32_t G_RDPPIPESYNC = 0xE7, G_SETSCISSOR = 0xED;
@@ -125,6 +140,13 @@ constexpr uint32_t BUFFER_COUNT = 64;
 constexpr uint32_t MAX_COMMANDS = 20000;
 // Rectangles rewritten in one call, at most.
 constexpr int MAX_RECTS = 4;
+// The far hills' strips, drawn stretched to the picture, each in a buffer of its own: about twenty a call, two calls a
+// frame, and enough for the frames the renderer may still read.
+constexpr uint32_t STRIP_BASE = 0x807C0000;
+constexpr uint32_t STRIP_SIZE = 0x40;
+constexpr uint32_t STRIP_COUNT = 1024;
+// A copy-mode rectangle's texture step, s5.10: four texels a pixel, as the RDP copies four pixels at a time.
+constexpr int COPY_DSDX = 4 << 10;
 
 uint8_t* g_rdram;
 uint32_t g_start;
@@ -132,6 +154,7 @@ bool g_open = false;
 // Whether the scissor the sky is drawn under is the 3D's whole one, so the light may be widened past it.
 bool g_full = true;
 uint32_t g_next_buffer = 0;
+uint32_t g_next_strip = 0;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -160,9 +183,10 @@ struct Writer {
     }
 };
 
-// Where the last G_SETTILESIZE of a tile starts it.
+// Where the last G_SETTILESIZE of a tile starts it, and how the last G_SETTILE of it repeats its texture across s.
 struct Tile {
     int uls = 0, ult = 0; // in texels
+    int period = 0;       // texels after which s repeats, 0 where it is clamped or unmasked
 };
 
 // The rectangle at addr (its three commands) drawn past the scissor where it reaches past it, put back past the left
@@ -227,6 +251,62 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, wide_ulx, uly, squeeze(new_lrx), lry,
                         (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
+    gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
+    out.put(c, 1);
+    out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
+    if (!out.ok) {
+        return false;
+    }
+    wr_w(addr, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
+    return true;
+}
+
+// A strip of the far hills at addr (its three commands), drawn on to the wide picture's sides at the hills' own
+// width rather than stretched to it: a copy-mode rectangle across the 3D's whole width whose texture repeats across s.
+// It is drawn stretched to the picture (G_EX_ASPECT_STRETCH), so the 3D's scissor is the wide picture's, its texture
+// stepped faster by as much and started as much earlier as the picture reaches past 4:3 on the left, so each texel
+// stays one 4:3 pixel wide and where the game put it. It stays a G_TEXRECT, so border.cpp, which follows the branch to
+// it, still runs it on through the game's border to the screen's sides and puts back the rows the game cut at its top.
+// False if it isn't such a strip, or didn't fit.
+bool stretch_strip(uint32_t addr, const Tile& tile, float scale) {
+    uint32_t w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
+    int ulx = int((w1 >> 12) & 0xFFF);         // quarter pixels
+    int lrx = int((rd_w(addr) >> 12) & 0xFFF);
+    int s = int16_t(st >> 16);                 // s10.5
+    int dsdx = int16_t(d >> 16);               // s5.10
+    // The game's strips run from the scissor's left side to a pixel short of its right one (RT64 takes them to it).
+    if (dsdx != COPY_DSDX || tile.period <= 0 || ulx > SCISSOR_LEFT * 4 || lrx < (SCISSOR_RIGHT - 1) * 4) {
+        return false;
+    }
+    int wide_dsdx = int(std::lround(dsdx * scale));
+    if (wide_dsdx > INT16_MAX) {
+        return false;
+    }
+    // The rectangle's left side is drawn (SCREEN_WIDTH / 2 - ulx) * (scale - 1) 4:3 pixels further left, a texel each
+    // in copy mode, 32 of s. s is put within the texture's first period, which draws the same, so border.cpp may move
+    // it back further as it runs the strip on to the screen's left side.
+    const int period = tile.period * 32;
+    if (period > INT16_MAX) {
+        return false;
+    }
+    int new_s = s - int(std::lround((SCREEN_WIDTH / 2.0f - ulx / 4.0f) * (scale - 1.0f) * 32.0f));
+    new_s %= period;
+    if (new_s < 0) {
+        new_s += period;
+    }
+
+    uint32_t buffer = STRIP_BASE + STRIP_SIZE * g_next_strip;
+    g_next_strip = (g_next_strip + 1) % STRIP_COUNT;
+    Writer out{ buffer, buffer + STRIP_SIZE };
+    GfxCommand c[1];
+    gEXEnable(c);
+    out.put(c, 1);
+    gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
+    out.put(c, 1);
+    out.put(rd_w(addr), w1);
+    out.put(rd_w(addr + 8), (uint32_t(new_s & 0xFFFF) << 16) | (st & 0xFFFF));
+    out.put(rd_w(addr + 16), (uint32_t(wide_dsdx & 0xFFFF) << 16) | (d & 0xFFFF));
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
     out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
@@ -307,9 +387,16 @@ void widen_all(uint32_t start, uint32_t end) {
     }
     Tile tiles[8];
     int done = 0;
-    for (uint32_t addr = start; addr + 8 <= end && done < MAX_RECTS; addr += 8) {
+    for (uint32_t addr = start; addr + 8 <= end; addr += 8) {
         uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
         switch (w0 >> 24) {
+            case G_SETTILE: {
+                Tile& tile = tiles[(w1 >> 24) & 7];
+                uint32_t cms = (w1 >> 8) & 3, masks = (w1 >> 4) & 0xF;
+                // Clamped, or unmasked, s doesn't repeat; mirrored, it repeats every two mirrored copies.
+                tile.period = ((cms & 2) != 0 || masks == 0) ? 0 : (1 << masks) * ((cms & 1) != 0 ? 2 : 1);
+                break;
+            }
             case G_SETTILESIZE: {
                 Tile& tile = tiles[(w1 >> 24) & 7];
                 tile.uls = int((w0 >> 12) & 0xFFF) / 4;
@@ -318,7 +405,8 @@ void widen_all(uint32_t start, uint32_t end) {
             }
             case G_TEXRECT:
                 if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-                    if (widen(addr, tiles[(w1 >> 24) & 7], scale)) {
+                    const Tile& tile = tiles[(w1 >> 24) & 7];
+                    if (!stretch_strip(addr, tile, scale) && done < MAX_RECTS && widen(addr, tile, scale)) {
                         done++;
                     }
                     addr += 16;

@@ -46,7 +46,10 @@
 // are its data too, so with Aspect Ratio Original, or elsewhere, it puts any scissor it made back as the game wrote it:
 // Original keeps the console's border. The game sets the screen's scissor itself too, so the one made here carries a
 // mark the RDP and RT64 never read. Only the scissors and rectangles drawn to the screen (a color image 320 wide, not
-// the z-buffer) are changed.
+// the z-buffer) are changed. The other files' buffers that the lists branch to hold RT64's extended commands, some
+// longer than one command, which the walk steps over whole: read a command at a time, the words of the sun's light's
+// extended rectangle (backdrop.cpp's) read as the end of the list wherever its texture started left of 0, so the far
+// hills after it, which backdrop.cpp also draws from buffers of its own, were left at the 4:3 frame's sides.
 
 #include <cstdint>
 
@@ -59,6 +62,30 @@ constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 
 constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETZIMG = 0xFE, G_SPNOOP = 0x00;
 constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6, G_VTX = 0x01;
 constexpr uint32_t G_LOADTILE = 0xF4, G_SETTILESIZE = 0xF2, G_RDPLOADSYNC = 0xE6, G_RDPPIPESYNC = 0xE7;
+// RT64's extended commands (its rt64_extended_gbi.h), which this program's buffers hold among the game's: their
+// opcode, and the length of each that is longer than one command. The rest of their words are no command of their own:
+// gEXTextureRectangle's third holds s and t, whose top byte reads as any command where s is negative (the sun's light,
+// widened by backdrop.cpp, as G_ENDDL), which ended the walk before the far hills.
+constexpr uint32_t RT64_EXTENDED = 0x64;
+uint32_t extended_length(uint32_t op) {
+    switch (op) {
+        case 0x02: // G_EX_TEXRECT_V1
+        case 0x08: // G_EX_SETSCISSORALIGN_V1
+            return 3;
+        case 0x04: // G_EX_SETVIEWPORT_V1
+        case 0x05: // G_EX_SETSCISSOR_V1
+        case 0x06: // G_EX_SETRECTALIGN_V1
+        case 0x07: // G_EX_SETVIEWPORTALIGN_V1
+        case 0x0C: // G_EX_MATRIXGROUP_V1
+        case 0x13: // G_EX_EDITGROUPBYADDRESS_V1
+        case 0x14: // G_EX_VERTEX_V1
+        case 0x30: // G_EX_MATRIX_FLOAT_V1
+        case 0x31: // G_EX_SETVERTEXSEGMENT_V1
+            return 2;
+        default:
+            return 1;
+    }
+}
 // G_SETOTHERMODE_H's cycle type (G_MDSFT_CYCLETYPE) and its copy and fill values; black as a fill of 16-bit pixels.
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
 // Past billboard.cpp's buffers: 16 of 0x100 bytes.
@@ -485,6 +512,12 @@ void walk(uint32_t list, int depth) {
                 addr += 16;
                 g_commands += 2;
                 break;
+            case RT64_EXTENDED: {
+                uint32_t more = extended_length(w0 & 0xFFFFFF) - 1;
+                addr += 8 * more;
+                g_commands += more;
+                break;
+            }
             default:
                 break;
         }
