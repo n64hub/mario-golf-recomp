@@ -92,6 +92,10 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # picture the game cuts there, its top held at the scissor's as the rest move, and RT64 pairs it as such (rt64 8868f0d),
 # or a line of sky showed under it as the camera panned. It pairs them as the game drew them, so the end credits'
 # lines, which rise a pixel a game frame, keep their place sideways near the bottom too.
+# The Play Modes wheel draws each mode's picture at a scale of its own as it turns, which RT64 pairs across a change
+# of scale (rt64 84d36bd), or it stepped off the wheel's pace; and the opening fades one shot into the next from
+# strips of the old shot copied out of the picture, which RT64 pairs by what each copy holds (rt64 1d1a0ee, 53ce431),
+# or a frame between drew the old shot's top half slid down over the new one.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
