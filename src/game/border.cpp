@@ -43,18 +43,21 @@ constexpr uint32_t BUFFER_BASE = 0x80790000, BUFFER_SIZE = 0x100, BUFFER_COUNT =
 
 // The overlay table (the game's loader sets the byte at the head of an overlay's entry while it is loaded), a hole's
 // overlay and the end credits'.
-constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28, HOLE_OVERLAY = 2, CREDITS_OVERLAY = 16;
+constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28, HOLE_OVERLAY = 2, INTRO_OVERLAY = 9, CREDITS_OVERLAY = 16;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 304 * 224 * 2, GAME_RAM = 0x00800000;
 
-// The border's scissor and the full-height one, as G_SETSCISSOR's coordinates (quarter pixels).
+// The border's scissor and the screen's, as G_SETSCISSOR's coordinates (quarter pixels). The game sets the screen's
+// itself too (around its clears), so the one made here carries a mark in a bit of the second word neither the RDP nor
+// RT64 reads, which tells it from the game's when it is put back.
 constexpr uint32_t BORDER_UL = (8 * 4 << 12) | (8 * 4), BORDER_LR = (312 * 4 << 12) | (232 * 4);
-constexpr uint32_t FULL_UL = (8 * 4 << 12) | 0, FULL_LR = (312 * 4 << 12) | (240 * 4);
-constexpr uint32_t COORDS = 0xFFFFFF;
+constexpr uint32_t FULL_UL = 0, FULL_LR = (320 * 4 << 12) | (240 * 4);
+constexpr uint32_t COORDS = 0xFFFFFF, MARK = 0x10000000;
 
 // A full-width rectangle reaches from the border's left to its right (hud.cpp starts one at the screen's left).
 constexpr uint32_t WIDE_ULX = 8 * 4, WIDE_LRX = 311 * 4;
 constexpr uint32_t BORDER_TOP = 8 * 4, BORDER_BOTTOM = 232 * 4, SCREEN_BOTTOM = 240 * 4, BORDER_ROWS = 8;
+constexpr uint32_t BORDER_RIGHT = 312 * 4, SCREEN_RIGHT = 320 * 4;
 
 constexpr int MAX_DEPTH = 10;
 constexpr uint32_t MAX_COMMANDS = 400000;
@@ -95,10 +98,13 @@ uint32_t in_ram(uint32_t addr) {
 
 void scissor(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
-    uint32_t from_ul = g_fill ? BORDER_UL : FULL_UL, from_lr = g_fill ? BORDER_LR : FULL_LR;
-    if ((w0 & COORDS) == from_ul && (w1 & COORDS) == from_lr) {
-        wr_w(addr, (w0 & ~COORDS) | (g_fill ? FULL_UL : BORDER_UL));
-        wr_w(addr + 4, (w1 & ~COORDS) | (g_fill ? FULL_LR : BORDER_LR));
+    if (g_fill && (w0 & COORDS) == BORDER_UL && (w1 & (COORDS | MARK)) == BORDER_LR) {
+        wr_w(addr, (w0 & ~COORDS) | FULL_UL);
+        wr_w(addr + 4, (w1 & ~COORDS) | FULL_LR | MARK);
+    }
+    else if (!g_fill && (w0 & COORDS) == FULL_UL && (w1 & (COORDS | MARK)) == (FULL_LR | MARK)) {
+        wr_w(addr, (w0 & ~COORDS) | BORDER_UL);
+        wr_w(addr + 4, (w1 & ~(COORDS | MARK)) | BORDER_LR);
     }
 }
 
@@ -116,9 +122,8 @@ void black_border(uint32_t addr) {
     };
     put(SET_CYCLE_TYPE, G_CYC_FILL);
     put(G_SETFILLCOLOR << 24, BLACK);
-    // A fill's corners are both inside it.
-    put((G_FILLRECT << 24) | ((319 * 4) << 12) | (7 * 4), 0);
-    put((G_FILLRECT << 24) | ((319 * 4) << 12) | (239 * 4), 232 * 4);
+    // The whole screen, which RT64 widens to the window's sides (a fill's corners are both inside it).
+    put((G_FILLRECT << 24) | ((319 * 4) << 12) | (239 * 4), 0);
     put(SET_CYCLE_TYPE, g_cycle);
     for (uint32_t i = 0; i < 3; i++) {
         put(rd_w(addr + i * 8), rd_w(addr + i * 8 + 4));
@@ -174,10 +179,28 @@ void rect(uint32_t addr) {
             wr_w(addr + 12, (half1 & 0xFFFF0000) | uint16_t(t));
         }
     }
-    uint32_t inside = g_cycle == G_CYC_COPY ? 4 : 0;
+    bool copy = g_cycle == G_CYC_COPY;
+    uint32_t inside = copy ? 4 : 0;
+    w0 = rd_w(addr);
     if (lry == BORDER_BOTTOM - inside) {
-        wr_w(addr, (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside));
+        w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
     }
+    // Its sides at the screen's, its texture's start moved back with its left: s is 10.5 fixed point and dsdx 5.10, so
+    // a quarter pixel steps s by dsdx / 128, or a quarter of that in copy mode, where dsdx is 4 for a texel a pixel.
+    // RT64 stretches across the window only a rectangle as wide as the widest scissor the frame draws under, now the
+    // screen's.
+    if (ulx > 0) {
+        uint32_t half1 = rd_w(addr + 12);
+        int32_t s = int16_t(half1 >> 16);
+        int32_t dsdx = int16_t(rd_w(addr + 20) >> 16);
+        s -= int32_t(ulx) * dsdx / (copy ? 512 : 128);
+        wr_w(addr + 4, rd_w(addr + 4) & ~(0xFFFu << 12));
+        wr_w(addr + 12, (uint32_t(uint16_t(s)) << 16) | (half1 & 0xFFFF));
+    }
+    if (lrx >= BORDER_RIGHT - 4 && lrx <= BORDER_RIGHT) {
+        w0 = (w0 & ~(0xFFFu << 12)) | ((lrx + SCREEN_RIGHT - BORDER_RIGHT) << 12);
+    }
+    wr_w(addr, w0);
 }
 
 void walk(uint32_t list, int depth) {
@@ -233,7 +256,7 @@ void walk(uint32_t list, int depth) {
 // Whether the course is drawn at the frame's full height now: on a hole, with Aspect Ratio Expand.
 bool mg_border_fills(uint8_t* rdram) {
     g_rdram = rdram;
-    return mg_aspect_expand() && loaded(HOLE_OVERLAY) && !loaded(CREDITS_OVERLAY);
+    return mg_aspect_expand() && (loaded(INTRO_OVERLAY) || (loaded(HOLE_OVERLAY) && !loaded(CREDITS_OVERLAY)));
 }
 
 extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {

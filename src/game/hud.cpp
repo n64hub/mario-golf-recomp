@@ -353,6 +353,11 @@ bool spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx
             rect.w0 = (rect.w0 & ~0xFFFu) | uint32_t(SCREEN_HEIGHT * 4);
             tall = true;
         }
+        // The course goes on to the screen's sides too, and RT64 stretches across the window only a rectangle as wide
+        // as the widest scissor the frame draws under, now the screen's: the bar runs on to its right side.
+        if (tall) {
+            rect.w0 = (rect.w0 & ~(0xFFFu << 12)) | (uint32_t(SCREEN_WIDTH * 4) << 12);
+        }
     }
     half1.w1 = (uint32_t(uint16_t(s)) << 16) | uint16_t(t);
     return tall;
@@ -490,7 +495,7 @@ void anchor(uint32_t start, uint32_t end) {
         }
         if (op == G_TEXRECT && !sc_wide && i + 2 < count &&
             spanning_rect_from_left(cmd, g_cmds[i + 1], g_cmds[i + 2], sc_ulx, sc_uly, sc_lrx, sc_lry)) {
-            game_scissor(out, sc_mode, sc_ulx, 0, sc_lrx, SCREEN_HEIGHT);
+            game_scissor(out, sc_mode, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
             for (int k = 0; k < 3; k++) {
                 out.put(g_cmds[i + k].w0, g_cmds[i + k].w1);
             }
