@@ -110,6 +110,12 @@ set(RT64_INTERPOLATE_SCREEN_VERTICES ON)
 # such a framebuffer comes from what RAM holds (RT64_TILE_COPY_TMEM_FALLBACK), or the rings drew black now and then
 # (issue 65).
 set(RT64_TILE_COPY_TMEM_FALLBACK ON)
+# Metal Mario's Red and Blue costumes sample a 32x32 map each that the game draws every frame with one rectangle, the
+# screen's 320x240 scissor still set: here on the desktop too, as with Emscripten, a pair's scissor counts only to its
+# framebuffer's edges (RT64_SCISSOR_INSIDE_FRAMEBUFFER), or RT64 took the map's for a 4:3 picture and in a wider window
+# drew its rectangle squeezed into the map's middle, and he sampled black bands at its sides on his hair, his cap's
+# brim and his edges (issue 108). The game sets no scissor past the screen's, so the screen draws as before.
+set(RT64_SCISSOR_INSIDE_FRAMEBUFFER ON)
 # The game reads and writes through a TLB-mapped window at 0x02000000 (src/game/tlb.cpp), which the runtime backs with
 # memory of its own: on the web the window RECOMP_KUSEG_WINDOW places after RDRAM (N64Recomp's recomp.h). Defined for
 # every target, the runtime's too, so that each maps KUSEG the same way.
