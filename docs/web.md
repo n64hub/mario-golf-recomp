@@ -59,7 +59,7 @@ Two more plans play what the regular one doesn't reach:
 
 ## The shader list
 
-`src/rt64_shaders.txt` holds 375 shaders in nine sections: the boot's (the logos, the intro, the title and the
+`src/rt64_shaders.txt` holds 378 shaders in nine sections: the boot's (the logos, the intro, the title and the
 menus to a course), one for each of the six courses, from Toad Highlands to Mario Star, Mini-Golf's and the staff
 credits'. It is recorded by code: the boot and Toad Highlands with `tools/shader_plan.json`, the other five courses,
 Mini-Golf and the credits with `tools/shader_plan_courses.json`, which opens the courses on a new save by the
