@@ -50,18 +50,18 @@
 // coordinates wrap the clouds slide the short way, as they look, not across the sky in one frame. Whatever the aspect
 // ratio.
 //
-// And the light is put where the sun is, to a quarter of a pixel, not on the whole pixel the game truncates it to.
-// func_8008FF20 works out the sun's place on the screen as floats (at 0x800C5F24 and 0x800C5F2C, one of each per
+// And the light is put where the sun is, to a thirty-second of a pixel, not on the whole pixel the game truncates it
+// to. func_8008FF20 works out the sun's place on the screen as floats (at 0x800C5F24 and 0x800C5F2C, one of each per
 // view), x from the camera's turn, and draws the light around their truncation. Every console pixel is several of a
 // modern window's, and RT64 (RT64_INTERPOLATE_RECT_SCROLLS) slides the rectangle between where each game frame put
 // it, so as the camera panned at a high display rate the sun and its glow went in uneven steps sideways, against the
-// trees and hills moving smoothly in front. mg_backdrop_end finds the light's rectangle by where the game puts it for
-// a view's floats (its corners the truncated place less the size plus one and plus the size, each side at 0 at least)
-// and moves it right by what was dropped, to the quarter pixel a rectangle's corners take, keeping its size, before it
-// is widened. RT64 starts a rectangle's texture a row further on where its top is off a whole pixel, but adds nothing
-// for a left edge off one, so the light is moved across only, which is how a pan moves it, and its texture is left as
-// it was. Where the game cut it at the left, its left edge stays at 0 and its texture starts as much
-// earlier, so widen() still puts it back whole. Whatever the window's shape.
+// trees and hills moving smoothly in front. Moving the rectangle by a fraction of a pixel does nothing: RT64 puts a
+// textured rectangle's edges on whole pixels. So mg_backdrop_end finds the light's rectangle by where the game puts
+// it for a view's floats (its corners the truncated place less the size plus one and plus the size, each side at 0
+// at least) and starts its texture earlier by what the truncation dropped, each way, before it is widened: the light
+// is drawn that far right and down inside the rectangle, whose texture's edges are clear. RT64 pairs the rectangle
+// with the last frame's as before and slides that step of its texture between them as it does a scroll. widen()
+// puts a cut at the left back in whole pixels and keeps the fraction in s. Whatever the window's shape.
 
 #include <algorithm>
 #include <cmath>
@@ -178,10 +178,12 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     }
     int start = tile.uls * 32, start_t = tile.ult * 32;
     int new_ulx = ulx, new_lrx = lrx, new_s = s;
-    // s moves by dsdx / 128 a quarter pixel, and t by dtdy / 128.
+    // s moves by dsdx / 128 a quarter pixel, and t by dtdy / 128. The cut is put back in whole pixels, as RT64 puts a
+    // textured rectangle's edges on them, and s keeps what is left of it (place_sun's fraction of a pixel).
     if (ulx == 0 && s > start) {
-        new_ulx = -((s - start) * 128 / dsdx);
-        new_s = start;
+        int cut = ((s - start) * 32 + dsdx - 1) / dsdx; // pixels, rounded up
+        new_ulx = -cut * 4;
+        new_s = s - int(std::lround(cut * dsdx / 32.0f));
         // Wholly past the left side, the game's right edge is cut to 0 too: the square is put back as wide as it is
         // tall, with what the game cut at the top. Wholly above the top as well, nothing of it is in the picture.
         if (lrx <= ulx) {
@@ -233,16 +235,20 @@ float rd_f(uint32_t addr) {
     return f;
 }
 
-// The sun's light where the sun is, to a quarter of a pixel: the rectangle at addr, if it is the light func_8008FF20
-// drew around the truncated place of one of its views' suns, moved right by what the truncation dropped. Its size and
-// its texture stay as the game's, so RT64 still pairs it with the last frame's. Where the game cut it at the screen's
-// left, its left edge stays at 0 and its texture starts that much earlier, as the cut would have been that much less.
+// The sun's light where the sun is, to a thirty-second of a pixel: the rectangle at addr, if it is the light
+// func_8008FF20 drew around the truncated place of one of its views' suns, its texture started earlier by what the
+// truncation dropped, each way, so the light is drawn that much further right and down in the rectangle the game put
+// on whole pixels. The rectangle stays as the game's, so RT64 still pairs it with the last frame's, and slides the
+// texture's step between them as it does a scroll.
 void place_sun(uint32_t addr) {
-    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12);
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
-    int s = int16_t(st >> 16);                 // s10.5
-    int dsdx = int16_t(rd_w(addr + 20) >> 16); // s5.10
+    int s = int16_t(st >> 16), t = int16_t(st & 0xFFFF);     // s10.5
+    int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF); // s5.10
+    if (dsdx <= 0 || dtdy <= 0) {
+        return;
+    }
     for (int view = 0; view < SUN_VIEWS; view++) {
         float x = rd_f(SUN_X + 4 * view), y = rd_f(SUN_Y + 4 * view);
         if (!(std::fabs(x) < 4096.0f) || !(std::fabs(y) < 4096.0f)) {
@@ -255,24 +261,15 @@ void place_sun(uint32_t addr) {
             ulx != std::max(0, tx - size + 1) * 4 || uly != std::max(0, ty - size + 1) * 4) {
             continue;
         }
-        int dx = int(std::lround((x - float(tx)) * 4.0f));
-        // Wholly past the left side, the game's right edge is cut to 0 too, and is left so.
-        if (dx == 0 || tx + size <= 0 || lrx + dx > 0xFFF) {
+        // A pixel is dsdx / 32 of s (s10.5, dsdx s5.10), and dtdy / 32 of t. The truncation is toward 0, so a sun past
+        // the screen's left side (x below 0) is moved left by its fraction.
+        int ds = int(std::lround((x - float(tx)) * float(dsdx) / 32.0f));
+        int dt = int(std::lround((y - float(ty)) * float(dtdy) / 32.0f));
+        int new_s = s - ds, new_t = t - dt;
+        if (new_s < INT16_MIN || new_s > INT16_MAX || new_t < INT16_MIN || new_t > INT16_MAX) {
             return;
         }
-        if (tx - size + 1 < 0 || (tx - size + 1 == 0 && dx < 0)) {
-            // Cut at the left: s moves by dsdx / 128 a quarter pixel.
-            if (dsdx <= 0) {
-                return;
-            }
-            s -= dx * dsdx / 128;
-            wr_w(addr + 12, (uint32_t(s) << 16) | (st & 0xFFFF));
-        } else {
-            ulx += dx;
-        }
-        lrx += dx;
-        wr_w(addr, (w0 & 0xFF000000) | (uint32_t(lrx) << 12) | uint32_t(lry));
-        wr_w(addr + 4, (w1 & 0xFF000000) | (uint32_t(ulx) << 12) | uint32_t(uly));
+        wr_w(addr + 12, (uint32_t(new_s & 0xFFFF) << 16) | uint32_t(new_t & 0xFFFF));
         return;
     }
 }
