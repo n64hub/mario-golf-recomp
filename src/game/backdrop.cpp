@@ -205,6 +205,15 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     if (wide_dsdx > INT16_MAX) {
         return false;
     }
+    // RT64 puts a textured rectangle's left edge on the whole pixel at or right of it, and starts its texture there,
+    // so the squeezed left edge goes on that pixel and the texture starts as much further on: the light stays where
+    // it is to a fraction of a pixel (place_sun), not where the squeeze rounds it to, a stretched pixel's steps.
+    float left = SCREEN_WIDTH * 2 + (new_ulx - SCREEN_WIDTH * 2) / scale; // quarter pixels
+    int wide_ulx = int(std::ceil(left / 4.0f - 1e-4f)) * 4;
+    new_s += int(std::lround((wide_ulx - left) * wide_dsdx / 128.0f));
+    if (new_s < INT16_MIN || new_s > INT16_MAX) {
+        return false;
+    }
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
@@ -214,7 +223,7 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), uly, squeeze(new_lrx), lry,
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, wide_ulx, uly, squeeze(new_lrx), lry,
                         (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
