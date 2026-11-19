@@ -24,7 +24,8 @@
 # Chrome play at 3840x2000 missed in section 0 once the title's painting was scaled and point sampled and the sun's
 # light drawn stretched (src/game/screen.cpp, src/game/backdrop.cpp), then 1 a Chrome play missed in the credits' course
 # box, then 3 Chrome and Firefox plays missed in section 0 at the tile wipe between the title and the main menu, once
-# src/game/screen.cpp scaled it: what a section draws turns with where the ball goes and how many play, so a play's
+# src/game/screen.cpp scaled it, then 3 they missed there once the far hills were drawn at their own width
+# (src/game/backdrop.cpp): what a section draws turns with where the ball goes and how many play, so a play's
 # misses are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
@@ -152,6 +153,9 @@ c8113078 00182c0f fc563280 1ffcfff8 09128808
 00000000 00a00cff fcffffff fffcf87c 0003540b
 0f0a4000 00800cff fcffffff fffcf87c 0803540b
 00504340 00800cff fcffffff fffcf67b 0803540b
+00000001 00a0acff fcffffff fffcf87c 099b100b
+00000001 00a0acef fcffffff fffcf87c 099b100b
+00000001 00a0accf fcffffff fffcf87c 099b100b
 section toad_highlands
 0f0a4000 00000cff fcffffff fffcf87c 04cb540b
 00000001 00a0accf fcffffff fffcf87c 019b100b
