@@ -71,7 +71,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   changes (func_80069D08). Each pass yields (`us.toml`). Without the first three the game hangs on a black screen at
   boot, and without the last Training froze on its course screen. A new hang with every other game thread waiting in `osRecvMesg` is another such
   loop: `--stacks <seconds>` prints every thread's stack that often on Windows (`src/main/crash_trace.cpp`), which
-  finds it.
+  finds it. A load the game spreads over frames is done here before the next one is drawn: at Ring Shot's stage select
+  the board's slats close over a change of stage's load and turn to open when it ends, so the loader waits there until
+  they are shut (`src/game/loader.cpp`), or they flashed for a frame.
 - **Renames.** The game has functions of its own named `sin`, `cos`, `tan`, `atan`, `atan2` and `main`, which N64Recomp
   renames (`us.toml`), and a call of address 0 that never runs, nopped.
 - **Microcodes.** Graphics: F3DEX2, which RT64 knows. Audio: `n_aspMain`, recompiled by RSPRecomp from
@@ -113,13 +115,13 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   draws through the game's own 8-pixel border to the window's edges (on a hole and in the opening), `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
   wide picture's sides, the hole's waving sign in a matrix group whose vertices RT64 moves between the game's frames, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
-  sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, and puts the sky in a matrix group whose clouds RT64 slides
+  sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, puts them where the sun is between whole pixels, by moving their texture, rather than on the game's whole one, and puts the sky in a matrix group whose clouds RT64 slides
   between the game's frames, `src/game/ball.cpp` draws the ball's sprites, the stars in the view of the cup and the sun's lens flare on into
   the wide picture's sides, where the game cuts them at the screen's, and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
-  own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it, both where
+  own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it and to its top and bottom, both where
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker, and draws them between game frames only with

@@ -18,14 +18,18 @@
 // (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
 // texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
 // course does; one wholly above the border has its bottom where it was (above the screen's top, which wraps to a large
-// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's; the hills' last
-// strip, whose texture ends there, stays (the sky goes on below it, where the course doesn't). One over the whole of
-// the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's copy holds only
-// the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it that the console
-// draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the pause), and its
-// last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox bars, rectangles
-// as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor this file makes,
-// and reach the picture's edges by hud.cpp's hand.
+// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's. So does the
+// hills' last strip where it already runs on past its 4 rows, its last row repeated down to the border as the game
+// draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last 8
+// lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below it,
+// where the course doesn't). One drawn in strips that each load only their own rows (the old frame Ring Shot's stage
+// select holds while its slats close) has strips of the rows above its first and below its last drawn with them. One
+// over the whole of the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's
+// copy holds only the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it
+// that the console draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the
+// pause), and its last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox
+// bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
+// this file makes, and reach the picture's edges by hud.cpp's hand.
 //
 // The opening's sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws:
 // backdrop.cpp's) ends a few lines below the screen's top at most of its camera's heights, its near edge (vertices 0, 3
@@ -54,6 +58,7 @@ namespace {
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETZIMG = 0xFE, G_SPNOOP = 0x00;
 constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6, G_VTX = 0x01;
+constexpr uint32_t G_LOADTILE = 0xF4, G_SETTILESIZE = 0xF2, G_RDPLOADSYNC = 0xE6, G_RDPPIPESYNC = 0xE7;
 // G_SETOTHERMODE_H's cycle type (G_MDSFT_CYCLETYPE) and its copy and fill values; black as a fill of 16-bit pixels.
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
 // Past billboard.cpp's buffers: 16 of 0x100 bytes.
@@ -69,6 +74,8 @@ constexpr uint32_t SKY_VERTICES[2] = { 0x000C69C0, 0x000C6A60 }, SKY_COUNT = 10,
 constexpr float SKY_REACH = 0.1f;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 224 * 2, GAME_RAM = 0x00800000;
+// The rows of the hills' texture each of their strips draws.
+constexpr uint32_t STRIP_ROWS = 4;
 
 // The border's scissor and the screen's, as G_SETSCISSOR's coordinates (quarter pixels). The game sets the screen's
 // itself too (around its clears), so the one made here carries a mark in a bit of the second word neither the RDP nor
@@ -98,6 +105,11 @@ uint32_t g_cycle;
 bool g_opening;
 bool g_blacked;
 uint32_t g_next_buffer;
+// The last G_SETTIMG's first word (its format, size and width), the last G_LOADTILE, and each tile's last
+// G_SETTILESIZE.
+uint32_t g_timg0;
+uint32_t g_load0, g_load1;
+uint32_t g_size0[8], g_size1[8];
 // The screen's color images the game has drawn to (it keeps three, in turn), the latest first: a texture in one (each
 // strip's texture image is its own first row) is a copy of a frame.
 constexpr int SCREENS = 4;
@@ -186,6 +198,64 @@ void black_border(uint32_t addr) {
         wr_w(addr + i * 8, G_SPNOOP << 24);
         wr_w(addr + i * 8 + 4, 0);
     }
+}
+
+// The rows outside the border beside a strip of a screen's color image that starts or ends at it (the old frame Ring
+// Shot's stage select holds while its slats close, 6 rows a strip and 2 the last): the strip loads only its own rows,
+// so drawn on past the border it showed rows its tile doesn't hold, black above it and its last row repeated below, a
+// band of streaks. Here the strip stays as it is and strips of 4 rows each draw screen rows first to last (0 to 8, or
+// 232 to 240), each loading its own rows of the same image as the game loads its strips (its tile's rows moved by as
+// many, its t with them), then the game's own load and tile are put back for what follows. The commands go in one of
+// the buffers black_border uses, the strip's place in the list calling them.
+void outside_rows(uint32_t addr, uint32_t first, uint32_t last, uint32_t inside) {
+    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+    uint32_t out = buffer;
+    auto put = [&](uint32_t w0, uint32_t w1) {
+        wr_w(out, w0);
+        wr_w(out + 4, w1);
+        out += 8;
+    };
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
+    uint32_t tile = (w1 >> 24) & 7;
+    int32_t uly = int32_t(w1 & 0xFFF) / 4;
+    for (uint32_t i = 0; i < 3; i++) {
+        put(rd_w(addr + i * 8), rd_w(addr + i * 8 + 4));
+    }
+    for (uint32_t row = first; row < last; row += 4) {
+        uint32_t rows = last - row < 4 ? last - row : 4;
+        uint32_t ult = uint32_t(int32_t(g_load0 & 0xFFF) + (int32_t(row) - uly) * 4);
+        uint32_t lrt = ult + (rows - 1) * 4;
+        put(G_RDPLOADSYNC << 24, 0);
+        put((g_load0 & ~0xFFFu) | ult, (g_load1 & ~0xFFFu) | lrt);
+        put(G_RDPPIPESYNC << 24, 0);
+        put((g_size0[tile] & ~0xFFFu) | ult, (g_size1[tile] & ~0xFFFu) | lrt);
+        put((w0 & ~0xFFFu) | ((row + rows) * 4 - inside), (w1 & ~0xFFFu) | (row * 4));
+        put(rd_w(addr + 8), (rd_w(addr + 12) & 0xFFFF0000) | (ult * 8));
+        put(rd_w(addr + 16), rd_w(addr + 20));
+    }
+    put(G_RDPLOADSYNC << 24, 0);
+    put(g_load0, g_load1);
+    put(G_RDPPIPESYNC << 24, 0);
+    put(g_size0[tile], g_size1[tile]);
+    put(G_ENDDL << 24, 0);
+    wr_w(addr, G_DL << 24);
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
+    for (uint32_t i = 1; i < 3; i++) {
+        wr_w(addr + i * 8, G_SPNOOP << 24);
+        wr_w(addr + i * 8 + 4, 0);
+    }
+}
+
+// Whether the strip at addr, of a screen's color image, reads it a row a line from its tile's first row, the image
+// 16-bit and 4 of its rows a load that fits in TMEM, with as many rows of the image above its tile as the border's:
+// what outside_rows draws the rows past the border with.
+bool strip_of_rows(uint32_t addr) {
+    uint32_t tile = (rd_w(addr + 4) >> 24) & 7;
+    uint32_t t = rd_w(addr + 12) & 0xFFFF, dtdy = rd_w(addr + 20) & 0xFFFF;
+    uint32_t ult = g_load0 & 0xFFF;
+    return is_screen(g_texture) && dtdy == 0x400 && t == ult * 8 && (g_size0[tile] & 0xFFF) == ult &&
+           ((g_timg0 >> 19) & 3) == 2 && ((g_timg0 & 0xFFF) + 1) * 2 * 4 <= 4096 && ult >= BORDER_TOP;
 }
 
 // The opening's sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
@@ -286,7 +356,9 @@ void rect(uint32_t addr) {
     }
     // A strip wholly above the border has its bottom above the screen's top, which wraps past its bottom (lry is
     // unsigned): left as it is.
-    if (!game_copy && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
+    // A strip of a screen's color image has the rows above drawn by outside_rows.
+    bool above = uly == BORDER_TOP && strip_of_rows(addr);
+    if (!game_copy && !above && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
         // t is 10.5 fixed point, dtdy 5.10: a row of the rectangle steps t by dtdy / 32.
         uint32_t half1 = rd_w(addr + 12);
         int32_t t = int16_t(half1 & 0xFFFF);
@@ -303,8 +375,21 @@ void rect(uint32_t addr) {
     }
     w0 = rd_w(addr);
     // Only a copy of the frame has the lines below: a texture of the hills ends at their last row, which the RDP
-    // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down.
+    // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down. A strip
+    // of the frame, which loads only its own rows, has the rows below drawn by outside_rows.
+    bool below = false;
     if (is_screen(g_texture) && lry == BORDER_BOTTOM - inside) {
+        if (strip_of_rows(addr)) {
+            below = true;
+        }
+        else {
+            w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+        }
+    }
+    // The hills' last strip, where it already runs on past its rows (the RDP repeating its last one down to the
+    // border, as the game draws it), runs on to the screen's bottom the same way. The game draws it in copy mode to
+    // 232 itself, a line past the border's last, so either bottom is the border's.
+    else if (!game_copy && lry >= BORDER_BOTTOM - 4 && lry <= BORDER_BOTTOM && lry > uly + STRIP_ROWS * 4) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
     }
     // The pause's copy holds the 224 lines inside the border, and its last strip runs on past them, into what lies
@@ -328,6 +413,12 @@ void rect(uint32_t addr) {
         w0 = (w0 & ~(0xFFFu << 12)) | ((lrx + SCREEN_RIGHT - BORDER_RIGHT) << 12);
     }
     wr_w(addr, w0);
+    if (above) {
+        outside_rows(addr, 0, BORDER_TOP / 4, inside);
+    }
+    else if (below) {
+        outside_rows(addr, BORDER_BOTTOM / 4, SCREEN_BOTTOM / 4, inside);
+    }
     if (game_copy && !g_blacked) {
         g_blacked = true;
         black_border(addr);
@@ -370,6 +461,15 @@ void walk(uint32_t list, int depth) {
                 break;
             case G_SETTIMG:
                 g_texture = w1 & 0x1FFFFFFF;
+                g_timg0 = w0;
+                break;
+            case G_LOADTILE:
+                g_load0 = w0;
+                g_load1 = w1;
+                break;
+            case G_SETTILESIZE:
+                g_size0[(w1 >> 24) & 7] = w0;
+                g_size1[(w1 >> 24) & 7] = w1;
                 break;
             case G_SETSCISSOR:
                 scissor(addr);
@@ -408,6 +508,13 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_cycle = 0;
     g_opening = loaded(OPENING_OVERLAY);
     g_blacked = false;
+    g_timg0 = 0;
+    g_load0 = 0;
+    g_load1 = 0;
+    for (int i = 0; i < 8; i++) {
+        g_size0[i] = 0;
+        g_size1[i] = 0;
+    }
     uint32_t start = in_ram(list);
     if (start != 0) {
         walk(start, 0);
