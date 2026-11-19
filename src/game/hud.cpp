@@ -647,7 +647,8 @@ void anchor(uint32_t start, uint32_t end) {
             for (int q = p + 1; q < pieces && !g_pieces[q].models && g_pieces[q].box.inside(replay_box); q++) {
                 replay_end = g_pieces[q].last + 1;
             }
-            for (uint32_t j = replay_at; j + 1 < replay_end && letter_rect_count < MAX_LETTER_RECTS; j++) {
+            for (uint32_t j = replay_at; j < replay_end && j + 1 < count && letter_rect_count < MAX_LETTER_RECTS;
+                 j++) {
                 const Cmd& rect = g_cmds[j];
                 if (((rect.w0 >> 24) != G_TEXRECT && (rect.w0 >> 24) != G_TEXRECTFLIP) ||
                     (g_cmds[j + 1].w0 >> 24) != G_RDPHALF_1) {
