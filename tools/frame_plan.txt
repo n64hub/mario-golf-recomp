@@ -17,24 +17,24 @@
 # from 1), the pause (1 in the low byte of 0x800C306C while paused) and its menu's cursor (the low byte of
 # 0x80224924, the item from 0), whose last item, W from the first, is Save and Quit (by the save menu) or Return to
 # Menu; the main menu is waited for with A pressed, which a save menu takes and the main menu's zoom drops.
-# Each swing plays the same shot in every window, which presses can't: the swing meter (the word at 0x800FBE88) counts
-# a game frame at a time from the first press, and a press reaches the game a frame early or late. So it is played as
-# the game plays a computer golfer's (func_ovl0_802088B0): with 0x80227194 set, the meter stops itself on the frame
-# it reaches the power and impact in 0x80104F7C and 0x80104F80, with the stick at impact from 0x80104F8C and
-# 0x80104F90 (0, none); a putt takes no impact, and goes at the power. A press of A starts the meter, and the flag is
-# set after it, since a computer golfer's aim is turned to 0x80104F78 before then. The wind, which the hole draws with
-# rand() as its flyover ends, a frame apart in each window, is set half a second after each hole's flyover ends, so
-# its tee shows the same wind in every window, and again before each swing, but in Mini-Golf, which has none: its
-# speed (16.16) and heading (the high half) at 0x800BA9F0 and 0x800BA9F4, and the vector the game works out of them at
-# 0x80104F44 and 0x80104F4C (func_8007E7B8). And rand() (its state at 0x800FBD30), called 6 times a game frame and
-# once more as the ball is struck, and so at another point in each window by then, is seeded with the wind on the tee,
-# for the golfer's and the caddie's moves there, and a few frames before the meter's last stop with the meter set back
-# to the start of the 4 values its wait takes (0x24, or 0x0C for the putt): a poke that lands a frame late sets the
-# meter back that frame too, so the seed is always the same number of frames from the stop. The shots still land
-# apart, 4 to 17 yards, from run to run and in the same window as much as across them (Tournament's first, eight
-# times: 302, 307 or 319 yards left), for a cause not yet found, so each hole's span from the meter's set-back to its
-# pause (to the next hole's flyover in Mini-Golf, from Lakitu's count-in in Speed Golf, which the plan's presses of A
-# meet at another point in each window) is left out of the middle check (`unchecked middle`). The putt holes out in
+# Each swing plays the same shot in every window, which presses can't: the swing meter (the word at 0x800FBE88) counts a
+# game frame at a time from the first press, and a press reaches the game a frame early or late. So it is played as the
+# game plays a computer golfer's (func_ovl0_802088B0): with 0x80227194 set, the meter stops itself on the frame it
+# reaches the power and impact in 0x80104F7C and 0x80104F80, with the stick at impact from 0x80104F8C and 0x80104F90 (0,
+# none); a putt takes no impact, and goes at the power. A press of A starts the meter, and the flag is set after it,
+# since a computer golfer's aim is turned to 0x80104F78 before then. The wind, which the hole draws with rand() as its
+# flyover ends, a frame apart in each window, is set as each hole's flyover ends, so its tee shows the same wind in
+# every window, and again before each swing, but in Mini-Golf, which has none: its speed (16.16) and heading (the high
+# half) at 0x800BA9F0 and 0x800BA9F4, and the vector the game works out of them at 0x80104F44 and 0x80104F4C
+# (func_8007E7B8). And rand() (its state at 0x800FBD30), called 6 times a game frame and once more as the ball is
+# struck, and so at another point in each window by then, is seeded as each hole opens, for its flyover, with the wind
+# on the tee, for the golfer's and the caddie's moves there, and a few frames before the meter's last stop with the
+# meter set back to the start of the 4 values its wait takes (0x24, or 0x0C for the putt): a poke that lands a frame
+# late sets the meter back that frame too, so the seed is always the same number of frames from the stop. The shots
+# still land apart, 4 to 17 yards, from run to run and in the same window as much as across them (Tournament's first,
+# eight times: 302, 307 or 319 yards left), for a cause not yet found, so each hole's span from the meter's set-back to
+# its pause (to the next hole's flyover in Mini-Golf, from Lakitu's count-in in Speed Golf, which the plan's presses of
+# A meet at another point in each window) is left out of the middle check (`unchecked middle`). The putt holes out in
 # every window and run all the same.
 
 # The logos and the intro: the golfers one by one, Luigi's swing and its crossfade to the overhead shot.
@@ -60,13 +60,14 @@
 69.5 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
 71 shot 07_course_select
 72 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+72 poke 0x800FBD30 1
 73 shot 08_hole_open
 73 until 0x800B5FF8 0xFF000000 0x00000000 60
-73.5 poke 0x800BA9F0 0x00081650
-73.5 poke 0x800BA9F4 0xA5605DC0
-73.5 poke 0x80104F44 0xC1E973E5
-73.5 poke 0x80104F4C 0xC218717C
-73.5 poke 0x800FBD30 1
+73 poke 0x800BA9F0 0x00081650
+73 poke 0x800BA9F4 0xA5605DC0
+73 poke 0x80104F44 0xC1E973E5
+73 poke 0x80104F4C 0xC218717C
+73 poke 0x800FBD30 1
 74 shot 09_tournament_tee
 74.5 poke 0x800BA9F0 0x00081650
 74.5 poke 0x800BA9F4 0xA5605DC0
@@ -130,13 +131,14 @@
 113.1 until 0x80243EE0 0xFFFFFFFF 0x00000000 15
 113.6 shot 20b_ring_shot_stage_back
 113.6 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+113.6 poke 0x800FBD30 1
 114.6 shot 21_ring_shot_open
 114.6 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-115.1 poke 0x800BA9F0 0x00081650
-115.1 poke 0x800BA9F4 0xA5605DC0
-115.1 poke 0x80104F44 0xC1E973E5
-115.1 poke 0x80104F4C 0xC218717C
-115.1 poke 0x800FBD30 1
+114.6 poke 0x800BA9F0 0x00081650
+114.6 poke 0x800BA9F4 0xA5605DC0
+114.6 poke 0x80104F44 0xC1E973E5
+114.6 poke 0x80104F4C 0xC218717C
+114.6 poke 0x800FBD30 1
 115.6 shot 22_ring_shot_tee
 116.1 poke 0x800BA9F0 0x00081650
 116.1 poke 0x800BA9F4 0xA5605DC0
@@ -178,8 +180,9 @@
 140 key Space
 141.5 shot 30_mini_golf_select
 142.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+142.5 poke 0x800FBD30 1
 142.5 until 0x800B5FF8 0xFF000000 0x00000000 60
-143 poke 0x800FBD30 1
+142.5 poke 0x800FBD30 1
 143.5 shot 31_mini_golf_tee
 144 poke 0x80104F7C 0x12
 144 poke 0x80104F80 0x2C
@@ -198,6 +201,7 @@
 162.4 shot 34_mini_golf_next
 162.4 checked middle
 162.4 until 0x800B5FF8 0xFF000000 0x00000000 60
+162.4 poke 0x800FBD30 1
 163.4 shot 35_mini_golf_hole2
 163.5 until 0x800C5F24 0xFFF00000 0x43800000 60 D 80 0.6
 163.9 key D 80
@@ -243,12 +247,13 @@
 182.9 shot 42_get_character_course
 183.9 key Space
 183.9 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+183.9 poke 0x800FBD30 1
 183.9 until 0x800B5FF8 0xFF000000 0x00000000 60
-184.4 poke 0x800BA9F0 0x00081650
-184.4 poke 0x800BA9F4 0xA5605DC0
-184.4 poke 0x80104F44 0xC1E973E5
-184.4 poke 0x80104F4C 0xC218717C
-184.4 poke 0x800FBD30 1
+183.9 poke 0x800BA9F0 0x00081650
+183.9 poke 0x800BA9F4 0xA5605DC0
+183.9 poke 0x80104F44 0xC1E973E5
+183.9 poke 0x80104F4C 0xC218717C
+183.9 poke 0x800FBD30 1
 184.9 shot 43_get_character_tee
 185.4 poke 0x800BA9F0 0x00081650
 185.4 poke 0x800BA9F4 0xA5605DC0
@@ -290,12 +295,13 @@
 227.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
 229.3 shot 54_training_hole
 229.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+229.3 poke 0x800FBD30 1
 229.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-229.8 poke 0x800BA9F0 0x00081650
-229.8 poke 0x800BA9F4 0xA5605DC0
-229.8 poke 0x80104F44 0xC1E973E5
-229.8 poke 0x80104F4C 0xC218717C
-229.8 poke 0x800FBD30 1
+229.3 poke 0x800BA9F0 0x00081650
+229.3 poke 0x800BA9F4 0xA5605DC0
+229.3 poke 0x80104F44 0xC1E973E5
+229.3 poke 0x80104F4C 0xC218717C
+229.3 poke 0x800FBD30 1
 230.3 shot 55_training_tee
 231.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
 232.8 shot 56_training_pause
@@ -315,12 +321,13 @@
 241.8 key Space
 243.3 shot 61_speed_golf_select
 244.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+244.3 poke 0x800FBD30 1
 244.3 until 0x800B5FF8 0xFF000000 0x00000000 60
-244.8 poke 0x800BA9F0 0x00081650
-244.8 poke 0x800BA9F4 0xA5605DC0
-244.8 poke 0x80104F44 0xC1E973E5
-244.8 poke 0x80104F4C 0xC218717C
-244.8 poke 0x800FBD30 1
+244.3 poke 0x800BA9F0 0x00081650
+244.3 poke 0x800BA9F4 0xA5605DC0
+244.3 poke 0x80104F44 0xC1E973E5
+244.3 poke 0x80104F4C 0xC218717C
+244.3 poke 0x800FBD30 1
 244.3 unchecked middle
 245.3 shot 62_speed_golf_tee
 249.3 shot 63_speed_golf_lakitu
