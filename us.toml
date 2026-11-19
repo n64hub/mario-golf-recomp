@@ -195,14 +195,16 @@ func = "func_80065650"
 before_vram = 0x8006578C
 text = "{ void mg_ball_project_y(uint8_t*, float); mg_ball_project_y(rdram, ctx->f2.fl); }"
 
-# The iris wipe at its own shape (src/game/iris.cpp): each display list the game sends is read for the mask's
-# rectangle, which is drawn at its aspect across the whole window. Then the title and the menus at the picture's full
-# height in a wide window (src/game/screen.cpp): on those screens the same list's rectangles, scissors and viewports
-# are scaled, all but the iris's, which is why it goes first.
+# The course's trees and Bomb-ombs paired between the game's frames only with billboards of their own size
+# (src/game/billboard.cpp): in each display list the game sends, each billboard is put in a matrix group of its scale's.
+# The iris wipe at its own shape (src/game/iris.cpp): the same list is read for the mask's rectangle, which is drawn
+# at its aspect across the whole window. Then the title and the menus at the picture's full height in a wide window
+# (src/game/screen.cpp): on those screens the same list's rectangles, scissors and viewports are scaled, all but the
+# iris's, which is why it goes before.
 [[patches.hook]]
 func = "nuGfxTaskStart"
 before_vram = 0x80029774
-text = "{ void mg_iris_fix(uint8_t*, uint32_t); void mg_screen_fill(uint8_t*, uint32_t); mg_iris_fix(rdram, (uint32_t)ctx->r4); mg_screen_fill(rdram, (uint32_t)ctx->r4); }"
+text = "{ void mg_billboards(uint8_t*, uint32_t); void mg_iris_fix(uint8_t*, uint32_t); void mg_screen_fill(uint8_t*, uint32_t); mg_billboards(rdram, (uint32_t)ctx->r4); mg_iris_fix(rdram, (uint32_t)ctx->r4); mg_screen_fill(rdram, (uint32_t)ctx->r4); }"
 
 # The course's terrain without cracks at a high resolution. The course is 8 by 16 blocks, and each frame func_80062A8C
 # picks each block's level of detail by its distance: 2, its own fine display list; 1, a 2x2 grid of quads; 0, one quad.
