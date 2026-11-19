@@ -63,7 +63,10 @@ namespace {
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2;
+constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_RDPSETOTHERMODE = 0xEF;
 constexpr uint32_t G_DL_NOPUSH = 1, G_TX_MIRROR = 1;
+constexpr int G_MDSFT_CYCLETYPE = 20;
+constexpr uint32_t G_CYCLE_COPY = 2;
 
 // The display list's head, which the game's drawing functions advance (the decomp's data at 0x801B93DC).
 constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
@@ -208,7 +211,14 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
 // across on a noted point's x, and that point's y within it, the nearest to its middle down if more than one (the ball
 // is as tall as it is wide, its shadow flatter). It keeps the game's size, so RT64 still pairs it with the last frame's
 // and slides it between the two. One at or past a side of the screen is left for widen().
-void nudge(uint32_t addr) {
+//
+// Its texture moves with it whole. RT64 draws a rectangle whose top isn't on a whole pixel with its texture a row
+// further on, as the RDP starts it on the next scanline with the next row, but at a high resolution it still draws
+// that rectangle from its top, so the sprite's top row went missing whenever the ball's top fell between pixels, and
+// the ball flicked between cut and whole as it moved (RT64 then also slid the texture between the frames). So t is
+// moved back by the row RT64 adds when the top is moved off a whole pixel (forward when moved onto one). copy: the RDP's
+// copy mode, in which RT64 puts the top on a whole pixel and adds no row.
+void nudge(uint32_t addr, bool copy) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
@@ -235,16 +245,34 @@ void nudge(uint32_t addr) {
     }
     wr_w(addr, (w0 & 0xFF000000) | (uint32_t(lrx + dx) << 12) | uint32_t(lry + dy));
     wr_w(addr + 4, (w1 & 0xFF000000) | (uint32_t(ulx + dx) << 12) | uint32_t(uly + dy));
+    if (!copy && ((uly & 3) != 0) != (((uly + dy) & 3) != 0)) {
+        uint32_t st = rd_w(addr + 12);
+        int t = int16_t(st & 0xFFFF);                      // s10.5
+        int row = int16_t(rd_w(addr + 20) & 0xFFFF) >> 5; // dtdy (s5.10) in t's units, as RT64 adds it
+        t += ((uly & 3) != 0) ? row : -row;
+        wr_w(addr + 12, (st & 0xFFFF0000) | (uint32_t(t) & 0xFFFF));
+    }
 }
 
 void nudge_all(uint32_t start, uint32_t end) {
     if (g_spot_count == 0 || end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
-    for (uint32_t addr = start; addr + 24 <= end; addr += 8) {
-        if ((rd_w(addr) >> 24) == G_TEXRECT && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
-            (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-            nudge(addr);
+    // The cycle type the list last set (G_SETOTHERMODE_H's or G_RDPSETOTHERMODE's bits 20-21); one or two cycles until
+    // it sets one, as the ball's sprites are drawn scaled, which copy mode can't.
+    uint32_t cycle = 0;
+    for (uint32_t addr = start; addr + 8 <= end; addr += 8) {
+        uint32_t w0 = rd_w(addr), op = w0 >> 24;
+        if (op == G_SETOTHERMODE_H) {
+            int len = int(w0 & 0xFF) + 1, shift = 32 - int((w0 >> 8) & 0xFF) - len;
+            if (shift <= G_MDSFT_CYCLETYPE && shift + len >= G_MDSFT_CYCLETYPE + 2) {
+                cycle = (rd_w(addr + 4) >> G_MDSFT_CYCLETYPE) & 3;
+            }
+        } else if (op == G_RDPSETOTHERMODE) {
+            cycle = (w0 >> G_MDSFT_CYCLETYPE) & 3;
+        } else if (op == G_TEXRECT && addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
+                   (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
+            nudge(addr, cycle == G_CYCLE_COPY);
             addr += 16;
         }
     }
