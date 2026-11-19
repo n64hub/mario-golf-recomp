@@ -45,6 +45,7 @@
 
 float mg_wide_scale();
 bool mg_aspect_expand();
+extern "C" uint32_t mg_copy_frame_list(uint8_t* rdram, uint32_t from, uint32_t to, uint32_t* image);
 
 namespace {
 
@@ -252,6 +253,108 @@ bool rect_next(uint32_t addr, uint32_t end) {
     return false;
 }
 
+// The tile wipe between the title and the main menu. The wipe's first frame copies the frame before (the whole picture,
+// as RT64 drew it, scaled) into an image of card.cpp's; each tile then reads that image at its scaled place.
+uint32_t g_cimg = 0;          // the color image in effect while the list is read
+uint32_t g_last_cimg = 0;     // the screen's color image at the end of the frame before's list
+bool g_tiles = false;         // whether this frame's list has the wipe's tiles
+uint32_t g_wipe_image = 0;    // the image a wipe under way reads, 0 if none
+
+// The commands of the tile whose G_SETTIMG of the game's copy is at at, rewritten to read the wipe's image at the place
+// the tile is scaled to, and the address past its rectangle; 0 if it isn't a tile of that shape (left as it is). A tile
+// is G_SETTIMG (RGBA16, 304 wide) at the copy, G_SETTILE 7, G_LOADTILE of its texels, G_SETTILE 0 and G_SETTILESIZE of
+// the same, and a G_TEXRECT (its G_RDPHALF_1 and _2) of them at 1:1, the copy's texel (s, t) at the screen's (s + 8,
+// t + 8); load and pipe syncs and a G_SETPRIMCOLOR (the fading tiles' alpha) between.
+uint32_t wipe_tile(uint32_t at, uint32_t end) {
+    uint32_t settile7 = 0, loadtile = 0, settile0 = 0, tilesize = 0, rect = 0;
+    for (uint32_t a = at + 8; a < end && a < at + 8 * 16; a += 8) {
+        uint32_t w0 = rd_w(a), w1 = rd_w(a + 4), op = w0 >> 24, tile = (w1 >> 24) & 7;
+        if (op == 0xF5 && tile == 7 && settile7 == 0) {
+            settile7 = a;
+        }
+        else if (op == 0xF5 && tile == 0 && loadtile != 0 && settile0 == 0) {
+            settile0 = a;
+        }
+        else if (op == 0xF4 && tile == 7 && settile7 != 0 && loadtile == 0) {
+            loadtile = a;
+        }
+        else if (op == 0xF2 && tile == 0 && settile0 != 0 && tilesize == 0) {
+            tilesize = a;
+        }
+        else if (op == G_TEXRECT && tilesize != 0 && is_rect(a)) {
+            rect = a;
+            break;
+        }
+        else if (op != 0xE6 && op != 0xE7 && op != 0xFA) {
+            return 0;
+        }
+    }
+    if (rect == 0) {
+        return 0;
+    }
+    uint32_t w0 = rd_w(rect), w1 = rd_w(rect + 4), st = rd_w(rect + 12), d = rd_w(rect + 20);
+    uint32_t ulx = ((w1 >> 12) & 0xFFF) >> 2, uly = (w1 & 0xFFF) >> 2, lrx = ((w0 >> 12) & 0xFFF) >> 2, lry = (w0 & 0xFFF) >> 2;
+    if (d != 0x04000400 || ulx < 8 || uly < 8 || st != ((((ulx - 8) << 5) << 16) | ((uly - 8) << 5))) {
+        return 0;
+    }
+    int x0 = edge(scale_x(float(ulx)), SCREEN_WIDTH), y0 = edge(scale_y(float(uly)), SCREEN_HEIGHT);
+    int x1 = edge(scale_x(float(lrx)), SCREEN_WIDTH), y1 = edge(scale_y(float(lry)), SCREEN_HEIGHT);
+    if (x1 <= x0 || y1 <= y0) {
+        // Nothing of it is left: the rectangle is skipped.
+        wr_w(rect, (G_DL << 24) | (G_DL_NOPUSH << 16));
+        wr_w(rect + 4, (rect + 24) & 0x1FFFFFFF);
+        return rect + 24;
+    }
+    GfxCommand c[1];
+    uint32_t pos = 0;
+    auto put = [&pos](uint32_t a, uint32_t b) {
+        wr_w(pos, a);
+        wr_w(pos + 4, b);
+        pos += 8;
+    };
+    // The G_SETTIMG: the image, past the game's RAM (gEXSetRDRAMExtended), made first if this is the wipe's first tile.
+    uint32_t buffer = next_buffer();
+    pos = buffer;
+    gEXEnable(c);
+    put(c[0].values.word0, c[0].values.word1);
+    gEXSetRDRAMExtended(c, 1);
+    put(c[0].values.word0, c[0].values.word1);
+    if (g_wipe_image == 0) {
+        put(G_DL << 24, mg_copy_frame_list(g_rdram, g_last_cimg, g_cimg, &g_wipe_image));
+    }
+    put(0xFD10013F, g_wipe_image);
+    put((G_DL << 24) | (G_DL_NOPUSH << 16), (at + 8) & 0x1FFFFFFF);
+    wr_w(at, (G_DL << 24) | (G_DL_NOPUSH << 16));
+    wr_w(at + 4, buffer & 0x1FFFFFFF);
+    // The load: the image's texels under the scaled tile, a row of them in TMEM's 8-byte words.
+    uint32_t line = (uint32_t(x1 - x0) * 2 + 7) / 8;
+    wr_w(settile7, (rd_w(settile7) & ~(0x1FFu << 9)) | (line << 9));
+    wr_w(settile0, (rd_w(settile0) & ~(0x1FFu << 9)) | (line << 9));
+    uint32_t ul = (uint32_t(x0) << 14) | (uint32_t(y0) << 2), lr = (uint32_t(x1 - 1) << 14) | (uint32_t(y1 - 1) << 2);
+    wr_w(loadtile, 0xF4000000 | ul);
+    wr_w(loadtile + 4, 0x07000000 | lr);
+    wr_w(tilesize, 0xF2000000 | ul);
+    wr_w(tilesize + 4, lr);
+    // The rectangle, at its shape, at 1:1, and the game's RAM back after it.
+    buffer = next_buffer();
+    pos = buffer;
+    gEXSetRectAspect(c, G_EX_ASPECT_ADJUST);
+    put(c[0].values.word0, c[0].values.word1);
+    put((w0 & 0xFF000000) | (uint32_t(x1 * 4) << 12) | uint32_t(y1 * 4),
+        (w1 & 0xFF000000) | (uint32_t(x0 * 4) << 12) | uint32_t(y0 * 4));
+    put(rd_w(rect + 8) & 0xFF000000, (uint32_t(x0 << 5) << 16) | uint32_t(y0 << 5));
+    put(rd_w(rect + 16), d);
+    gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
+    put(c[0].values.word0, c[0].values.word1);
+    gEXSetRDRAMExtended(c, 0);
+    put(c[0].values.word0, c[0].values.word1);
+    put((G_DL << 24) | (G_DL_NOPUSH << 16), (rect + 24) & 0x1FFFFFFF);
+    wr_w(rect, (G_DL << 24) | (G_DL_NOPUSH << 16));
+    wr_w(rect + 4, buffer & 0x1FFFFFFF);
+    g_tiles = true;
+    return rect + 24;
+}
+
 // How much a screen is scaled, false if not at all: in a window no wider than 4:3 the frame fills its width; in a wider
 // one, its height, and as much of the width. With Aspect Ratio Original, not at all.
 bool set_fill() {
@@ -274,12 +377,22 @@ void fill(uint32_t list, uint32_t end) {
         uint32_t op = w0 >> 24;
         if (op == G_SETTIMG) {
             texture = w1 & 0x1FFFFFFF;
+            if (screen && w0 == 0xFD10012F && texture == GAME_COPY && g_cimg != 0 &&
+                (g_wipe_image != 0 || g_last_cimg != 0)) {
+                uint32_t past = wipe_tile(addr, end);
+                if (past != 0) {
+                    addr = past - 8;
+                }
+            }
         }
         else if (w0 == SET_CYCLE_TYPE) {
             copy = (w1 == G_CYC_COPY);
         }
         else if (op == G_SETCIMG) {
             screen = (w0 & 0xFFF) + 1 == uint32_t(SCREEN_WIDTH);
+            if (screen) {
+                g_cimg = w1;
+            }
         }
         else if (!screen) {
             if (op == G_TEXRECT && is_rect(addr)) {
@@ -312,6 +425,8 @@ void fill(uint32_t list, uint32_t end) {
 extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
     g_rdram = rdram;
     if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY)) || !set_fill()) {
+        g_wipe_image = 0;
+        g_last_cimg = 0;
         return;
     }
     uint32_t end = list;
@@ -321,7 +436,13 @@ extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
     if ((rd_w(end) >> 24) != G_ENDDL) {
         return;
     }
+    g_tiles = false;
+    g_cimg = 0;
     fill(list, end);
+    if (!g_tiles) {
+        g_wipe_image = 0;
+    }
+    g_last_cimg = g_cimg;
 }
 
 // The commands from list to end, a 2D screen another file found in a frame that isn't all one (credits.cpp's), scaled
