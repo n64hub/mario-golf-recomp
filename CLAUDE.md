@@ -109,7 +109,8 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   0x80031340-0x8003137C draw as bars when the debug flag D_800B67C0 is on (a code entered at the title, overlay 8's
   table at ROM 0x14F994). So time spent in the launcher reaches nothing a player sees.
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
-  to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, `patches/cull.c` culls the
+  to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, which `src/game/border.cpp`
+  draws through the game's own 8-pixel border to the window's edges (on a hole and in the opening), `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
   wide picture's sides, the hole's waving sign in a matrix group whose vertices RT64 moves between the game's frames, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
   sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, and puts the sky in a matrix group whose clouds RT64 slides
