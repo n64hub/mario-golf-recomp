@@ -1,5 +1,5 @@
-// The title and the menus at the picture's full height (RT64's Aspect Ratio Expand): a 2D screen fills the window's
-// height, or its width where the window is no wider than the screen, its shape kept, centred, the rest black.
+// The title and the menus at the picture's full height (RT64's Aspect Ratio Expand): a 2D screen fills the 4:3 frame's
+// height in any window, its shape kept, centred, the rest black.
 //
 // The game draws every screen inside a border of its own: under a scissor of 8, 8 to 312, 232, the 304x224 a TV's edge
 // left in sight. On the course RT64 widens the 3D past it to the window's sides, but the title (its painting, 38 strips
@@ -8,8 +8,9 @@
 // at 4:3 in the middle of a wider picture: so they stood in a 912x672 box in a 1280x720 window, black above and below
 // as well as beside them.
 //
-// Here each such screen is scaled about the screen's middle until its 224 lines fill the picture's 240, by 240/224, or
-// in a window no wider than 4:3 until its 304 columns fill the 320, by 320/304, whichever is less. nuGfxTaskStart sends
+// Here each such screen is scaled about the screen's middle until its 224 lines fill the picture's 240, by 240/224, in
+// every window, 4:3 and narrower too: filling its 304 columns to the 320 there instead (by 320/304) left 235.8 of the
+// 240 lines, a black band of about 1% above and below that a TV's edge hid. nuGfxTaskStart sends
 // each frame's display list, and us.toml hooks its start: mg_screen_fill reads the list it is given, while the game is
 // on the title (overlay 8 loaded) or in its menus (overlay 3), from the main menu to Course Select. In the list's own
 // commands (the frame's, which the game writes anew each frame; the lists it calls are its data and are left alone):
@@ -22,9 +23,9 @@
 // - each scissor is scaled the same way and clipped to the frame, so the border's 8, 8 to 312, 232 becomes 0.25, 0 to
 //   319.75, 240: a quarter pixel inside the frame's sides, or RT64 widens a model drawn under it (Course Select's sea)
 //   to the window as it does the course's (scale_scissor). Nothing reaches past the frame's sides: RT64 takes the
-//   widest scissor a frame draws under as the screen (iris.cpp says what one past the sides did), so in a wide window
+//   widest scissor a frame draws under as the screen (iris.cpp says what one past the sides did), so in every window
 //   the screen's sides lose what scaling it to the full height takes them past the frame's, 2.9 of its 325.7 columns
-//   at each side;
+//   at each side, where the game's own border hid 8;
 // - each viewport is a copy scaled the same way, so a model drawn on a menu (the golfer) grows with it.
 // Only what is drawn to the screen is scaled: while the color image is another (G_SETCIMG of a width other than the
 // screen's), the commands are left as the game wrote them. Metal Mario's shine on Play Modes is a 32x32 map the game
@@ -78,8 +79,8 @@ constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28, MENU_OVERLAY = 3,
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 304 * 224 * 2, GAME_RAM = 0x00800000;
 
 constexpr float SCREEN_WIDTH = 320.0f, SCREEN_HEIGHT = 240.0f, CENTRE_X = 160.0f, CENTRE_Y = 120.0f;
-// The 2D screen inside the game's border: 304x224.
-constexpr float INNER_WIDTH = 304.0f, INNER_HEIGHT = 224.0f;
+// The 2D screen inside the game's border: 304x224, of which its height is what the screen is scaled to fill.
+constexpr float INNER_HEIGHT = 224.0f;
 
 // Above backdrop.cpp's buffers and below ball.cpp's: 64 KB, 1024 of 64 bytes, used in turn. A menu draws up to ~200
 // rectangles a frame, and the renderer may read a list a frame or more after the game sends it.
@@ -374,15 +375,14 @@ uint32_t wipe_tile(uint32_t at, uint32_t end) {
     return rect + 24;
 }
 
-// How much a screen is scaled, false if not at all: in a window no wider than 4:3 the frame fills its width; in a wider
-// one, its height, and as much of the width. With Aspect Ratio Original, not at all.
+// How much a screen is scaled, false if not at all: until it fills the frame's height, in any window. With Aspect Ratio
+// Original, not at all.
 bool set_fill() {
     if (!mg_aspect_expand()) {
         return false;
     }
-    float width = SCREEN_WIDTH * mg_wide_scale();
-    g_fill = std::fmin(SCREEN_HEIGHT / INNER_HEIGHT, width / INNER_WIDTH);
-    return g_fill > 1.0f;
+    g_fill = SCREEN_HEIGHT / INNER_HEIGHT;
+    return true;
 }
 
 // The commands from list to end that draw to the screen scaled: rectangles, scissors and viewports, rectangles point
