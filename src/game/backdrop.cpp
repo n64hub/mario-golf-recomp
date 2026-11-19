@@ -49,9 +49,25 @@
 // that closes it. The texture coordinates' wrap point is the cloud texture's own period, so where the game's
 // coordinates wrap the clouds slide the short way, as they look, not across the sky in one frame. Whatever the aspect
 // ratio.
+//
+// And the light is put where the sun is, to a thirty-second of a pixel, not on the whole pixel the game truncates it
+// to. func_8008FF20 works out the sun's place on the screen as floats (at 0x800C5F24 and 0x800C5F2C, one of each per
+// view), x from the camera's turn, and draws the light around their truncation. Every console pixel is several of a
+// modern window's, and RT64 (RT64_INTERPOLATE_RECT_SCROLLS) slides the rectangle between where each game frame put
+// it, so as the camera panned at a high display rate the sun and its glow went in uneven steps sideways, against the
+// trees and hills moving smoothly in front. Moving the rectangle by a fraction of a pixel does nothing: RT64 puts a
+// textured rectangle's edges on whole pixels. So mg_backdrop_end finds the light's rectangle by where the game puts
+// it for a view's floats (its corners the truncated place less the size plus one and plus the size, each side at 0
+// at least) and starts its texture earlier by what the truncation dropped, each way, before it is widened: the light
+// is drawn that far right and down inside the rectangle, whose texture's edges are clear. RT64 pairs the rectangle
+// with the last frame's as before and slides that step of its texture between them as it does a scroll. widen()
+// puts a cut at the left back in whole pixels and keeps the fraction in s, and puts the squeezed rectangle's left
+// edge on the whole pixel RT64 would, its texture starting as much further on. Whatever the window's shape.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
@@ -92,6 +108,14 @@ constexpr uint32_t SCISSOR_LOOKBACK = 4096;
 // func_8008FF20 draws the sun's light only while the sun is less than this far past a side of the 4:3 screen (its
 // -64 and 384), in pixels: the light's half-width.
 constexpr float SUN_REACH = 64.0f;
+
+// Where func_8008FF20 keeps the sun's place on the screen, a float per view (two of them), x and then y, which it
+// truncates to whole pixels for the light's rectangle.
+constexpr uint32_t SUN_X = 0x800C5F24;
+constexpr uint32_t SUN_Y = 0x800C5F2C;
+constexpr int SUN_VIEWS = 2;
+// The light's half-width, at most, in pixels (the game's size: 64, or less as on Training's hole 10).
+constexpr int SUN_MAX_SIZE = 128;
 
 // Above hud.cpp's buffers. Two lists a frame, and the renderer may read one a frame or more after the game sends it.
 constexpr uint32_t BUFFER_BASE = 0x80740000;
@@ -155,10 +179,12 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     }
     int start = tile.uls * 32, start_t = tile.ult * 32;
     int new_ulx = ulx, new_lrx = lrx, new_s = s;
-    // s moves by dsdx / 128 a quarter pixel, and t by dtdy / 128.
+    // s moves by dsdx / 128 a quarter pixel, and t by dtdy / 128. The cut is put back in whole pixels, as RT64 puts a
+    // textured rectangle's edges on them, and s keeps what is left of it (place_sun's fraction of a pixel).
     if (ulx == 0 && s > start) {
-        new_ulx = -((s - start) * 128 / dsdx);
-        new_s = start;
+        int cut = ((s - start) * 32 + dsdx - 1) / dsdx; // pixels, rounded up
+        new_ulx = -cut * 4;
+        new_s = s - int(std::lround(cut * dsdx / 32.0f));
         // Wholly past the left side, the game's right edge is cut to 0 too: the square is put back as wide as it is
         // tall, with what the game cut at the top. Wholly above the top as well, nothing of it is in the picture.
         if (lrx <= ulx) {
@@ -180,6 +206,15 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     if (wide_dsdx > INT16_MAX) {
         return false;
     }
+    // RT64 puts a textured rectangle's left edge on the whole pixel at or right of it, and starts its texture there,
+    // so the squeezed left edge goes on that pixel and the texture starts as much further on: the light stays where
+    // it is to a fraction of a pixel (place_sun), not where the squeeze rounds it to, a stretched pixel's steps.
+    float left = SCREEN_WIDTH * 2 + (new_ulx - SCREEN_WIDTH * 2) / scale; // quarter pixels
+    int wide_ulx = int(std::ceil(left / 4.0f - 1e-4f)) * 4;
+    new_s += int(std::lround((wide_ulx - left) * wide_dsdx / 128.0f));
+    if (new_s < INT16_MIN || new_s > INT16_MAX) {
+        return false;
+    }
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
@@ -189,7 +224,7 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), uly, squeeze(new_lrx), lry,
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, wide_ulx, uly, squeeze(new_lrx), lry,
                         (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
@@ -201,6 +236,65 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     wr_w(addr, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
     wr_w(addr + 4, buffer & 0x1FFFFFFF);
     return true;
+}
+
+float rd_f(uint32_t addr) {
+    uint32_t w = rd_w(addr);
+    float f;
+    std::memcpy(&f, &w, sizeof f);
+    return f;
+}
+
+// The sun's light where the sun is, to a thirty-second of a pixel: the rectangle at addr, if it is the light
+// func_8008FF20 drew around the truncated place of one of its views' suns, its texture started earlier by what the
+// truncation dropped, each way, so the light is drawn that much further right and down in the rectangle the game put
+// on whole pixels. The rectangle stays as the game's, so RT64 still pairs it with the last frame's, and slides the
+// texture's step between them as it does a scroll.
+void place_sun(uint32_t addr) {
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
+    int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
+    int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
+    int s = int16_t(st >> 16), t = int16_t(st & 0xFFFF);     // s10.5
+    int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF); // s5.10
+    if (dsdx <= 0 || dtdy <= 0) {
+        return;
+    }
+    for (int view = 0; view < SUN_VIEWS; view++) {
+        float x = rd_f(SUN_X + 4 * view), y = rd_f(SUN_Y + 4 * view);
+        if (!(std::fabs(x) < 4096.0f) || !(std::fabs(y) < 4096.0f)) {
+            continue;
+        }
+        // The game's own rectangle: from the sun's place less its size plus one to its place plus its size, each
+        // side at 0 at least.
+        int tx = int(x), ty = int(y), size = lry / 4 - ty;
+        if (lry <= 0 || size <= 0 || size > SUN_MAX_SIZE || lrx != std::max(0, tx + size) * 4 ||
+            ulx != std::max(0, tx - size + 1) * 4 || uly != std::max(0, ty - size + 1) * 4) {
+            continue;
+        }
+        // A pixel is dsdx / 32 of s (s10.5, dsdx s5.10), and dtdy / 32 of t. The truncation is toward 0, so a sun past
+        // the screen's left side (x below 0) is moved left by its fraction.
+        int ds = int(std::lround((x - float(tx)) * float(dsdx) / 32.0f));
+        int dt = int(std::lround((y - float(ty)) * float(dtdy) / 32.0f));
+        int new_s = s - ds, new_t = t - dt;
+        if (new_s < INT16_MIN || new_s > INT16_MAX || new_t < INT16_MIN || new_t > INT16_MAX) {
+            return;
+        }
+        wr_w(addr + 12, (uint32_t(new_s & 0xFFFF) << 16) | uint32_t(new_t & 0xFFFF));
+        return;
+    }
+}
+
+void place_suns(uint32_t start, uint32_t end) {
+    if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
+        return;
+    }
+    for (uint32_t addr = start; addr + 24 <= end; addr += 8) {
+        if ((rd_w(addr) >> 24) == G_TEXRECT && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
+            (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
+            place_sun(addr);
+            addr += 16;
+        }
+    }
 }
 
 void widen_all(uint32_t start, uint32_t end) {
@@ -353,6 +447,7 @@ extern "C" void mg_backdrop_end(uint8_t* rdram) {
     g_open = false;
     g_rdram = rdram;
     tag_sky(g_start, rd_w(MG_GFX_HEAD));
+    place_suns(g_start, rd_w(MG_GFX_HEAD));
     if (g_full) {
         widen_all(g_start, rd_w(MG_GFX_HEAD));
     }
