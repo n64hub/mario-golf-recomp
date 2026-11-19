@@ -20,8 +20,8 @@
 //   scaled strip of the backdrop is as wide as the frame. They are point sampled: the game filters them bilinearly,
 //   which at 1:1 reads each texel as it is, but scaled it blurs each strip's rows into each other and stops at its
 //   edges (a strip's texture is only its own rows), so every strip of the title's painting showed as a band;
-// - each scissor is scaled the same way and clipped to the frame, so the border's 8, 8 to 312, 232 becomes 0.25, 0 to
-//   319.75, 240: a quarter pixel inside the frame's sides, or RT64 widens a model drawn under it (Course Select's sea)
+// - each scissor is scaled the same way and clipped to the frame, so the border's 8, 8 to 312, 232 becomes 0, 0 to
+//   320, 240, or in a window wider than 4:3 0.25, 0 to 319.75, 240: a quarter pixel inside the frame's sides, or RT64 widens a model drawn under it (Course Select's sea)
 //   to the window as it does the course's (scale_scissor). Nothing reaches past the frame's sides: RT64 takes the
 //   widest scissor a frame draws under as the screen (iris.cpp says what one past the sides did), so in every window
 //   the screen's sides lose what scaling it to the full height takes them past the frame's, 2.9 of its 325.7 columns
@@ -93,6 +93,8 @@ constexpr uint32_t MAX_COMMANDS = 0x8000;
 uint8_t* g_rdram;
 uint32_t g_next_buffer = 0;
 float g_fill = 1.0f;
+// Whether the window is wider than the 4:3 frame, where RT64 can widen a model past it.
+bool g_wide = false;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -202,17 +204,19 @@ void replace_rect(uint32_t addr, bool copy) {
 // The scissor at addr scaled and clipped to the frame, in place. One the game set inside the frame's sides stays a
 // quarter pixel inside them: RT64 widens a model to the window when its scissor spans the whole width the frame drew
 // in, which the frame's clear makes the frame's, and a menu's models (Course Select's sea) are kept at the screen's
-// shape as before.
+// shape as before. Only in a window wider than 4:3: RT64 draws the scissor from whole columns, so the quarter pixel
+// left the frame's first column black, which there is beside the black past the frame, but in a 4:3 window was a
+// column of black at the window's left edge, where nothing is widened.
 void scale_scissor(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
     float ulx = ((w0 >> 12) & 0xFFF) / 4.0f, uly = (w0 & 0xFFF) / 4.0f;
     float lrx = ((w1 >> 12) & 0xFFF) / 4.0f, lry = (w1 & 0xFFF) / 4.0f;
     uint32_t new_ulx = uint32_t(edge(scale_x(ulx), SCREEN_WIDTH)) * 4, new_uly = uint32_t(edge(scale_y(uly), SCREEN_HEIGHT)) * 4;
     uint32_t new_lrx = uint32_t(edge(scale_x(lrx), SCREEN_WIDTH)) * 4, new_lry = uint32_t(edge(scale_y(lry), SCREEN_HEIGHT)) * 4;
-    if (ulx > 0.0f && new_ulx < 1) {
+    if (g_wide && ulx > 0.0f && new_ulx < 1) {
         new_ulx = 1;
     }
-    if (lrx < SCREEN_WIDTH && new_lrx > SCREEN_WIDTH * 4 - 1) {
+    if (g_wide && lrx < SCREEN_WIDTH && new_lrx > SCREEN_WIDTH * 4 - 1) {
         new_lrx = uint32_t(SCREEN_WIDTH * 4 - 1);
     }
     wr_w(addr, (w0 & 0xFF000000) | (new_ulx << 12) | new_uly);
@@ -382,6 +386,7 @@ bool set_fill() {
         return false;
     }
     g_fill = SCREEN_HEIGHT / INNER_HEIGHT;
+    g_wide = mg_wide_scale() > 1.0f;
     return true;
 }
 
