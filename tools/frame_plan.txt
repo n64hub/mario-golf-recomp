@@ -21,12 +21,12 @@
 # a game frame at a time from the first press, and a press reaches the game a frame early or late. So it is played as
 # the game plays a computer golfer's (func_ovl0_802088B0): with 0x80227194 set, the meter stops itself on the frame
 # it reaches the power and impact in 0x80104F7C and 0x80104F80, with the stick at impact from 0x80104F8C and
-# 0x80104F90 (0, none). A press of A starts the meter, and the flag is set after it, since a computer golfer's aim is
-# turned to 0x80104F78 before then. The wind, which the hole draws with rand() as its flyover ends, a frame apart in
-# each window, is set before each swing: its speed (16.16) and heading (the high half) at 0x800BA9F0 and 0x800BA9F4,
-# and the vector the game works out of them at 0x80104F44 and 0x80104F4C (func_8007E7B8). And rand() (its state at
-# 0x800FBD30), which others call at each window's pace and a ball through a tree's leaves draws on, is seeded as the
-# meter stops.
+# 0x80104F90 (0, none); a putt takes no impact, and goes at the power. A press of A starts the meter, and the flag is
+# set after it, since a computer golfer's aim is turned to 0x80104F78 before then. The wind, which the hole draws with
+# rand() as its flyover ends, a frame apart in each window, is set before each swing but the putt (Mini-Golf has
+# none): its speed (16.16) and heading (the high half) at 0x800BA9F0 and 0x800BA9F4, and the vector the game works out
+# of them at 0x80104F44 and 0x80104F4C (func_8007E7B8). And rand() (its state at 0x800FBD30), which others call at
+# each window's pace and a ball through a tree's leaves draws on, is seeded as the meter stops.
 
 # The logos and the intro: the golfers one by one, Luigi's swing and its crossfade to the overhead shot.
 3 shot 00_logos
@@ -137,17 +137,13 @@
 141.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
 141.5 until 0x800B5FF8 0xFF000000 0x00000000 60
 142.5 shot 31_mini_golf_tee
-143 poke 0x800BA9F0 0x00081650
-143 poke 0x800BA9F4 0xA5605DC0
-143 poke 0x80104F44 0xC1E973E5
-143 poke 0x80104F4C 0xC218717C
-143 poke 0x80104F7C 0x16
+143 poke 0x80104F7C 0x12
 143 poke 0x80104F80 0x2C
 143 poke 0x80104F8C 0
 143 poke 0x80104F90 0
 143 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 143 poke 0x80227194 1
-143 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+143 until 0x800FBE88 0xFFFFFFFF 0x00000012 5
 143 poke 0x800FBD30 1
 147.4 shot 32_mini_golf_flight
 155.4 shot 33_mini_golf_landing
