@@ -1,1 +1,0 @@
-- **The picture's top and bottom edges:** as the flyover looks down on a hole, the far hills' band now runs on to the window's bottom, where its last lines showed streaks, and as one shot cuts, fades or opens onto the next, the old shot now covers the top and bottom lines too, where the new one showed through it ([#129](https://github.com/n64hub/mario-golf-recomp/issues/129)).
