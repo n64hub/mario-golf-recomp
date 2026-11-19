@@ -1,4 +1,5 @@
-// The old shot of a transition, drawn over the wide picture's whole width (RT64's Aspect Ratio Expand).
+// The old shot of a transition, drawn over the wide picture's whole width (RT64's Aspect Ratio Expand) and the screen's
+// whole height.
 //
 // As the intro cuts between its shots (transition type 9) or crossfades between them (type 1: from Luigi's swing to the
 // overhead shot of the putting green), and as a shot's camera cuts to a view from the green while the ball flies or a
@@ -204,7 +205,48 @@ extern "C" void mg_card_strips_begin(uint8_t* rdram) {
 // and becomes G_SETTIMG (RGBA16, 320 wide) at the image, G_LOADTILE of its 6 rows (80 words a row), G_SETTILESIZE
 // (0, 0)-(319, 5), and the rectangles, each of which starts at the image's column 8 more (the copy left out the 8
 // border columns), or at the screen's left edge (x 0) if it started at the border (x 8), and ends there (x 320) if it
-// ended at the right border (x 312). A list that isn't that shape is drawn as the game made it, at 4:3.
+// ended at the right border (x 312). Then the first strip's rectangles are drawn again over the screen's lines 0 to 8
+// and the last's over 232 to 240, from the image's own rows there, as the strips over the border's inside are: the game
+// leaves those lines to its border, and with the picture drawn to the screen's edges (border.cpp) they showed the new
+// shot through the old one's fade. A list that isn't that shape is drawn as the game made it, at 4:3.
+namespace {
+
+// A strip's rectangle, as rewritten: G_TEXRECT's words, then s and t, and dsdx and dtdy.
+struct Strip {
+    uint32_t w0, w1, st, steps;
+};
+constexpr uint32_t MAX_RECTS = 4;
+
+// The rectangles of one strip of `rows` rows drawn again over lines y0 to y1 (at most 6), from the image's rows from y0
+// (or the last 6), with the strips' own tile settings (G_SETTILE 0's second word).
+void restrip(uint8_t* rdram, const Strip* rects, uint32_t count, uint32_t rows, uint32_t tile, uint32_t y0,
+             uint32_t y1) {
+    if (count == 0) {
+        return;
+    }
+    const uint32_t load = (y0 < 240 - 6) ? y0 : 240 - 6;
+    put(rdram, 0xE7000000, 0);
+    put(rdram, 0xFD10013F, image_addr);                                          // G_SETTIMG: the image
+    put(rdram, 0xF510A000, 0x07000000);                                          // G_SETTILE 7
+    put(rdram, 0xE6000000, 0);                                                   // G_RDPLOADSYNC
+    put(rdram, 0xF4000000 | (load << 2), 0x07000000 | (319 << 14) | ((load + 5) << 2)); // G_LOADTILE
+    put(rdram, 0xE7000000, 0);
+    put(rdram, 0xF510A000, tile);                                                // G_SETTILE 0
+    put(rdram, 0xF2000000, (319 << 14) | (5 << 2));                              // G_SETTILESIZE
+    for (uint32_t i = 0; i < count; i++) {
+        const Strip& r = rects[i];
+        // A rectangle of copy mode draws its lower right row too: the strip's own height says which it is.
+        const bool inclusive = ((r.w0 & 0xFFF) - (r.w1 & 0xFFF)) == (rows - 1) * 4;
+        const uint32_t lry = (y1 << 2) - (inclusive ? 4 : 0);
+        const uint32_t t = (r.st & 0xFFFF) + ((y0 - load) << 5);
+        put(rdram, (r.w0 & ~0xFFFu) | lry, (r.w1 & ~0xFFFu) | (y0 << 2));
+        put(rdram, 0xE1000000, (r.st & 0xFFFF0000) | (t & 0xFFFF));
+        put(rdram, 0xF1000000, r.steps);
+    }
+}
+
+} // namespace
+
 extern "C" void mg_card_strips_end(uint8_t* rdram) {
     GfxCommand c[1];
     if (strips_from != 0) {
@@ -244,6 +286,8 @@ extern "C" void mg_card_strips_end(uint8_t* rdram) {
             }
         }
         if (shaped) {
+            Strip first[MAX_RECTS], last[MAX_RECTS];
+            uint32_t firsts = 0, lasts = 0, tile = 0;
             for (uint32_t a = strips_from; a < to; a += 8) {
                 const uint32_t w0 = rd_w(rdram, a), w1 = rd_w(rdram, a + 4);
                 switch (w0 >> 24) {
@@ -254,6 +298,9 @@ extern "C" void mg_card_strips_end(uint8_t* rdram) {
                     break;
                 case 0xF5:
                     wr_w(rdram, a, 0xF510A000);
+                    if ((w1 >> 24) == 0) {
+                        tile = w1;
+                    }
                     break;
                 case 0xF3:
                     wr_w(rdram, a, 0xF4000000 | (row << 2));
@@ -277,12 +324,23 @@ extern "C" void mg_card_strips_end(uint8_t* rdram) {
                     wr_w(rdram, a, (w0 & 0xFF000FFF) | (lrx << 12));
                     wr_w(rdram, a + 4, (w1 & 0xFF000FFF) | (ulx << 12));
                     wr_w(rdram, a + 12, st);
+                    const Strip strip = { rd_w(rdram, a), rd_w(rdram, a + 4), st, rd_w(rdram, a + 20) };
+                    if (row == 8 && firsts < MAX_RECTS) {
+                        first[firsts++] = strip;
+                    }
+                    else if (row == 8 + 6 * (STRIPS - 1) && lasts < MAX_RECTS) {
+                        last[lasts++] = strip;
+                    }
                     break;
                 }
                 default:
                     break;
                 }
             }
+            restrip(rdram, first, firsts, 6, tile, 0, 6);
+            restrip(rdram, first, firsts, 6, tile, 6, 8);
+            restrip(rdram, last, lasts, 2, tile, 232, 238);
+            restrip(rdram, last, lasts, 2, tile, 238, 240);
         }
         else {
             // Not the strips this knows: they are drawn as before a copy was made here, at 4:3.
