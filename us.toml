@@ -224,7 +224,8 @@ text = "{ void mg_credits_picture_end(uint8_t*, uint32_t); mg_credits_picture_en
 # other reader, func_8005C674, sets the grid's every other golfer unlocked, so the flag itself isn't set: after each
 # of func_8005CA48's three tests of it, the answer is on unless the option is Original. The first, before anything is
 # written, also sets the stats that path writes to the second option's, Game Boy Golfers' Stats: the clubs table's own
-# (Normal) or the test values (Test).
+# (Normal) or the test values (Test). At its end, the four's clubs are worked out as the link works out a golfer's
+# (mg_gb_golfers_clubs), or none of their shots goes anywhere.
 [[patches.hook]]
 func = "func_8005CA48"
 before_vram = 0x8005CBD8
@@ -239,3 +240,8 @@ text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
 func = "func_8005CA48"
 before_vram = 0x8005CD18
 text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
+
+[[patches.hook]]
+func = "func_8005CA48"
+before_vram = 0x8005CEBC
+text = "{ void mg_gb_golfers_clubs(uint8_t*, recomp_context*); mg_gb_golfers_clubs(rdram, ctx); }"
