@@ -27,9 +27,9 @@
 // buffer, under the scissor this file makes, and reach the picture's edges by hud.cpp's hand.
 //
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
-// lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 9 loaded)
-// or on a hole (overlay 2, the attract demo's too) but not in the end credits (overlay 16), which draw the course in a
-// box of their own. It rewrites what it finds in place, the game's lists that are its data too, so with Aspect Ratio
+// lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 9 loaded;
+// the title goes back to it after a while, its attract demo) or on a hole (overlay 2) but not in the end credits
+// (overlay 16), which draw the course in a box of their own. It rewrites what it finds in place, the game's lists that are its data too, so with Aspect Ratio
 // Original, or elsewhere, it puts any scissor it made back as the game wrote it: Original keeps the console's border.
 // The game sets the screen's scissor itself too, so the one made here carries a mark the RDP and RT64 never read. Only
 // the scissors and rectangles drawn to the screen (a color image 320 wide, not the z-buffer) are changed.
