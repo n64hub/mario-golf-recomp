@@ -33,8 +33,10 @@
 // the game's rate while the rest moved at the display's. So its vertex load is put in an RT64 matrix group of its own
 // whose vertices RT64 interpolates (everything else as with no group), closed before the next load. The banner a shot
 // comes to rest under, a quad with a model for each letter, spins and scales in and out over the course: its models
-// are one piece, so its letters stay on it in a wide picture, and one matrix group, so they keep their places on it in
-// the frames between the game's (anchor() says why).
+// are one piece, kept where the game draws it as it spins in from the left, so its letters stay on it in a wide
+// picture, and one matrix group, so they keep their places on it in the frames between the game's, its letters drawn
+// as models once more on the frame they turn to rectangles at its rest, so they turn with it to the end (anchor()
+// says why).
 
 #include <cstdint>
 #include <cstring>
@@ -170,6 +172,7 @@ struct Box {
         }
     }
     bool contains(float x, float y) const { return !empty() && x >= x0 && x <= x1 && y >= y0 && y <= y1; }
+    bool inside(const Box& b) const { return !empty() && x0 >= b.x0 && x1 <= b.x1 && y0 >= b.y0 && y1 <= b.y1; }
     // Whether either box's middle lies inside the other.
     bool overlaps_middle(const Box& b) const {
         return contains((b.x0 + b.x1) * 0.5f, (b.y0 + b.y1) * 0.5f) || b.contains((x0 + x1) * 0.5f, (y0 + y1) * 0.5f);
@@ -292,6 +295,59 @@ constexpr int MAX_SPANS = 8;
 Cmd g_cmds[MAX_COMMANDS];
 Piece g_pieces[MAX_COMMANDS];
 
+// Whether a piece is the shot's banner: models that start with its quad.
+bool is_banner(const Piece& piece) {
+    const Cmd& quad = g_cmds[piece.first];
+    return piece.models && quad.w0 == BANNER_VTX_W0 && quad.w1 == BANNER_VERTICES;
+}
+
+bool is_triangle(const Cmd& cmd) {
+    uint32_t op = cmd.w0 >> 24;
+    return op == 0x05 || op == 0x06 || op == 0x07;
+}
+
+// The banner's letters as the last frame drew them as models: its commands from after its quad's triangles to its
+// group's end, and the matrices they load (index into g_letter_mtx, or -1 for a command that loads none).
+constexpr uint32_t MAX_LETTER_CMDS = 1024, MAX_LETTER_MATRICES = 32, MTX_SIZE = 64;
+uint32_t g_letter_cmds[MAX_LETTER_CMDS][2];
+int g_letter_mtx_of[MAX_LETTER_CMDS];
+uint32_t g_letter_count = 0;
+uint32_t g_letter_mtx[MAX_LETTER_MATRICES][MTX_SIZE / 4];
+uint32_t g_letter_mtx_count = 0;
+// Whether the last frame's HUD kept them.
+bool g_letters_kept = false;
+
+// Keeps the banner's letters, from the command after its quad's triangles to close. False if they don't fit.
+bool keep_letters(uint32_t from, uint32_t close) {
+    g_letter_count = 0;
+    g_letter_mtx_count = 0;
+    while (from < close && is_triangle(g_cmds[from])) {
+        from++;
+    }
+    for (uint32_t i = from; i < close; i++) {
+        const Cmd& cmd = g_cmds[i];
+        if (g_letter_count == MAX_LETTER_CMDS) {
+            return false;
+        }
+        int mtx = -1;
+        if ((cmd.w0 >> 24) == G_MTX) {
+            uint32_t addr = resolve(cmd.w1);
+            if (addr == 0 || (cmd.w0 & G_MTX_PROJECTION) != 0 || g_letter_mtx_count == MAX_LETTER_MATRICES) {
+                return false;
+            }
+            for (uint32_t w = 0; w < MTX_SIZE / 4; w++) {
+                g_letter_mtx[g_letter_mtx_count][w] = rd_w(addr + w * 4);
+            }
+            mtx = int(g_letter_mtx_count++);
+        }
+        g_letter_cmds[g_letter_count][0] = cmd.w0;
+        g_letter_cmds[g_letter_count][1] = cmd.w1;
+        g_letter_mtx_of[g_letter_count] = mtx;
+        g_letter_count++;
+    }
+    return g_letter_mtx_count > 0;
+}
+
 uint32_t g_start;
 bool g_open = false;
 uint32_t g_next_buffer = 0;
@@ -396,6 +452,8 @@ bool spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx
 }
 
 void anchor(uint32_t start, uint32_t end) {
+    bool letters_kept = g_letters_kept;
+    g_letters_kept = false;
     uint32_t count = (end - start) / 8;
     if (end <= start || count > MAX_COMMANDS || (start & 7) != 0) {
         return;
@@ -468,7 +526,10 @@ void anchor(uint32_t start, uint32_t end) {
         Piece& piece = g_pieces[p];
         float middle = (piece.box.x0 + piece.box.x1) * 0.5f;
         bool across = piece.box.x0 < SCREEN_MIDDLE && piece.box.x1 > SCREEN_MIDDLE;
-        if (across || (middle > SCREEN_MIDDLE - MIDDLE_ZONE && middle < SCREEN_MIDDLE + MIDDLE_ZONE)) {
+        // The shot's banner spins in from the left to the middle: placed by where it lay, it went from the left side to
+        // the middle halfway, a jump of the picture's extra width at once. It stays where the game draws it throughout.
+        if (across || is_banner(piece) ||
+            (middle > SCREEN_MIDDLE - MIDDLE_ZONE && middle < SCREEN_MIDDLE + MIDDLE_ZONE)) {
             piece.origin = G_EX_ORIGIN_NONE;
         }
         else {
@@ -479,7 +540,9 @@ void anchor(uint32_t start, uint32_t end) {
     // Write them to the next buffer with the alignments.
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
-    Writer out{ buffer, buffer + BUFFER_SIZE };
+    // The letters' matrices, when they are drawn again, go at the buffer's end.
+    uint32_t matrices = buffer + BUFFER_SIZE - MAX_LETTER_MATRICES * MTX_SIZE;
+    Writer out{ buffer, matrices };
     GfxCommand c[2];
     gEXEnable(c);
     out.put(c, 1);
@@ -513,12 +576,21 @@ void anchor(uint32_t start, uint32_t end) {
     // their order (the quad's first, then the letters'), as golfer.cpp does a golfer's. Its quad starts the group
     // whether its letters are models or, once it has come to rest, rectangles, so RT64 blends it from its last turn
     // to its rest as it did with no group, where a group only while its letters were models left the quad to jump.
+    // At rest the game draws the letters as rectangles, level, from the frame the quad comes to its rest, so in the
+    // frames between that one and the last the quad turned its last few degrees with the letters already level on it.
+    // So on that frame the letters are drawn as the frame before drew them, as models, on the quad at its rest, in
+    // place of its rectangles: RT64 blends them with the quad, and the frame after draws the game's rectangles where
+    // they are.
     Span spans[MAX_SPANS];
     int span_count = 0;
+    // Where the last frame's letters are drawn again: after the triangles of a quad drawn with none (count for nowhere).
+    uint32_t replay_at = count;
+    // The quad it is drawn on, and up to where the game's rectangles on it (its letters at rest) are left out.
+    Box replay_box;
+    uint32_t replay_end = 0;
     for (int p = 0; p < pieces && span_count < MAX_SPANS; p++) {
         const Piece& piece = g_pieces[p];
-        const Cmd& quad = g_cmds[piece.first];
-        if (!piece.models || quad.w0 != BANNER_VTX_W0 || quad.w1 != BANNER_VERTICES) {
+        if (!is_banner(piece)) {
             continue;
         }
         uint32_t open = piece.first;
@@ -537,6 +609,22 @@ void anchor(uint32_t start, uint32_t end) {
             close++;
         }
         spans[span_count++] = Span{ open, close };
+        if (piece.last > piece.first) {
+            if (!g_letters_kept) {
+                g_letters_kept = keep_letters(piece.first + 1, close);
+            }
+        }
+        else if (letters_kept && replay_at == count) {
+            replay_at = piece.first + 1;
+            while (replay_at < close && is_triangle(g_cmds[replay_at])) {
+                replay_at++;
+            }
+            replay_box = piece.box;
+            replay_end = close;
+            for (int q = p + 1; q < pieces && !g_pieces[q].models && g_pieces[q].box.inside(replay_box); q++) {
+                replay_end = g_pieces[q].last + 1;
+            }
+        }
     }
     int next_span = 0;
     bool banner_group = false;
@@ -546,10 +634,34 @@ void anchor(uint32_t start, uint32_t end) {
     for (uint32_t i = 0; i < count; i++) {
         Cmd& cmd = g_cmds[i];
         uint32_t op = cmd.w0 >> 24;
+        if (i == replay_at) {
+            for (uint32_t m = 0; m < g_letter_mtx_count; m++) {
+                for (uint32_t w = 0; w < MTX_SIZE / 4; w++) {
+                    wr_w(matrices + m * MTX_SIZE + w * 4, g_letter_mtx[m][w]);
+                }
+            }
+            for (uint32_t k = 0; k < g_letter_count; k++) {
+                int m = g_letter_mtx_of[k];
+                out.put(g_letter_cmds[k][0], m < 0 ? g_letter_cmds[k][1] : (matrices + m * MTX_SIZE) & 0x1FFFFFFF);
+            }
+        }
         if (banner_group && i >= banner_close) {
             gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
             out.put(c, 1);
             banner_group = false;
+        }
+        if (i >= replay_at && i < replay_end && (op == G_TEXRECT || op == G_TEXRECTFLIP)) {
+            Box rect;
+            rect.add(float((cmd.w1 >> 12) & 0xFFF) / 4.0f, float(cmd.w1 & 0xFFF) / 4.0f);
+            rect.add(float((cmd.w0 >> 12) & 0xFFF) / 4.0f, float(cmd.w0 & 0xFFF) / 4.0f);
+            if (rect.inside(replay_box)) {
+                // With its texture coordinates and steps.
+                while (i + 1 < count && ((g_cmds[i + 1].w0 >> 24) == G_RDPHALF_1 ||
+                                         (g_cmds[i + 1].w0 >> 24) == G_RDPHALF_2)) {
+                    i++;
+                }
+                continue;
+            }
         }
         if (next_span < span_count && i >= spans[next_span].open) {
             if (sign_group) {
