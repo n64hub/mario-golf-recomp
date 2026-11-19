@@ -71,7 +71,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   changes (func_80069D08). Each pass yields (`us.toml`). Without the first three the game hangs on a black screen at
   boot, and without the last Training froze on its course screen. A new hang with every other game thread waiting in `osRecvMesg` is another such
   loop: `--stacks <seconds>` prints every thread's stack that often on Windows (`src/main/crash_trace.cpp`), which
-  finds it.
+  finds it. A load the game spreads over frames is done here before the next one is drawn: at Ring Shot's stage select
+  the board's slats close over a change of stage's load and turn to open when it ends, so the loader waits there until
+  they are shut (`src/game/loader.cpp`), or they flashed for a frame.
 - **Renames.** The game has functions of its own named `sin`, `cos`, `tan`, `atan`, `atan2` and `main`, which N64Recomp
   renames (`us.toml`), and a call of address 0 that never runs, nopped.
 - **Microcodes.** Graphics: F3DEX2, which RT64 knows. Audio: `n_aspMain`, recompiled by RSPRecomp from

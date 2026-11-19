@@ -61,7 +61,10 @@
 102.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 104.8 shot 16_tournament_main_menu
 
-# Ring Shot: straight into its hole's "Give it a Shot!" flyover, a shot through the rings, Return to Menu.
+# Ring Shot: its stage select's stage changed and changed back, the board's slats closing over each load and opening
+# on the stage it loaded (issue 124: they flashed for a frame; src/game/loader.cpp), then into its hole's "Give it a
+# Shot!" flyover, a shot through the rings, Return to Menu. The slats' way at 0x80243EE4 is 0 while they close, 1 from
+# the load's end, and how far they have closed at 0x80243EE0 is back to 0 when they are open.
 105.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
 106.8 shot 17_character_select
 107.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
@@ -70,6 +73,14 @@
 111.1 shot 19_ring_shot_mode
 111.6 key Space
 112.6 shot 20_ring_shot_pressed
+112.6 until 0x80243EE4 0xFFFFFFFF 0x00000000 15 D
+112.6 until 0x80243EE4 0xFFFFFFFF 0x00000001 15
+112.6 until 0x80243EE0 0xFFFFFFFF 0x00000000 15
+112.6 shot 20a_ring_shot_stage_next
+112.6 until 0x80243EE4 0xFFFFFFFF 0x00000000 15 A
+112.6 until 0x80243EE4 0xFFFFFFFF 0x00000001 15
+112.6 until 0x80243EE0 0xFFFFFFFF 0x00000000 15
+112.6 shot 20b_ring_shot_stage_back
 112.6 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
 113.6 shot 21_ring_shot_open
 113.6 until 0x800B5FF8 0xFF000000 0x00000000 60 Space

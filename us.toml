@@ -57,6 +57,15 @@ func = "func_80069D08"
 before_vram = 0x80069D5C
 text = "{ void yield_self(uint8_t*); yield_self(rdram); }"
 
+# The end of func_80069D08's loads, before it sets its done flag (0x800C3FA8): at Ring Shot's stage select, a change of
+# stage closes the board's slats over the load and the done flag opens them, so while they are closing it yields until
+# they are shut, as a console's slower load lets them (src/game/loader.cpp); without it they turned back after one
+# frame, two corner pieces flashing at the top.
+[[patches.hook]]
+func = "func_80069D08"
+before_vram = 0x80069ED8
+text = "{ void mg_load_end(uint8_t*); mg_load_end(rdram); }"
+
 # The main loop's call of address 0 (a debug library's function the release doesn't link), with a0 = 100, made only
 # while the byte at 0x800B67C8 is 2. Nothing sets it but the graphics callback, from 1 to 2 when A, B, L and R are held,
 # and nothing sets it to 1, so the call never runs; N64Recomp needs a function to call there, and it calls nothing.
