@@ -31,12 +31,13 @@
 // it, at 0x800E21D0 and on, 0x1E0 bytes a player, under matrices that never change. RT64 draws between the game's frames
 // by blending matrices, and with no group it leaves vertices as the game's next frame has them, so the sign stepped at
 // the game's rate while the rest moved at the display's. So its vertex load is put in an RT64 matrix group of its own
-// whose vertices RT64 interpolates (everything else as with no group), closed before the next load.
+// whose vertices RT64 interpolates (everything else as with no group), closed before the next load. The banner a shot
+// comes to rest under, a quad with a model for each letter, spins and scales in and out over the course: its models
+// are one piece, so its letters stay on it in a wide picture, and one matrix group, so they keep their places on it in
+// the frames between the game's (anchor() says why).
 
 #include <cstdint>
 #include <cstring>
-#include <cstdio>
-#include <cstdlib>
 
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
@@ -62,6 +63,8 @@ constexpr uint32_t SIGN_VTX_W0 = 0x0101E03C;
 constexpr uint32_t SIGN_VERTICES = 0x800E21D0, SIGN_VERTICES_SIZE = 4 * 0x1E0;
 // Its matrix group's ID, away from the other groups' (src/game/backdrop.cpp's sky is 0x4D47534B).
 constexpr uint32_t SIGN_GROUP_ID = 0x4D475347;
+// The shot's banner's.
+constexpr uint32_t BANNER_GROUP_ID = 0x4D474252;
 // The HUD's scissor, set before it.
 constexpr int MG_HUD_SCISSOR_ULX = 8, MG_HUD_SCISSOR_ULY = 8, MG_HUD_SCISSOR_LRX = 312, MG_HUD_SCISSOR_LRY = 232;
 
@@ -275,13 +278,21 @@ struct Piece {
     Box box;
     bool models = false;
     uint32_t origin = G_EX_ORIGIN_NONE;
+    // Its first and last drawing commands, and how many models it holds.
+    uint32_t first = 0, last = 0;
+    int model_count = 0;
 };
+
+// Commands from open to close (not included) drawn in a matrix group: a piece of models drawn over one another.
+struct Span {
+    uint32_t open, close;
+};
+constexpr int MAX_SPANS = 8;
 
 Cmd g_cmds[MAX_COMMANDS];
 Piece g_pieces[MAX_COMMANDS];
 
 uint32_t g_start;
-bool g_dbg_joined = false;
 bool g_open = false;
 uint32_t g_next_buffer = 0;
 
@@ -436,46 +447,25 @@ void anchor(uint32_t start, uint32_t end) {
         // by where they lay on their own went to the picture's sides while the quad stayed in the middle.
         if (pieces > 0 && !model && !g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.near(box)) {
             g_pieces[pieces - 1].box.add(box);
+            g_pieces[pieces - 1].last = i;
             continue;
         }
         if (pieces > 0 && model && g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.overlaps_middle(box)) {
             g_pieces[pieces - 1].box.add(box);
-            g_dbg_joined = true;
+            g_pieces[pieces - 1].last = i;
+            g_pieces[pieces - 1].model_count++;
             continue;
         }
         g_pieces[pieces] = Piece{};
         g_pieces[pieces].box = box;
         g_pieces[pieces].models = model;
+        g_pieces[pieces].first = g_pieces[pieces].last = i;
+        g_pieces[pieces].model_count = model ? 1 : 0;
         cmd.piece = pieces++;
     }
     if (pieces == 0) {
         return;
     }
-    // DEBUG (temporary): the commands of a frame where models joined.
-    static const bool dbg = getenv("MG_HUD_LOG") != nullptr;
-    static int dbg_frame = 0;
-    dbg_frame++;
-    if (dbg && g_dbg_joined) {
-        Rsp r2;
-        r2.viewport(MG_HUD_VIEWPORT);
-        for (uint32_t i = 0; i < count; i++) {
-            const Cmd& cmd = g_cmds[i];
-            uint32_t op = cmd.w0 >> 24;
-            fprintf(stderr, "HUD %d %u %02X %08X %08X p%d", dbg_frame, i, op, cmd.w0, cmd.w1, cmd.piece);
-            if (op == G_MTX && resolve(cmd.w1) != 0) {
-                Mat m = read_mtx(resolve(cmd.w1));
-                fprintf(stderr, " m %.3f %.3f %.3f %.3f t %.2f %.2f %.2f", m.m[0][0], m.m[0][1], m.m[1][0], m.m[1][1], m.m[3][0], m.m[3][1], m.m[3][2]);
-                r2.matrix(cmd.w0, cmd.w1);
-            }
-            if (op == G_POPMTX) r2.pop(cmd.w1);
-            Box b;
-            if (op == G_VTX) b = r2.vertices(cmd.w0, cmd.w1);
-            if (op == G_DL) b = r2.call(resolve(cmd.w1), 0);
-            if (!b.empty()) fprintf(stderr, " box %.1f %.1f %.1f %.1f", b.x0, b.y0, b.x1, b.y1);
-            fprintf(stderr, "\n");
-        }
-    }
-    g_dbg_joined = false;
     for (int p = 0; p < pieces; p++) {
         Piece& piece = g_pieces[p];
         float middle = (piece.box.x0 + piece.box.x1) * 0.5f;
@@ -516,10 +506,65 @@ void anchor(uint32_t start, uint32_t end) {
     uint32_t rect_origin = G_EX_ORIGIN_NONE;
     uint32_t vp_origin = G_EX_ORIGIN_NONE;
     const Cmd* last_scissor = nullptr;
+    // The banner a shot comes to rest under: its quad's matrix (rotation and scale) loaded, then each letter's place on
+    // it multiplied on, its quad drawn and the matrix popped. RT64 left to itself blends each matrix's position only
+    // while it keeps its pace (rt64_transform_group.h), so as the banner spun and scaled in or out, a letter now and
+    // then jumped to its next place in the frames between the game's while the rest were blended, and stood over its
+    // neighbour or under the line. So a piece of models drawn over one another is put in a matrix group, from the
+    // matrix before its first model to the next matrix or piece after its last: its matrices blended whole, their
+    // positions always, paired by their order (the quad's first, then the letters'), as golfer.cpp does a golfer's.
+    Span spans[MAX_SPANS];
+    int span_count = 0;
+    for (int p = 0; p < pieces && span_count < MAX_SPANS; p++) {
+        const Piece& piece = g_pieces[p];
+        if (!piece.models || piece.model_count < 2) {
+            continue;
+        }
+        uint32_t open = piece.first;
+        for (uint32_t j = piece.first; j > 0 && piece.first - j < 8; j--) {
+            const Cmd& before = g_cmds[j - 1];
+            if (before.piece >= 0 || (span_count > 0 && j - 1 < spans[span_count - 1].close)) {
+                break;
+            }
+            if ((before.w0 >> 24) == G_MTX && (before.w0 & G_MTX_PROJECTION) == 0) {
+                open = j - 1;
+                break;
+            }
+        }
+        uint32_t close = piece.last + 1;
+        while (close < count && (g_cmds[close].w0 >> 24) != G_MTX && g_cmds[close].piece < 0) {
+            close++;
+        }
+        spans[span_count++] = Span{ open, close };
+    }
+    int next_span = 0;
+    bool banner_group = false;
+    uint32_t banner_close = 0;
+
     bool sign_group = false;
     for (uint32_t i = 0; i < count; i++) {
         Cmd& cmd = g_cmds[i];
         uint32_t op = cmd.w0 >> 24;
+        if (banner_group && i >= banner_close) {
+            gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+            out.put(c, 1);
+            banner_group = false;
+        }
+        if (next_span < span_count && i >= spans[next_span].open) {
+            if (sign_group) {
+                gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+                out.put(c, 1);
+                sign_group = false;
+            }
+            gEXMatrixGroupSimple(c, BANNER_GROUP_ID, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_INTERPOLATE,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_AUTO, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_AUTO);
+            out.put(c, 2);
+            banner_group = true;
+            banner_close = spans[next_span].close;
+            next_span++;
+        }
         // The sign's group ends before the next load, which would take it.
         if (sign_group && (op == G_VTX || op == G_DL)) {
             gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
@@ -575,7 +620,7 @@ void anchor(uint32_t start, uint32_t end) {
         }
         out.put(cmd.w0, cmd.w1);
     }
-    if (sign_group) {
+    if (sign_group || banner_group) {
         gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
         out.put(c, 1);
     }
