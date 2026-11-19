@@ -38,14 +38,14 @@ constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SE
 constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6;
 // G_SETOTHERMODE_H's cycle type (G_MDSFT_CYCLETYPE) and its copy and fill values; black as a fill of 16-bit pixels.
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
-// Past iris.cpp's buffers: 16 of 0x100 bytes.
-constexpr uint32_t BUFFER_BASE = 0x80790000, BUFFER_SIZE = 0x100, BUFFER_COUNT = 16;
+// Past billboard.cpp's buffers: 16 of 0x100 bytes.
+constexpr uint32_t BUFFER_BASE = 0x807B0000, BUFFER_SIZE = 0x100, BUFFER_COUNT = 16;
 
 // The overlay table (the game's loader sets the byte at the head of an overlay's entry while it is loaded), a hole's
 // overlay and the end credits'.
 constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28, HOLE_OVERLAY = 2, INTRO_OVERLAY = 9, CREDITS_OVERLAY = 16;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
-constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 304 * 224 * 2, GAME_RAM = 0x00800000;
+constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 240 * 2, GAME_RAM = 0x00800000;
 
 // The border's scissor and the screen's, as G_SETSCISSOR's coordinates (quarter pixels). The game sets the screen's
 // itself too (around its clears), so the one made here carries a mark in a bit of the second word neither the RDP nor
@@ -110,7 +110,7 @@ void scissor(uint32_t addr) {
 
 // The black the border's lines are filled with in a frame that draws the game's own copy of the course (the pause's
 // picture): the commands before the copy's first strip, then the strip and a return. RDRAM above the 4 MB the game uses,
-// past iris.cpp's buffers, used in turn: the renderer may read a list a frame or more after the game sends it.
+// past billboard.cpp's buffers, used in turn: the renderer may read a list a frame or more after the game sends it.
 void black_border(uint32_t addr) {
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
@@ -155,16 +155,10 @@ void rect(uint32_t addr) {
         (rd_w(addr + 8) >> 24) != G_RDPHALF_1 || (rd_w(addr + 16) >> 24) != G_RDPHALF_2) {
         return;
     }
-    if (g_texture >= GAME_COPY && g_texture < GAME_COPY_END) {
-        if (!g_blacked) {
-            g_blacked = true;
-            black_border(addr);
-        }
-        return;
-    }
+    bool game_copy = g_texture >= GAME_COPY && g_texture < GAME_COPY_END;
     // A strip wholly above the border has its bottom above the screen's top, which wraps past its bottom (lry is
     // unsigned): left as it is.
-    if (uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
+    if (!game_copy && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
         // t is 10.5 fixed point, dtdy 5.10: a row of the rectangle steps t by dtdy / 32.
         uint32_t half1 = rd_w(addr + 12);
         int32_t t = int16_t(half1 & 0xFFFF);
@@ -182,7 +176,7 @@ void rect(uint32_t addr) {
     bool copy = g_cycle == G_CYC_COPY;
     uint32_t inside = copy ? 4 : 0;
     w0 = rd_w(addr);
-    if (lry == BORDER_BOTTOM - inside) {
+    if (!game_copy && lry == BORDER_BOTTOM - inside) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
     }
     // Its sides at the screen's, its texture's start moved back with its left: s is 10.5 fixed point and dsdx 5.10, so
@@ -201,6 +195,10 @@ void rect(uint32_t addr) {
         w0 = (w0 & ~(0xFFFu << 12)) | ((lrx + SCREEN_RIGHT - BORDER_RIGHT) << 12);
     }
     wr_w(addr, w0);
+    if (game_copy && !g_blacked) {
+        g_blacked = true;
+        black_border(addr);
+    }
 }
 
 void walk(uint32_t list, int depth) {
