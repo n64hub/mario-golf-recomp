@@ -46,10 +46,10 @@ void walk(uint32_t list, int depth, int& budget) {
             break;
         }
         case 0xFF: fprintf(g_log, "%*sCIMG w%u %08X\n", depth * 2, "", (w0 & 0xFFF) + 1, w1); break;
-        case 0xFE: fprintf(g_log, "%*sZIMG %08X\n", depth * 2, "", w1); break;
-        case 0xF7: fprintf(g_log, "%*sFILLCOLOR %08X\n", depth * 2, "", w1); break;
-        case 0xF9: fprintf(g_log, "%*sBLENDCOLOR %08X\n", depth * 2, "", w1); break;
-        case 0xFA: fprintf(g_log, "%*sPRIMCOLOR %08X\n", depth * 2, "", w1); break;
+        case 0xFE: if(0) fprintf(g_log, "%*sZIMG %08X\n", depth * 2, "", w1); break;
+        case 0xF7: if(0) fprintf(g_log, "%*sFILLCOLOR %08X\n", depth * 2, "", w1); break;
+        case 0xF9: if(0) fprintf(g_log, "%*sBLENDCOLOR %08X\n", depth * 2, "", w1); break;
+        case 0xFA: if(0) fprintf(g_log, "%*sPRIMCOLOR %08X\n", depth * 2, "", w1); break;
         case 0xED:
             fprintf(g_log, "%*sSCISSOR %.2f,%.2f %.2f,%.2f\n", depth * 2, "", qx(w0), qy(w0), qx(w1), qy(w1));
             break;
@@ -57,6 +57,7 @@ void walk(uint32_t list, int depth, int& budget) {
             fprintf(g_log, "%*sFILLRECT %.2f,%.2f %.2f,%.2f\n", depth * 2, "", qx(w1), qy(w1), qx(w0), qy(w0));
             break;
         case 0xE4: case 0xE5:
+            if (!((w1 & 0xFFF) <= 32 || (w0 & 0xFFF) >= 924)) break;
             fprintf(g_log, "%*sTEXRECT %.2f,%.2f %.2f,%.2f\n", depth * 2, "", qx(w1), qy(w1), qx(w0), qy(w0));
             break;
         case 0xDC:
@@ -69,8 +70,8 @@ void walk(uint32_t list, int depth, int& budget) {
                 }
             }
             break;
-        case 0xDA: fprintf(g_log, "%*sMTX %02X %08X\n", depth * 2, "", w0 & 0xFF, w1); break;
-        case 0x01: fprintf(g_log, "%*sVTX %u\n", depth * 2, "", (w0 >> 12) & 0xFF); break;
+        case 0xDA: if(0) fprintf(g_log, "%*sMTX %02X %08X\n", depth * 2, "", w0 & 0xFF, w1); break;
+        case 0x01: if(0) fprintf(g_log, "%*sVTX %u\n", depth * 2, "", (w0 >> 12) & 0xFF); break;
         default: break;
         }
     }
@@ -89,7 +90,7 @@ extern "C" void mg_dl_log(uint8_t* rdram, uint32_t list) {
             return;
         }
     }
-    if ((g_frame++ % 45) != 0) {
+    if ((g_frame++ % 1) != 0) {
         return;
     }
     uint32_t mask = 0;
@@ -99,7 +100,7 @@ extern "C" void mg_dl_log(uint8_t* rdram, uint32_t list) {
         }
     }
     fprintf(g_log, "=== frame %u overlays %05X list %08X\n", g_frame - 1, mask, list);
-    int budget = 20000;
+    int budget = 400000;
     walk(list | 0x80000000u, 0, budget);
     fflush(g_log);
 }
