@@ -1,2 +1,0 @@
-- **The end credits' cuts:** at a display rate above the game's 30, a frame drawn between two of the game's own as the credits cut from one golfer to the next showed the next golfer partway from one camera to the other. The cut is now drawn as a cut.
-- **A ball's flight:** a frame drawn between two of the game's own could stretch the ball's tracer into a large light-grey triangle across the course. The tracer is now drawn between frames only when all of it moved together, and otherwise where the game puts it.
