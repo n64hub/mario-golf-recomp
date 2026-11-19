@@ -1,1 +1,0 @@
-- **The title and the menus fill a 4:3 window:** in a window of the game's own 4:3 shape (or narrower), the title, the main menu and the menus after it kept a thin black band at the top and at the bottom, about 1% of the height. They now fill the height as they do in a wide window, the sides losing 3 of the 320 columns at each edge, inside the game's own border.
