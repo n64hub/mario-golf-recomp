@@ -215,10 +215,16 @@
 # The end credits, which a round can't reach in minutes: from Speed Golf's round the round's state machine is set
 # to its credits state (0x801B6088 = 7, 0x800C30AC = 0xF) and the fade between (scene 0xC at 0x800BB020) let through
 # (0x800C401C = 0), then the credits (scene 0x1E) play whole, the names rising beside the course in its box, until
-# their timer (0x801F89A4) passes 0xE00, and the Congratulations picture fades in.
+# their timer (0x801F89A4) passes 0xE00, and the Congratulations picture fades in. The golfers the box shows are a
+# rotation of all 18 from the one played, which the credits' start (func_ovl16_801F4B9C) shuffles with 160 calls of
+# rand() unless debug flag 0x99 is on (func_800299F4, the flags' bits from 0x801052F8, 0x80 the first): the plan sets
+# it (0x40 in 0x8010530B, its only reader that shuffle) and seeds rand() (its state at 0x800FBD30, which the credits
+# also draw on for their shots) as the fade is let through, so every window shows the same golfers in the same order.
 275.7 poke 0x801B6088 7
 275.7 poke 0x800C30AC 0xF
 275.7 until 0x800BB020 0xFFFFFFFF 0xC 30
+275.7 or 0x80105308 0x40
+275.7 poke 0x800FBD30 1
 275.7 poke 0x800C401C 0
 275.7 until 0x800BB020 0xFFFFFFFF 0x1E 60
 278.7 shot 71_credits_start
