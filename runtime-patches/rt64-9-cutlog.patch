@@ -1,5 +1,5 @@
---- a/src/hle/rt64_game_frame.cpp	2026-11-19 14:08:54.231767100 +0100
-+++ b/src/hle/rt64_game_frame.cpp	2026-11-19 14:15:10.752215900 +0100
+--- a/src/hle/rt64_game_frame.cpp	2026-11-19 14:38:14.803403800 +0100
++++ b/src/hle/rt64_game_frame.cpp	2026-11-19 14:38:14.072935700 +0100
 @@ -3,6 +3,7 @@
  //
  
@@ -8,7 +8,40 @@
  
  #include "common/rt64_math.h"
  
-@@ -333,6 +334,7 @@
+@@ -283,9 +284,11 @@
+ #if RT64_SKIP_CAMERA_CUTS
+     // Whether a perspective camera cut from one shot to another between two game frames, rather than moved: it turned
+     // more than 45 degrees in one game frame, or its eye jumped more than 8 of its near plane's distances and more than 4
+-    // times as far as it moved the frame before. eyeStep is set to how far the eye moved, in near plane distances, for
+-    // the next frame's check, or 0 after a cut, and to 0 for a camera these can't be read from (no near plane, a matrix
+-    // that isn't finite or can't be inverted), which is never called a cut.
++    // times as far as it moved the frame before, or it held still the frame before (its eye moved less than a twentieth
++    // of a near plane distance) and now turned more than 20 degrees or jumped more than 4. eyeStep is set to how far the
++    // eye moved, in near plane distances, for the next frame's check, or to -1 (not known) after a cut and for a camera
++    // these can't be read from (no near plane, a matrix that isn't finite or can't be inverted), which is never called a
++    // cut; prevEyeStep is -1 when the frame before's isn't known.
+     //
+     // A game that draws its frames with no matrix groups of its own pairs the camera of each frame with the one before,
+     // and RT64's frames between drew the cut halfway: Mario Golf cuts from the golfer to the ball and from the ball to
+@@ -293,13 +296,16 @@
+     // between drew its trees stretched to several times their height for a frame. Its cameras that move (its flyovers,
+     // the ball's flight) moved at most about 7 near plane distances and turned at most about 24 degrees a game frame, and
+     // its fastest moved as fast for many frames running, which the second check's ratio to the frame before leaves out.
++    // Its end credits cut from one golfer's shot to the next, each shot a camera that holds still, by turning it 30-43
++    // degrees and moving its eye 1-7 near plane distances, under both of those, and the frames between drew the next
++    // golfer partway from one camera to the other: a camera that moves from rest by that much in one game frame cut.
+     //
+     // The turn is the whole turn from one camera to the other, the angle of the rotation between their axes, and not only
+     // how far the way the camera looks moved: San Francisco Rush 2049's attract race cuts between cameras that look
+     // straight down at the cars by rolling about the way they look, turning the picture 86-180 degrees, which left the
+     // way they look where it was.
+     static bool isCameraCut(const hlslpp::float4x4 &curView, const hlslpp::float4x4 &curProj, const hlslpp::float4x4 &prevView, float prevEyeStep, float &eyeStep) {
+-        eyeStep = 0.0f;
++        eyeStep = -1.0f;
+ 
+         // The near plane's distance from a GL-style perspective (w = z * m23), whatever the scale it was built at.
+         const float nearDenominator = float(curProj[2][2]) + float(curProj[2][3]);
+@@ -333,6 +339,7 @@
              return false;
          }
  
@@ -16,7 +49,22 @@
          const float MaxTurnCosine = 0.7071f;
          const float MinJump = 8.0f;
          const float MinJumpRatio = 4.0f;
-@@ -1494,6 +1496,7 @@
+@@ -340,6 +347,14 @@
+             return true;
+         }
+ 
++        const float MaxStillStep = 0.05f;
++        const float MaxStillTurnCosine = 0.9397f;
++        const float MinStillJump = 4.0f;
++        const bool wasStill = (prevEyeStep >= 0.0f) && (prevEyeStep < MaxStillStep);
++        if (wasStill && ((turnCosine < MaxStillTurnCosine) || (step > MinStillJump))) {
++            return true;
++        }
++
+         eyeStep = step;
+         return false;
+     }
+@@ -1494,12 +1509,13 @@
                  }
                  else {
                      viewProjMap.mapped = (curProjGroup.matrixId == G_EX_ID_AUTO);
@@ -24,17 +72,49 @@
  #               if RT64_SKIP_CAMERA_CUTS
                      // A camera the game gives no matrix group of its own that cut to another shot pairs with nothing,
                      // and neither does anything its scene draws: the frames between draw the new frame as it is, where
+                     // a cut drawn halfway put the world between two places (isCameraCut()).
+                     if (viewProjMap.mapped && (curProj.type == Projection::Type::Perspective) && (prevProj.type == Projection::Type::Perspective)) {
+-                        float prevEyeStep = 0.0f;
++                        float prevEyeStep = -1.0f;
+                         if (firstPrevWorkloadMap != nullptr) {
+                             prevEyeStep = firstPrevWorkloadMap->viewProjections[prevProj.transformsIndex].eyeStep;
+                         }
+--- a/src/hle/rt64_game_frame.h	2026-11-19 14:38:22.726292100 +0100
++++ b/src/hle/rt64_game_frame.h	2026-11-19 14:38:14.304434100 +0100
+@@ -49,8 +49,8 @@
+             bool mapped = false;
+ 
+             // How far the camera's eye moved from the game frame before, in its near plane's distances, for the next
+-            // frame's cut check (RT64_SKIP_CAMERA_CUTS); 0 after a cut, or with no frame before.
+-            float eyeStep = 0.0f;
++            // frame's cut check (RT64_SKIP_CAMERA_CUTS); -1 when that isn't known (after a cut, or with no frame before).
++            float eyeStep = -1.0f;
+         };
+ 
+         struct TransformMap {
 --- a/src/render/rt64_projection_processor.cpp	2026-11-19 14:10:01.504534400 +0100
-+++ b/src/render/rt64_projection_processor.cpp	2026-11-19 14:15:11.422109900 +0100
-@@ -2,6 +2,7 @@
++++ b/src/render/rt64_projection_processor.cpp	2026-11-19 14:38:14.611052600 +0100
+@@ -2,6 +2,8 @@
  // RT64
  //
  
++#include <algorithm>
 +#include <cstdio>
  #include "rt64_projection_processor.h"
  
  #include "common/rt64_math.h"
-@@ -107,6 +108,7 @@
+@@ -37,8 +39,8 @@
+     // can pair a projection with an equal one the writes didn't go through (Mario Golf's flagstick writes, through its
+     // sixth projection, which the map paired with the frame before's third, of none). Each pair is drawn between its
+     // two by the frame's weight, in the quarter pixels the RSP takes. A projection the map pairs with none (a camera
+-    // cut, RT64_SKIP_CAMERA_CUTS) leaves its writes the game's, and so does a pair further apart than half the view,
+-    // which is no motion of one thing between two frames. Returns whether any write was paired, so the copy is
++    // cut, RT64_SKIP_CAMERA_CUTS) leaves its writes the game's, and so does a group whose writes didn't move together
++    // (below), which is no motion of one thing between two frames. Returns whether any write was paired, so the copy is
+     // uploaded in every present of the frame, its last (weight 1) included, which puts the game's own positions back
+     // over the frames between.
+     bool ProjectionProcessor::interpolateScreenWrites(const ProcessParams &p, uint32_t w, std::vector<uint32_t> &modifyPosUints) {
+@@ -107,33 +109,70 @@
                  prevGroup = &prevWrites[g].second;
              }
  
@@ -42,14 +122,83 @@
              if (prevGroup == nullptr) {
                  continue;
              }
-@@ -132,6 +134,10 @@
-                     return uint32_t(uint16_t(int16_t(rounded)));
-                 };
  
-+                if ((std::abs(curX - prevX) > maxDx / 8.0f) || (std::abs(curY - prevY) > maxDy / 8.0f)) {
-+                    fprintf(stderr, "MGSCRBIG k=%zu cur=%g,%g prev=%g,%g max=%g,%g", k, curX, curY, prevX, prevY, maxDx, maxDy); fputc(10, stderr);
-+                }
++            // The group is paired whole or not at all, and only when its writes moved together: each no further from the
++            // group's median motion than an eighth of the view each way, and none further than half the view. A game that
++            // draws a strip of quads from a few vertices it writes again and again (Mario Golf's ball tracer) writes a
++            // varying number of them in a varying order, so two frames' groups of one size can be other quads, and a pair
++            // of the wrong ones drawn between stretched a quad across the picture; and a pair left out of a group that
++            // moved by about the limit left that quad's other corners drawn between, a quad as long as half the view.
+             const interop::RSPViewport &viewport = curData.rspViewports[t];
+             const float maxDx = std::abs(float(viewport.scale.x)) * 4.0f;
+             const float maxDy = std::abs(float(viewport.scale.y)) * 4.0f;
+-            for (size_t k = 0; k < curGroup.size(); k++) {
+-                const size_t m = curGroup[k];
+-                const uint32_t curValue = curData.modifyPosUints[m + 1];
+-                const uint32_t prevValue = prevData.modifyPosUints[(*prevGroup)[k] + 1];
+-                const float curX = float(int16_t((curValue >> 16) & 0xFFFF));
+-                const float curY = float(int16_t(curValue & 0xFFFF));
+-                const float prevX = float(int16_t((prevValue >> 16) & 0xFFFF));
+-                const float prevY = float(int16_t(prevValue & 0xFFFF));
+-                if ((std::abs(curX - prevX) > maxDx) || (std::abs(curY - prevY) > maxDy)) {
+-                    continue;
++            auto unpack = [](uint32_t value, float &x, float &y) {
++                x = float(int16_t((value >> 16) & 0xFFFF));
++                y = float(int16_t(value & 0xFFFF));
++            };
 +
-                 const float x = prevX + (curX - prevX) * p.curFrameWeight;
-                 const float y = prevY + (curY - prevY) * p.curFrameWeight;
++            thread_local std::vector<float> moveX;
++            thread_local std::vector<float> moveY;
++            moveX.resize(curGroup.size());
++            moveY.resize(curGroup.size());
++            bool together = true;
++            for (size_t k = 0; (k < curGroup.size()) && together; k++) {
++                float curX, curY, prevX, prevY;
++                unpack(curData.modifyPosUints[curGroup[k] + 1], curX, curY);
++                unpack(prevData.modifyPosUints[(*prevGroup)[k] + 1], prevX, prevY);
++                moveX[k] = curX - prevX;
++                moveY[k] = curY - prevY;
++                together = (std::abs(moveX[k]) <= maxDx) && (std::abs(moveY[k]) <= maxDy);
++            }
++
++            if (together && (curGroup.size() > 1)) {
++                thread_local std::vector<float> sorted;
++                const size_t middle = curGroup.size() / 2;
++                sorted = moveX;
++                std::nth_element(sorted.begin(), sorted.begin() + middle, sorted.end());
++                const float medianX = sorted[middle];
++                sorted = moveY;
++                std::nth_element(sorted.begin(), sorted.begin() + middle, sorted.end());
++                const float medianY = sorted[middle];
++                for (size_t k = 0; (k < curGroup.size()) && together; k++) {
++                    together = (std::abs(moveX[k] - medianX) <= (maxDx / 4.0f)) && (std::abs(moveY[k] - medianY) <= (maxDy / 4.0f));
+                 }
++            }
+ 
+-                auto quarters = [](float v) {
+-                    int32_t rounded = int32_t(v + ((v >= 0.0f) ? 0.5f : -0.5f));
+-                    rounded = (rounded < -32768) ? -32768 : ((rounded > 32767) ? 32767 : rounded);
+-                    return uint32_t(uint16_t(int16_t(rounded)));
+-                };
++            if (!together) {
++                fprintf(stderr, "MGSCRDROP t=%u n=%zu", t, curGroup.size()); fputc(10, stderr);
++                continue;
++            }
++
++            auto quarters = [](float v) {
++                int32_t rounded = int32_t(v + ((v >= 0.0f) ? 0.5f : -0.5f));
++                rounded = (rounded < -32768) ? -32768 : ((rounded > 32767) ? 32767 : rounded);
++                return uint32_t(uint16_t(int16_t(rounded)));
++            };
+ 
+-                const float x = prevX + (curX - prevX) * p.curFrameWeight;
+-                const float y = prevY + (curY - prevY) * p.curFrameWeight;
++            for (size_t k = 0; k < curGroup.size(); k++) {
++                const size_t m = curGroup[k];
++                float prevX, prevY;
++                unpack(prevData.modifyPosUints[(*prevGroup)[k] + 1], prevX, prevY);
++                const float x = prevX + moveX[k] * p.curFrameWeight;
++                const float y = prevY + moveY[k] * p.curFrameWeight;
                  modifyPosUints[m + 1] = (quarters(x) << 16) | quarters(y);
+                 pairedAny = true;
+             }
