@@ -12,7 +12,8 @@
 // screen, each placed by a modelview matrix. So the commands are followed as the RSP would (the matrices, the viewport,
 // the vertices, the display lists they call) to know where on the screen each draws, and they are split into pieces:
 // a rectangle joins the piece before it when it lies within a few pixels of it, so a number stays with its label and
-// the meter with its marks, and each model is a piece of its own. A piece across the middle of the screen, or near it,
+// the meter with its marks, and each model is a piece of its own, but for one drawn over another (the shot's banner and
+// its letters as it spins). A piece across the middle of the screen, or near it,
 // stays where the game draws it; one left of it is placed from the left side and one right of it from the right
 // (gEXSetRectAlign for its rectangles, gEXSetViewportAlign and the viewport again for its models). A piece placed from
 // a side draws under the game's scissors widened to the picture, a little inside the 3D's border (WIDE_MARGIN). A piece
@@ -149,6 +150,11 @@ struct Box {
             add(b.x0, b.y0);
             add(b.x1, b.y1);
         }
+    }
+    bool contains(float x, float y) const { return !empty() && x >= x0 && x <= x1 && y >= y0 && y <= y1; }
+    // Whether either box's middle lies inside the other.
+    bool overlaps_middle(const Box& b) const {
+        return contains((b.x0 + b.x1) * 0.5f, (b.y0 + b.y1) * 0.5f) || b.contains((x0 + x1) * 0.5f, (y0 + y1) * 0.5f);
     }
     bool near(const Box& b) const {
         return !empty() && !b.empty() && b.x0 <= x1 + PIECE_GAP && x0 <= b.x1 + PIECE_GAP && b.y0 <= y1 + PIECE_GAP &&
@@ -409,8 +415,15 @@ void anchor(uint32_t start, uint32_t end) {
         }
         // Rectangles join the piece before them when they lie near it. A model is a piece of its own: the shot type's
         // arc, the club's head, the meter's marker and the lie are each within a few pixels of the next and of the
-        // meter, so joined they made one piece across the middle.
+        // meter, so joined they made one piece across the middle. But a model joins the models before it when the
+        // middle of one lies inside the other: the banner a shot comes to rest under (ROUGH, ON GREEN, its distance)
+        // spins and scales in and out as a black quad and a model for each letter on it, and the letters each placed
+        // by where they lay on their own went to the picture's sides while the quad stayed in the middle.
         if (pieces > 0 && !model && !g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.near(box)) {
+            g_pieces[pieces - 1].box.add(box);
+            continue;
+        }
+        if (pieces > 0 && model && g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.overlaps_middle(box)) {
             g_pieces[pieces - 1].box.add(box);
             continue;
         }
