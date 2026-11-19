@@ -1,0 +1,1 @@
+- **The opening's sky reaches the top:** the top few lines of the opening (and of the title's replay of it) no longer show grass and trees left over from an earlier picture: the sky goes on to the window's top edge.
