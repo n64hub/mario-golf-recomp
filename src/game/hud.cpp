@@ -107,6 +107,11 @@ void wr_w(uint32_t addr, uint32_t value) {
     *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u)) = value;
 }
 
+void wr_h(uint32_t addr, uint16_t value) {
+    uint32_t w = rd_w(addr);
+    wr_w(addr, (addr & 2) ? ((w & 0xFFFF0000u) | value) : ((w & 0xFFFFu) | (uint32_t(value) << 16)));
+}
+
 // A KSEG0 or segment 0 address in RDRAM (the game's lists use KSEG0 addresses, segment 0); 0 for any other segment.
 uint32_t resolve(uint32_t seg_addr) {
     if ((seg_addr & 0x0F000000) != 0) {
@@ -140,6 +145,15 @@ Mat mul(const Mat& a, const Mat& b) {
         }
     }
     return r;
+}
+
+// Adds to an N64 fixed-point Mtx's element (row i, column j).
+void add_mtx(uint32_t addr, int i, int j, float value) {
+    int idx = i * 4 + j;
+    int32_t old = int32_t((uint32_t(uint16_t(rd_h(addr + idx * 2))) << 16) | uint16_t(rd_h(addr + 32 + idx * 2)));
+    int32_t fixed = old + int32_t(value * 65536.0f);
+    wr_h(addr + idx * 2, uint16_t(uint32_t(fixed) >> 16));
+    wr_h(addr + 32 + idx * 2, uint16_t(uint32_t(fixed) & 0xFFFF));
 }
 
 // An N64 fixed-point Mtx: sixteen integer halves, then sixteen fraction halves.
@@ -579,8 +593,8 @@ void anchor(uint32_t start, uint32_t end) {
     // At rest the game draws the letters as rectangles, level, from the frame the quad comes to its rest, so in the
     // frames between that one and the last the quad turned its last few degrees with the letters already level on it.
     // So on that frame the letters are drawn as the frame before drew them, as models, on the quad at its rest, in
-    // place of its rectangles: RT64 blends them with the quad, and the frame after draws the game's rectangles where
-    // they are.
+    // place of its rectangles, each moved to where its rectangle lies: RT64 blends them with the quad, and the frame
+    // after draws the game's rectangles where the letters are.
     Span spans[MAX_SPANS];
     int span_count = 0;
     // Where the last frame's letters are drawn again: after the triangles of a quad drawn with none (count for nowhere).
@@ -588,6 +602,15 @@ void anchor(uint32_t start, uint32_t end) {
     // The quad it is drawn on, and up to where the game's rectangles on it (its letters at rest) are left out.
     Box replay_box;
     uint32_t replay_end = 0;
+    // Those rectangles, each with its texture's s and t (its G_RDPHALF_1's word), in the order the game draws them.
+    struct LetterRect {
+        Box box;
+        uint32_t st;
+        bool used;
+    };
+    constexpr int MAX_LETTER_RECTS = 64;
+    LetterRect letter_rects[MAX_LETTER_RECTS];
+    int letter_rect_count = 0;
     for (int p = 0; p < pieces && span_count < MAX_SPANS; p++) {
         const Piece& piece = g_pieces[p];
         if (!is_banner(piece)) {
@@ -624,6 +647,19 @@ void anchor(uint32_t start, uint32_t end) {
             for (int q = p + 1; q < pieces && !g_pieces[q].models && g_pieces[q].box.inside(replay_box); q++) {
                 replay_end = g_pieces[q].last + 1;
             }
+            for (uint32_t j = replay_at; j + 1 < replay_end && letter_rect_count < MAX_LETTER_RECTS; j++) {
+                const Cmd& rect = g_cmds[j];
+                if (((rect.w0 >> 24) != G_TEXRECT && (rect.w0 >> 24) != G_TEXRECTFLIP) ||
+                    (g_cmds[j + 1].w0 >> 24) != G_RDPHALF_1) {
+                    continue;
+                }
+                Box box;
+                box.add(float((rect.w1 >> 12) & 0xFFF) / 4.0f, float(rect.w1 & 0xFFF) / 4.0f);
+                box.add(float((rect.w0 >> 12) & 0xFFF) / 4.0f, float(rect.w0 & 0xFFF) / 4.0f);
+                if (box.inside(replay_box)) {
+                    letter_rects[letter_rect_count++] = LetterRect{ box, g_cmds[j + 1].w1, false };
+                }
+            }
         }
     }
     int next_span = 0;
@@ -638,6 +674,66 @@ void anchor(uint32_t start, uint32_t end) {
             for (uint32_t m = 0; m < g_letter_mtx_count; m++) {
                 for (uint32_t w = 0; w < MTX_SIZE / 4; w++) {
                     wr_w(matrices + m * MTX_SIZE + w * 4, g_letter_mtx[m][w]);
+                }
+            }
+            // Each letter moved to its rectangle, the one whose texture starts where the letter's first vertex's does
+            // (the game spaces the letters evenly as they spin and by their widths at rest), so the frames between
+            // blend the spacing too. Where each lands is followed as the RSP would, from this frame's state there.
+            Rsp rsp_at;
+            rsp_at.viewport(MG_HUD_VIEWPORT);
+            for (uint32_t j = 0; j < replay_at; j++) {
+                uint32_t jop = g_cmds[j].w0 >> 24;
+                if (jop == G_MTX) {
+                    rsp_at.matrix(g_cmds[j].w0, g_cmds[j].w1);
+                }
+                else if (jop == G_POPMTX) {
+                    rsp_at.pop(g_cmds[j].w1);
+                }
+                else if (jop == G_DL) {
+                    rsp_at.call(resolve(g_cmds[j].w1), 0);
+                }
+                else if (jop == G_MOVEMEM && (g_cmds[j].w0 & 0xFF) == G_MV_VIEWPORT && resolve(g_cmds[j].w1) != 0) {
+                    rsp_at.viewport(resolve(g_cmds[j].w1));
+                }
+            }
+            int letter_mtx = -1;
+            Box letter_box;
+            for (uint32_t k = 0; k < g_letter_count; k++) {
+                uint32_t w0 = g_letter_cmds[k][0], w1 = g_letter_cmds[k][1];
+                uint32_t kop = w0 >> 24;
+                if (kop == G_MTX) {
+                    letter_mtx = g_letter_mtx_of[k];
+                    rsp_at.matrix(w0, (matrices + letter_mtx * MTX_SIZE) & 0x1FFFFFFF);
+                }
+                else if (kop == G_POPMTX) {
+                    rsp_at.pop(w1);
+                    letter_mtx = -1;
+                }
+                else if (kop == G_VTX) {
+                    letter_box = rsp_at.vertices(w0, w1);
+                }
+                else if (w0 == 0x02140000 && letter_mtx >= 0 && rsp_at.depth > 0 && !letter_box.empty()) {
+                    for (int r = 0; r < letter_rect_count; r++) {
+                        LetterRect& rect = letter_rects[r];
+                        if (rect.used || rect.st != w1) {
+                            continue;
+                        }
+                        rect.used = true;
+                        float dx = rect.box.x0 - letter_box.x0, dy = rect.box.y0 - letter_box.y0;
+                        // The screen's pixels for a unit of the letter's place: its quad's matrix, the projection
+                        // and the viewport (y down).
+                        Mat m = mul(rsp_at.mv[rsp_at.depth - 1], rsp_at.proj);
+                        float a = m.m[0][0] * rsp_at.vp_scale_x, b = m.m[1][0] * rsp_at.vp_scale_x;
+                        float c2 = -m.m[0][1] * rsp_at.vp_scale_y, d = -m.m[1][1] * rsp_at.vp_scale_y;
+                        float det = a * d - b * c2;
+                        if (dx * dx + dy * dy < 24.0f * 24.0f && (det > 1e-6f || det < -1e-6f)) {
+                            uint32_t addr = matrices + letter_mtx * MTX_SIZE;
+                            add_mtx(addr, 3, 0, (d * dx - b * dy) / det);
+                            add_mtx(addr, 3, 1, (a * dy - c2 * dx) / det);
+                        }
+                        break;
+                    }
+                    letter_box = Box{};
                 }
             }
             for (uint32_t k = 0; k < g_letter_count; k++) {
