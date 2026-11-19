@@ -116,7 +116,8 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, puts them where the sun is to a quarter of a pixel rather than the game's whole one, and puts the sky in a matrix group whose clouds RT64 slides
   between the game's frames, `src/game/ball.cpp` draws the ball's sprites, the stars in the view of the cup and the sun's lens flare on into
   the wide picture's sides, where the game cuts them at the screen's, and `src/game/screen.cpp` scales the title and the menus, 2D screens
-  RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, and `src/game/credits.cpp`
+  RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
+  and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
   own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it, both where
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
