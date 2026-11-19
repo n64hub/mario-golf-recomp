@@ -1,1 +1,0 @@
-- **The Save Menu's text stays whole as it slides off:** at a refresh rate above 30, after saving from Save and Quit, each slot's line slides off in one piece. In the frames drawn between the game's own, letters were swapped about, "There is no saved data" shown as "Ther eis nos aved data".
