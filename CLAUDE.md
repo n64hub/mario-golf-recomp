@@ -89,7 +89,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   golfers into RAM for the session, never into the save. The game has the four of its own, which character select
   offers in their place behind debug flag 0x54, with test values for their drivers: the General tab's Game Boy Golfers
   option answers that flag on there alone (`us.toml`), since its other reader unlocks every golfer, and Game Boy
-  Golfers' Stats keeps the drivers the clubs table has for them (Normal) or the test values (Test).
+  Golfers' Stats keeps the drivers the clubs table has for them (Normal) or the test values (Test). A swing reads
+  what the game works out of each club's carry, loft and curve (func_80043EA4), which it copies in at boot for the
+  first 14 golfers only and the link works out for a golfer it reads: `src/game/config.cpp` works out the four's at
+  character select, without which their shots went nowhere.
 - **Threads** (`main.cpp` names them): 0 the PI manager or the VI manager (by priority), 1 idle, 3 the game's main at
   priority 10, 4 NuSystem's graphics thread, 5 its task manager or the controllers (by priority), 17-19 the
   scheduler's threads.

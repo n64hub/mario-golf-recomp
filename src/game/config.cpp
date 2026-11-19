@@ -6,8 +6,6 @@
 // mg_gb_golfers_clubs works out the four golfers' shots once they are in.
 
 #include <cstdint>
-#include <chrono> // TEMP
-#include <cstdio> // TEMP
 #include <filesystem>
 
 #include "recomp.h"
@@ -99,20 +97,20 @@ extern "C" void func_80043EA4(uint8_t* rdram, recomp_context* ctx);
 // as the Transfer Pak's link does for a golfer it reads (func_80044254). The game works out only the first 14 golfers'
 // clubs as it boots (func_800444B8, which copies them from a table of its own), so without this the four's clubs fly
 // nowhere: a swing moved the ball a few hundredths of a yard, and it stayed on the tee all round (issue 90). Each
-// time, since Game Boy Golfers' Stats may have changed their drivers. A copy of the context makes the calls, so the
-// function's registers are as they were.
+// time, since Game Boy Golfers' Stats may have changed their drivers: 40-80 ms, once as character select opens. A copy
+// of the context makes the calls, so the function's registers are as they were. The game's own table isn't this
+// function's answer at character select: run there on the first four golfers' clubs, it came within 0.1% of the table's
+// words, but its halves were others (Plum's driver -216, 6 and -28 against 10, 10 and 15), so it isn't the four's
+// clubs as the developers left the others'; it is what the link gives a linked golfer, made the same way.
 extern "C" void mg_gb_golfers_clubs(uint8_t* rdram, recomp_context* ctx) {
     if (!gb_golfers_on()) {
         return;
     }
-    auto t0 = std::chrono::steady_clock::now(); // TEMP
     recomp_context call = *ctx;
     for (uint32_t club = first_id * 14; club < (first_id + 4) * 14; club++) {
         call.r4 = club;
         func_80043EA4(rdram, &call);
     }
-    static int calls = 0; // TEMP
-    fprintf(stderr, "TEMP gb clubs call %d: %lld us\n", ++calls, (long long)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count()); // TEMP
 }
 
 void mg::init_config() {
