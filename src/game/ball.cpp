@@ -1,31 +1,36 @@
-// The ball and the stars around the cup past the 4:3 frame's sides (RT64's Aspect Ratio Expand): the ball, its shadow,
-// its trail and the ring of stars around the cup go on into the wide picture's sides with the course, rather than being
-// cut along a vertical line at the 4:3 frame's side.
+// The ball, the stars around the cup and the sun's lens flare past the 4:3 frame's sides (RT64's Aspect Ratio Expand):
+// the ball, its shadow, its trail, the ring of stars around the cup and the flare's circles go on into the wide
+// picture's sides with the course, rather than being cut along a vertical line at the 4:3 frame's side.
 //
 // Up close (the view of the cup the game cuts to as a putt reaches it, with no HUD) the ball is not a model: it is
 // texture rectangles drawn where the game works out the ball is on the screen, a sprite of the ball, of its shadow and
 // of each piece of its trail, scaled with the distance (only its printed logo is 3D, quads around the ball's centre).
-// The stars that ring the cup as the ball nears it are texture rectangles too. A rectangle can't start left of the
-// screen, so where one would, the game starts it at 0 and its texture as far in as it cut (and one wholly past the left
-// side at 0 too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0 and 8. RT64 widens the
-// 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that scissor in the 4:3 frame
-// too, so in a wider window the ball and the stars were cut along a vertical line 8 pixels inside the 4:3 frame's side,
-// the course drawn on past it.
+// The stars that ring the cup as the ball nears it are texture rectangles too, and so is each of the eight circles of
+// the sun's lens flare, which the game draws over the course while the sun is in the 4:3 frame, on the line from the
+// sun through the screen's middle (a table at 0x800C6920 gives each its place on that line, its size and its colour),
+// so that as the sun nears a side some of them lie past the other one. A rectangle can't start left of the screen, so
+// where one would, the game starts it at 0 and its texture as far in as it cut (and one wholly past the left side at 0
+// too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0 and 8, and on the right what lies
+// past 312. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that
+// scissor in the 4:3 frame too, so in a wider window the ball, the stars and the flare were cut along a vertical line 8
+// pixels inside the 4:3 frame's side, the course drawn on past it.
 //
 // func_ovl0_801FE370 draws the ball's; func_8002DC10, the frame's drawing, calls it from two places (one per kind of
-// frame it draws), each only while the ball is shown, and func_ovl0_80217164, which draws the stars, from one. They are
-// asm in the decomp, so as with the HUD (src/game/hud.cpp) and the sun's light (src/game/backdrop.cpp) their commands
-// are rewritten rather than the functions copied. us.toml hooks the three calls on both sides: mg_ball_begin notes
-// where the display list's head stands, and mg_ball_end reads what was added since. A rectangle within the 3D's border
-// band (left of 8 or right of 312), or cut at a side, is put back as the game had it before the cut: on the left its
-// texture starts at the tile's own start again, the rectangle as far past the side as that takes (one cut to nothing as
-// wide as its tile); on the right it goes on to the texture's end. It is drawn as RT64's extended texture rectangle
-// stretched to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's own scissor,
-// the 3D's, clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the screen's
-// middle by as much, so it keeps its shape and its place on the course. Those commands go to a buffer of this file's in
-// RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a branch
-// back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no wider
-// than 4:3, nothing changes.
+// frame it draws), each only while the ball is shown, func_ovl0_80217164, which draws the stars, from one, and
+// func_8008D3F4, which draws the flare, right after it; overlay 7 calls the flare too, with the display list's head in
+// a copy on its stack while it draws. They are asm in the decomp, so as with the HUD (src/game/hud.cpp) and the sun's
+// light (src/game/backdrop.cpp) their commands are rewritten rather than the functions copied. us.toml hooks the calls
+// on both sides (the stars' and the flare's as one): mg_ball_begin notes where the display list's head stands, and
+// mg_ball_end reads what was added since, from the word its caller keeps the head in. A rectangle within the 3D's
+// border band (left of 8 or right of 312), or cut at a side, is put back as the game had it before the cut: on the left
+// its texture starts at the tile's own start again, the rectangle as far past the side as that takes (one cut to
+// nothing as wide as its tile); on the right it goes on to the texture's end. It is drawn as RT64's extended texture
+// rectangle stretched to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's
+// own scissor, the 3D's, clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the
+// screen's middle by as much, so it keeps its shape and its place on the course. Those commands go to a buffer of this
+// file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a
+// branch back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no
+// wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
 //
 // RT64 slides 3D between the game's frames to the display's rate (Framerate Display) but draws a rectangle where the
 // game last put it, so as a fast ball rolls its 3D logo can sit a little off the sprite between frames, as it does
@@ -61,7 +66,7 @@ constexpr uint32_t BUFFER_SIZE = 0x40;
 constexpr uint32_t BUFFER_COUNT = 1024;
 // The commands read from the game, at most.
 constexpr uint32_t MAX_COMMANDS = 20000;
-// Rectangles rewritten in one call, at most (the ball, its shadow and its trail, or the stars).
+// Rectangles rewritten in one call, at most (the ball, its shadow and its trail, or the stars and the flare).
 constexpr int MAX_RECTS = 64;
 
 uint8_t* g_rdram;
@@ -208,11 +213,13 @@ extern "C" void mg_ball_begin(uint8_t* rdram) {
     g_open = true;
 }
 
-extern "C" void mg_ball_end(uint8_t* rdram) {
+// head: the word the caller keeps the display list's head in, MG_GFX_HEAD or a copy of it. Each caller copies the head
+// from MG_GFX_HEAD before its call, so mg_ball_begin reads it there.
+extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     if (!g_open) {
         return;
     }
     g_open = false;
     g_rdram = rdram;
-    widen_all(g_start, rd_w(MG_GFX_HEAD));
+    widen_all(g_start, rd_w(head));
 }
