@@ -90,8 +90,9 @@
 # the cup with its stars and the score card, then hole 2's camera swooping in behind the tee and its aim turned right,
 # pressed until the sun's x on the screen (a float at 0x800C5F24) is 256 to 288, then on a tap at a time as the sun's
 # lens flare crosses the 4:3 frame's right side (issue 92: its circles were cut along a vertical line there); then
-# turned back left until the sun's x is -64 to -32, where the game cuts its light off the screen's left side to
-# nothing, and on a tap at a time as it leaves the picture (issue 97: put back twice as wide, it showed a second sun).
+# turned back left until the sun's x is -64 to -96, where the game cuts its light (a square 128 across here) off the
+# screen's left side to nothing, and on a tap at a time as it leaves the picture (issue 97: put back 128 wide whatever
+# the sun's size, a sun of half that size, as in hole 10's drive in Training, showed a second sun beside it).
 133 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
 134.5 shot 28_character_select
 135.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
@@ -128,7 +129,7 @@
 166.3 shot 35g_mini_golf_flare
 166.4 key D 80
 166.8 shot 35h_mini_golf_flare
-166.85 until 0x800C5F24 0xFF800000 0xC2000000 90 A 80 0.3
+166.85 until 0x800C5F24 0xFFC00000 0xC2800000 90 A 80 0.3
 166.9 shot 35i_mini_golf_sun_left
 166.95 key A 80
 167.05 shot 35j_mini_golf_sun_left
