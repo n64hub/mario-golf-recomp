@@ -109,8 +109,10 @@ bool is_billboard(uint32_t addr) {
 // The group's ID: the scale matrix's whole 3x3 (its integer and fraction halves), mixed, away from the IDs RT64
 // reserves and the sky's.
 uint32_t group_id(uint32_t scale) {
+    // The 3x3's words: rows 0 to 2 of the integer halves, then of the fraction halves.
+    static constexpr uint32_t OFFSETS[] = { 0, 4, 8, 12, 16, 20, 32, 36, 40, 44, 48, 52 };
     uint32_t id = 0x42424C44u;
-    for (uint32_t offset : { 0u, 4u, 8u, 12u, 16u, 20u, 32u, 36u, 40u, 44u, 48u, 52u }) {
+    for (uint32_t offset : OFFSETS) {
         id = (id ^ rd_w(scale + offset)) * 0x9E3779B1u;
         id ^= id >> 15;
     }
