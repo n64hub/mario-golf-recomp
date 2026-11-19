@@ -63,7 +63,8 @@ constexpr uint32_t SIGN_VTX_W0 = 0x0101E03C;
 constexpr uint32_t SIGN_VERTICES = 0x800E21D0, SIGN_VERTICES_SIZE = 4 * 0x1E0;
 // Its matrix group's ID, away from the other groups' (src/game/backdrop.cpp's sky is 0x4D47534B).
 constexpr uint32_t SIGN_GROUP_ID = 0x4D475347;
-// The shot's banner's.
+// The shot's banner: its quad's vertex load (4 vertices), whatever it says, and its matrix group's ID.
+constexpr uint32_t BANNER_VTX_W0 = 0x01004008, BANNER_VERTICES = 0x800C5A18;
 constexpr uint32_t BANNER_GROUP_ID = 0x4D474252;
 // The HUD's scissor, set before it.
 constexpr int MG_HUD_SCISSOR_ULX = 8, MG_HUD_SCISSOR_ULY = 8, MG_HUD_SCISSOR_LRX = 312, MG_HUD_SCISSOR_LRY = 232;
@@ -278,12 +279,11 @@ struct Piece {
     Box box;
     bool models = false;
     uint32_t origin = G_EX_ORIGIN_NONE;
-    // Its first and last drawing commands, and how many models it holds.
+    // Its first and last drawing commands.
     uint32_t first = 0, last = 0;
-    int model_count = 0;
 };
 
-// Commands from open to close (not included) drawn in a matrix group: a piece of models drawn over one another.
+// Commands from open to close (not included) drawn in a matrix group: the shot's banner.
 struct Span {
     uint32_t open, close;
 };
@@ -453,14 +453,12 @@ void anchor(uint32_t start, uint32_t end) {
         if (pieces > 0 && model && g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.overlaps_middle(box)) {
             g_pieces[pieces - 1].box.add(box);
             g_pieces[pieces - 1].last = i;
-            g_pieces[pieces - 1].model_count++;
             continue;
         }
         g_pieces[pieces] = Piece{};
         g_pieces[pieces].box = box;
         g_pieces[pieces].models = model;
         g_pieces[pieces].first = g_pieces[pieces].last = i;
-        g_pieces[pieces].model_count = model ? 1 : 0;
         cmd.piece = pieces++;
     }
     if (pieces == 0) {
@@ -510,14 +508,17 @@ void anchor(uint32_t start, uint32_t end) {
     // it multiplied on, its quad drawn and the matrix popped. RT64 left to itself blends each matrix's position only
     // while it keeps its pace (rt64_transform_group.h), so as the banner spun and scaled in or out, a letter now and
     // then jumped to its next place in the frames between the game's while the rest were blended, and stood over its
-    // neighbour or under the line. So a piece of models drawn over one another is put in a matrix group, from the
-    // matrix before its first model to the next matrix or piece after its last: its matrices blended whole, their
-    // positions always, paired by their order (the quad's first, then the letters'), as golfer.cpp does a golfer's.
+    // neighbour or under the line. So the banner's piece is put in a matrix group, from the matrix before its quad to
+    // the next matrix or piece after its last model: its matrices blended whole, their positions always, paired by
+    // their order (the quad's first, then the letters'), as golfer.cpp does a golfer's. Its quad starts the group
+    // whether its letters are models or, once it has come to rest, rectangles, so RT64 blends it from its last turn
+    // to its rest as it did with no group, where a group only while its letters were models left the quad to jump.
     Span spans[MAX_SPANS];
     int span_count = 0;
     for (int p = 0; p < pieces && span_count < MAX_SPANS; p++) {
         const Piece& piece = g_pieces[p];
-        if (!piece.models || piece.model_count < 2) {
+        const Cmd& quad = g_cmds[piece.first];
+        if (!piece.models || quad.w0 != BANNER_VTX_W0 || quad.w1 != BANNER_VERTICES) {
             continue;
         }
         uint32_t open = piece.first;
