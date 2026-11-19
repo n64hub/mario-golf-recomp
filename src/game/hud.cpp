@@ -472,8 +472,7 @@ void anchor(uint32_t start, uint32_t end) {
             if (op == G_VTX) b = r2.vertices(cmd.w0, cmd.w1);
             if (op == G_DL) b = r2.call(resolve(cmd.w1), 0);
             if (!b.empty()) fprintf(stderr, " box %.1f %.1f %.1f %.1f", b.x0, b.y0, b.x1, b.y1);
-            fprintf(stderr, "
-");
+            fprintf(stderr, "\n");
         }
     }
     g_dbg_joined = false;
