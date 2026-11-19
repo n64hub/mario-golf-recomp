@@ -117,13 +117,14 @@ text = "{ void mg_golfer_end(uint8_t*, uint32_t, uint32_t); mg_golfer_end(rdram,
 # The ball, the stars around the cup and the sun's lens flare past the 4:3 frame's sides (src/game/ball.cpp): around both
 # of the frame's calls of the function that draws the ball's sprites up close (func_ovl0_801FE370), its call of the one
 # that draws the stars (func_ovl0_80217164) and the one after it of the one that draws the flare (func_8008D3F4: the
-# frame skips it to 0x80030404, where the hook runs either way), and overlay 7's call of the flare, a rectangle at or
-# past a side of the screen is put back past it. The end reads the display list's head from the word its caller keeps
-# it in: the game's own (0x801B93DC), or overlay 7's copy on its stack ($s0) while it draws.
+# frame skips it to 0x80030404, where the hook runs either way), and overlay 7's call of the flare and its calls of its
+# own two that draw the ball (func_ovl7_801FBB94 and func_ovl7_801FFC40: the intro's ball), a rectangle at or past a
+# side of the screen is put back past it. Both ends read the display list's head from the word its caller keeps it in:
+# the game's own (0x801B93DC), or overlay 7's copy on its stack ($s0) while it draws.
 [[patches.hook]]
 func = "func_8002DC10"
 before_vram = 0x80030280
-text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+text = "{ void mg_ball_begin(uint8_t*, uint32_t); mg_ball_begin(rdram, 0x801B93DC); }"
 
 [[patches.hook]]
 func = "func_8002DC10"
@@ -133,7 +134,7 @@ text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, 0x801B93DC); 
 [[patches.hook]]
 func = "func_8002DC10"
 before_vram = 0x800303D4
-text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+text = "{ void mg_ball_begin(uint8_t*, uint32_t); mg_ball_begin(rdram, 0x801B93DC); }"
 
 [[patches.hook]]
 func = "func_8002DC10"
@@ -143,7 +144,7 @@ text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, 0x801B93DC); 
 [[patches.hook]]
 func = "func_8002DC10"
 before_vram = 0x80030750
-text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+text = "{ void mg_ball_begin(uint8_t*, uint32_t); mg_ball_begin(rdram, 0x801B93DC); }"
 
 [[patches.hook]]
 func = "func_8002DC10"
@@ -153,21 +154,57 @@ text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, 0x801B93DC); 
 [[patches.hook]]
 func = "func_ovl7_801FA4EC"
 before_vram = 0x801FA7CC
-text = "{ void mg_ball_begin(uint8_t*); mg_ball_begin(rdram); }"
+text = "{ void mg_ball_begin(uint8_t*, uint32_t); mg_ball_begin(rdram, (uint32_t)ctx->r16); }"
 
 [[patches.hook]]
 func = "func_ovl7_801FA4EC"
 before_vram = 0x801FA7D4
 text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, (uint32_t)ctx->r16); }"
 
-# The iris wipe at its own shape (src/game/iris.cpp): each display list the game sends is read for the mask's
-# rectangle, which is drawn at its aspect across the whole window. Then the title and the menus at the picture's full
-# height in a wide window (src/game/screen.cpp): on those screens the same list's rectangles, scissors and viewports
-# are scaled, all but the iris's, which is why it goes first.
+[[patches.hook]]
+func = "func_ovl7_801FA4EC"
+before_vram = 0x801FA7F0
+text = "{ void mg_ball_begin(uint8_t*, uint32_t); mg_ball_begin(rdram, (uint32_t)ctx->r16); }"
+
+[[patches.hook]]
+func = "func_ovl7_801FA4EC"
+before_vram = 0x801FA800
+text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, (uint32_t)ctx->r16); }"
+
+# The ball's sprites at the ball's own place on the screen, not the whole pixel the game cuts it to (src/game/ball.cpp):
+# func_80065650, which works out where a point lies on the screen, truncates its x and y to whole pixels. While the
+# ball is drawn each is noted as it is truncated, for mg_ball_end to move the rectangles drawn around that point by what
+# was dropped. The first two hooks are its flat view's, the last two its perspective's.
+[[patches.hook]]
+func = "func_80065650"
+before_vram = 0x800656FC
+text = "{ void mg_ball_project_x(uint8_t*, float); mg_ball_project_x(rdram, ctx->f0.fl); }"
+
+[[patches.hook]]
+func = "func_80065650"
+before_vram = 0x80065724
+text = "{ void mg_ball_project_y(uint8_t*, float); mg_ball_project_y(rdram, ctx->f0.fl); }"
+
+[[patches.hook]]
+func = "func_80065650"
+before_vram = 0x80065778
+text = "{ void mg_ball_project_x(uint8_t*, float); mg_ball_project_x(rdram, ctx->f4.fl); }"
+
+[[patches.hook]]
+func = "func_80065650"
+before_vram = 0x8006578C
+text = "{ void mg_ball_project_y(uint8_t*, float); mg_ball_project_y(rdram, ctx->f2.fl); }"
+
+# The course's trees and Bomb-ombs paired between the game's frames only with billboards of their own size
+# (src/game/billboard.cpp): in each display list the game sends, each billboard is put in a matrix group of its scale's.
+# The iris wipe at its own shape (src/game/iris.cpp): the same list is read for the mask's rectangle, which is drawn
+# at its aspect across the whole window. Then the title and the menus at the picture's full height in a wide window
+# (src/game/screen.cpp): on those screens the same list's rectangles, scissors and viewports are scaled, all but the
+# iris's, which is why it goes before.
 [[patches.hook]]
 func = "nuGfxTaskStart"
 before_vram = 0x80029774
-text = "{ void mg_iris_fix(uint8_t*, uint32_t); void mg_screen_fill(uint8_t*, uint32_t); void mg_border_fill(uint8_t*, uint32_t); mg_iris_fix(rdram, (uint32_t)ctx->r4); mg_border_fill(rdram, (uint32_t)ctx->r4); void mg_dl_log(uint8_t*, uint32_t); mg_dl_log(rdram, (uint32_t)ctx->r4); mg_screen_fill(rdram, (uint32_t)ctx->r4); }"
+text = "{ void mg_billboards(uint8_t*, uint32_t); void mg_iris_fix(uint8_t*, uint32_t); void mg_border_fill(uint8_t*, uint32_t); void mg_screen_fill(uint8_t*, uint32_t); mg_billboards(rdram, (uint32_t)ctx->r4); mg_iris_fix(rdram, (uint32_t)ctx->r4); mg_border_fill(rdram, (uint32_t)ctx->r4); void mg_dl_log(uint8_t*, uint32_t); mg_dl_log(rdram, (uint32_t)ctx->r4); mg_screen_fill(rdram, (uint32_t)ctx->r4); }"
 
 # The course's terrain without cracks at a high resolution. The course is 8 by 16 blocks, and each frame func_80062A8C
 # picks each block's level of detail by its distance: 2, its own fine display list; 1, a 2x2 grid of quads; 0, one quad.
