@@ -1,1 +1,0 @@
-- **The hole's sign waves smoothly:** above 30 frames a second, the waving sign at the top left of the course (the hole's picture and number) moves at the display's rate instead of stepping at the game's 30.
