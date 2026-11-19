@@ -24,6 +24,13 @@
 // upper 4), and the first command the game wrote is replaced by a branch to it, which branches back to where the game
 // goes on. Eight buffers in turn, since the renderer may read a list a frame or more after the game sends it, and the
 // game keeps two lists. The pause menu and the menus are drawn elsewhere and stay in the middle.
+//
+// The hole's sign at the top left (the course's picture with the hole's number, waving like a flag) is one of the
+// models: a grid of 6x5 vertices (func_80085F98, called by func_8008658C) that the game moves in RAM each frame to wave
+// it, at 0x800E21D0 and on, 0x1E0 bytes a player, under matrices that never change. RT64 draws between the game's frames
+// by blending matrices, and with no group it leaves vertices as the game's next frame has them, so the sign stepped at
+// the game's rate while the rest moved at the display's. So its vertex load is put in an RT64 matrix group of its own
+// whose vertices RT64 interpolates (everything else as with no group), closed before the next load.
 
 #include <cstdint>
 #include <cstring>
@@ -39,7 +46,7 @@ namespace {
 constexpr uint32_t G_VTX = 0x01, G_DL = 0xDE, G_ENDDL = 0xDF, G_MTX = 0xDA, G_POPMTX = 0xD8, G_MOVEMEM = 0xDC;
 constexpr uint32_t G_TEXRECT = 0xE4, G_TEXRECTFLIP = 0xE5, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1, G_FILLRECT = 0xF6, G_SETSCISSOR = 0xED;
 constexpr uint32_t G_MV_VIEWPORT = 8, G_DL_NOPUSH = 1, G_SC_NON_INTERLACE = 0;
-constexpr uint32_t G_MTX_PUSH = 1, G_MTX_LOAD = 2, G_MTX_PROJECTION = 4;
+constexpr uint32_t G_MTX_PUSH = 1, G_MTX_LOAD = 2, G_MTX_PROJECTION = 4, G_MTX_MODELVIEW = 0;
 // gSPViewport's first word.
 constexpr uint32_t G_VIEWPORT_W0 = 0xDC080008;
 
@@ -47,6 +54,11 @@ constexpr uint32_t G_VIEWPORT_W0 = 0xDC080008;
 constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
 // The full-screen viewport the HUD draws in (the game's own, set before the HUD), re-sent when its alignment changes.
 constexpr uint32_t MG_HUD_VIEWPORT = 0x800B77A0;
+// The hole's sign: its vertex load's first word (30 vertices), and the vertices it loads, one set a player.
+constexpr uint32_t SIGN_VTX_W0 = 0x0101E03C;
+constexpr uint32_t SIGN_VERTICES = 0x800E21D0, SIGN_VERTICES_SIZE = 4 * 0x1E0;
+// Its matrix group's ID, away from the other groups' (src/game/backdrop.cpp's sky is 0x4D47534B).
+constexpr uint32_t SIGN_GROUP_ID = 0x4D475347;
 // The HUD's scissor, set before it.
 constexpr int MG_HUD_SCISSOR_ULX = 8, MG_HUD_SCISSOR_ULY = 8, MG_HUD_SCISSOR_LRX = 312, MG_HUD_SCISSOR_LRY = 232;
 
@@ -462,8 +474,16 @@ void anchor(uint32_t start, uint32_t end) {
     uint32_t rect_origin = G_EX_ORIGIN_NONE;
     uint32_t vp_origin = G_EX_ORIGIN_NONE;
     const Cmd* last_scissor = nullptr;
+    bool sign_group = false;
     for (uint32_t i = 0; i < count; i++) {
         Cmd& cmd = g_cmds[i];
+        uint32_t op = cmd.w0 >> 24;
+        // The sign's group ends before the next load, which would take it.
+        if (sign_group && (op == G_VTX || op == G_DL)) {
+            gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+            out.put(c, 1);
+            sign_group = false;
+        }
         if (cmd.piece >= 0) {
             const Piece& piece = g_pieces[cmd.piece];
             if ((piece.origin != G_EX_ORIGIN_NONE) != sc_wide) {
@@ -479,7 +499,15 @@ void anchor(uint32_t start, uint32_t end) {
                 vp_origin = piece.origin;
             }
         }
-        uint32_t op = cmd.w0 >> 24;
+        if (op == G_VTX && cmd.w0 == SIGN_VTX_W0 && resolve(cmd.w1) - SIGN_VERTICES < SIGN_VERTICES_SIZE) {
+            // Its vertices interpolated, everything else as RT64 does with no group (rt64_transform_group.h).
+            gEXMatrixGroupDecomposed(c, SIGN_GROUP_ID, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_AUTO,
+                                     G_EX_COMPONENT_AUTO, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_AUTO,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_AUTO, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+            out.put(c, 2);
+            sign_group = true;
+        }
         if (op == G_SETSCISSOR) {
             sc_mode = (cmd.w1 >> 24) & 0x3;
             sc_ulx = ((cmd.w0 >> 12) & 0xFFF) / 4;
@@ -504,6 +532,10 @@ void anchor(uint32_t start, uint32_t end) {
             continue;
         }
         out.put(cmd.w0, cmd.w1);
+    }
+    if (sign_group) {
+        gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+        out.put(c, 1);
     }
 
     gEXSetRectAlign(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, 0, 0, 0, 0);
