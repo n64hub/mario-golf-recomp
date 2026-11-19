@@ -251,13 +251,15 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
 // width rather than stretched to it: a copy-mode rectangle across the 3D's whole width whose texture repeats across s.
 // It is drawn stretched to the picture (G_EX_ASPECT_STRETCH), so the 3D's scissor is the wide picture's, its texture
 // stepped faster by as much and started as much earlier as the picture reaches past 4:3 on the left, so each texel
-// stays one 4:3 pixel wide and where the game put it. False if it isn't such a strip, or didn't fit.
+// stays one 4:3 pixel wide and where the game put it. It stays a G_TEXRECT, so border.cpp, which follows the branch to
+// it, still runs it on through the game's border to the screen's sides and puts back the rows the game cut at its top.
+// False if it isn't such a strip, or didn't fit.
 bool stretch_strip(uint32_t addr, const Tile& tile, float scale) {
-    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
-    int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
-    int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
-    int s = int16_t(st >> 16), t = int16_t(st & 0xFFFF); // s10.5
-    int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF); // s5.10
+    uint32_t w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
+    int ulx = int((w1 >> 12) & 0xFFF);         // quarter pixels
+    int lrx = int((rd_w(addr) >> 12) & 0xFFF);
+    int s = int16_t(st >> 16);                 // s10.5
+    int dsdx = int16_t(d >> 16);               // s5.10
     // The game's strips run from the scissor's left side to a pixel short of its right one (RT64 takes them to it).
     if (dsdx != COPY_DSDX || tile.period <= 0 || ulx > SCISSOR_LEFT * 4 || lrx < (SCISSOR_RIGHT - 1) * 4) {
         return false;
@@ -267,30 +269,29 @@ bool stretch_strip(uint32_t addr, const Tile& tile, float scale) {
         return false;
     }
     // The rectangle's left side is drawn (SCREEN_WIDTH / 2 - ulx) * (scale - 1) 4:3 pixels further left, a texel each
-    // in copy mode, 32 of s. s is put back within its range by whole periods of the texture, which draw the same.
+    // in copy mode, 32 of s. s is put within the texture's first period, which draws the same, so border.cpp may move
+    // it back further as it runs the strip on to the screen's left side.
     const int period = tile.period * 32;
-    int new_s = s - int(std::lround((SCREEN_WIDTH / 2.0f - ulx / 4.0f) * (scale - 1.0f) * 32.0f));
-    while (new_s < INT16_MIN) {
-        new_s += period;
-    }
-    while (new_s > INT16_MAX) {
-        new_s -= period;
-    }
-    if (new_s < INT16_MIN) {
+    if (period > INT16_MAX) {
         return false;
+    }
+    int new_s = s - int(std::lround((SCREEN_WIDTH / 2.0f - ulx / 4.0f) * (scale - 1.0f) * 32.0f));
+    new_s %= period;
+    if (new_s < 0) {
+        new_s += period;
     }
 
     uint32_t buffer = STRIP_BASE + STRIP_SIZE * g_next_strip;
     g_next_strip = (g_next_strip + 1) % STRIP_COUNT;
     Writer out{ buffer, buffer + STRIP_SIZE };
-    GfxCommand c[3];
+    GfxCommand c[1];
     gEXEnable(c);
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx, uly, lrx, lry, (w1 >> 24) & 7, new_s & 0xFFFF,
-                        t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
-    out.put(c, 3);
+    out.put(rd_w(addr), w1);
+    out.put(rd_w(addr + 8), (uint32_t(new_s & 0xFFFF) << 16) | (st & 0xFFFF));
+    out.put(rd_w(addr + 16), (uint32_t(wide_dsdx & 0xFFFF) << 16) | (d & 0xFFFF));
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
     out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
