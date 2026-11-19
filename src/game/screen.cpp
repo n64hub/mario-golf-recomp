@@ -44,9 +44,11 @@
 // before (card.cpp's mg_copy_frame_list: the whole picture, as RT64 drew it), and each tile is drawn at the place it is
 // scaled to, reading that image at the same place (wipe_tile), so the old screen is the picture it was until its tiles
 // go. RT64 draws the image at the window's width, so a tile reads its columns 1 / wide of a column apart, about the
-// middle. The buffers are this file's in RDRAM, above the 4 MB the game
-// uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D screen drawn in a frame with 3D,
-// goes through the same scaling from credits.cpp (mg_screen_fill_range).
+// middle. The wipe's second frame is drawn while the game swaps the two overlays, neither of them loaded, so a wipe
+// under way is scaled on through it and keeps its image to its last tile; let go of there, its tiles drew at 4:3 that
+// frame, inside a black band, and from the next each copied that shrunk picture anew. The buffers are this file's in
+// RDRAM, above the 4 MB the game uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D
+// screen drawn in a frame with 3D, goes through the same scaling from credits.cpp (mg_screen_fill_range).
 
 #include <cmath>
 #include <cstdint>
@@ -448,7 +450,9 @@ void fill(uint32_t list, uint32_t end) {
 
 extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
     g_rdram = rdram;
-    if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY)) || !set_fill()) {
+    // A wipe under way goes on through its second frame, in which the game swaps the two overlays and neither is loaded.
+    bool wiping = g_wipe_image != 0;
+    if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY) || wiping) || !set_fill()) {
         g_wipe_image = 0;
         g_last_cimg = 0;
         return;

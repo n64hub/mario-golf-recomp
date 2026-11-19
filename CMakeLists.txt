@@ -95,6 +95,10 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # golfer to the next between cameras that hold still, by less than RT64's turn and jump for a cut: a camera that held
 # still and then turns or jumps far in one frame cuts too (rt64 57778cd), or a frame between drew the next golfer
 # partway from one camera to the other.
+# The Play Modes wheel draws each mode's picture at a scale of its own as it turns, which RT64 pairs across a change
+# of scale (rt64 84d36bd), or it stepped off the wheel's pace; and the opening fades one shot into the next from
+# strips of the old shot copied out of the picture, which RT64 pairs by what each copy holds (rt64 1d1a0ee, 53ce431),
+# or a frame between drew the old shot's top half slid down over the new one.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
