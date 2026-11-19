@@ -27,6 +27,14 @@
 // as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor this file makes,
 // and reach the picture's edges by hud.cpp's hand.
 //
+// The opening's sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws:
+// backdrop.cpp's) ends a few lines below the screen's top at most of its camera's heights, its near edge (vertices 0, 3
+// and 4, at y 120 under that camera, line 4) inside the border, and the opening never clears the screen, so those lines
+// kept an older frame's picture: grass and trees over the sky. There its G_VTX is pointed at a copy of the ten (in a
+// buffer of this file's) whose near three are moved a tenth further along the plane, away from their far partners (1, 2
+// and between them), their texture coordinates and colours with them, so the sky's picture is the game's where it was
+// and goes on above it, past the screen's top.
+//
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
 // lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 7 loaded;
 // the title goes back to it after a while, its attract demo) or on a hole (overlay 2) but not in the end credits
@@ -45,7 +53,7 @@ namespace {
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETZIMG = 0xFE, G_SPNOOP = 0x00;
-constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6;
+constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6, G_VTX = 0x01;
 // G_SETOTHERMODE_H's cycle type (G_MDSFT_CYCLETYPE) and its copy and fill values; black as a fill of 16-bit pixels.
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
 // Past billboard.cpp's buffers: 16 of 0x100 bytes.
@@ -55,6 +63,10 @@ constexpr uint32_t BUFFER_BASE = 0x807B0000, BUFFER_SIZE = 0x100, BUFFER_COUNT =
 // overlay, the opening's and the end credits'.
 constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28;
 constexpr uint32_t HOLE_OVERLAY = 2, OPENING_OVERLAY = 7, CREDITS_OVERLAY = 16;
+// The sky's ten vertices (backdrop.cpp's SKY_VERTICES: two buffers, on alternate frames), 16 bytes each (Vtx_t: x, y,
+// z, flag, s, t, red, green, blue, alpha), and how far its near ones are moved, as a share of the way to the far ones.
+constexpr uint32_t SKY_VERTICES[2] = { 0x000C69C0, 0x000C6A60 }, SKY_COUNT = 10, VERTEX_BYTES = 16;
+constexpr float SKY_REACH = 0.1f;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 224 * 2, GAME_RAM = 0x00800000;
 
@@ -82,6 +94,8 @@ bool g_screen;
 uint32_t g_texture;
 uint32_t g_zimg;
 uint32_t g_cycle;
+// Whether this frame is the opening's (overlay 7 loaded).
+bool g_opening;
 bool g_blacked;
 uint32_t g_next_buffer;
 // The screen's color images the game has drawn to (it keeps three, in turn), the latest first: a texture in one (each
@@ -172,6 +186,66 @@ void black_border(uint32_t addr) {
         wr_w(addr + i * 8, G_SPNOOP << 24);
         wr_w(addr + i * 8 + 4, 0);
     }
+}
+
+// The opening's sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
+// edge (0, 3 and 4) moved on along its plane, away from the far one (1, 2, and 4's between them). Left as it is unless
+// the ten are laid out as the game draws them.
+void sky(uint32_t addr) {
+    uint32_t from = 0x80000000u | (rd_w(addr + 4) & 0x1FFFFFFF);
+    struct Vertex {
+        int32_t x, y, z, s, t, c[4];
+        uint32_t flag;
+    } v[SKY_COUNT];
+    for (uint32_t i = 0; i < SKY_COUNT; i++) {
+        uint32_t a = rd_w(from + i * VERTEX_BYTES), b = rd_w(from + i * VERTEX_BYTES + 4);
+        uint32_t c = rd_w(from + i * VERTEX_BYTES + 8), d = rd_w(from + i * VERTEX_BYTES + 12);
+        v[i] = { int16_t(a >> 16), int16_t(a), int16_t(b >> 16), int16_t(c >> 16), int16_t(c),
+                 { int32_t(d >> 24), int32_t((d >> 16) & 0xFF), int32_t((d >> 8) & 0xFF), int32_t(d & 0xFF) },
+                 b & 0xFFFF };
+    }
+    const Vertex &n0 = v[0], &n3 = v[3], &n4 = v[4], &f1 = v[1], &f2 = v[2];
+    if (n0.z != n3.z || n0.z != n4.z || n0.y != n3.y || n0.y != n4.y || f1.z != f2.z || f1.y != f2.y ||
+        n0.z <= f1.z || n0.x != f1.x || n3.x != f2.x || n4.x * 2 != n0.x + n3.x) {
+        return;
+    }
+    Vertex mid = f1;
+    mid.x = (f1.x + f2.x) / 2;
+    mid.s = (f1.s + f2.s) / 2;
+    mid.t = (f1.t + f2.t) / 2;
+    for (int k = 0; k < 4; k++) {
+        mid.c[k] = (f1.c[k] + f2.c[k]) / 2;
+    }
+    auto on = [](int32_t near, int32_t far, int32_t lo, int32_t hi) {
+        float x = near + (near - far) * SKY_REACH;
+        return x < lo ? lo : x > hi ? hi : int32_t(x + (x < 0 ? -0.5f : 0.5f));
+    };
+    const Vertex* fars[SKY_COUNT] = {};
+    fars[0] = &f1;
+    fars[3] = &f2;
+    fars[4] = &mid;
+    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+    for (uint32_t i = 0; i < SKY_COUNT; i++) {
+        Vertex o = v[i];
+        if (fars[i] != nullptr) {
+            const Vertex& f = *fars[i];
+            o.x = on(o.x, f.x, INT16_MIN, INT16_MAX);
+            o.y = on(o.y, f.y, INT16_MIN, INT16_MAX);
+            o.z = on(o.z, f.z, INT16_MIN, INT16_MAX);
+            o.s = on(o.s, f.s, INT16_MIN, INT16_MAX);
+            o.t = on(o.t, f.t, INT16_MIN, INT16_MAX);
+            for (int k = 0; k < 4; k++) {
+                o.c[k] = on(o.c[k], f.c[k], 0, 255);
+            }
+        }
+        uint32_t out = buffer + i * VERTEX_BYTES;
+        wr_w(out, (uint32_t(uint16_t(o.x)) << 16) | uint16_t(o.y));
+        wr_w(out + 4, (uint32_t(uint16_t(o.z)) << 16) | o.flag);
+        wr_w(out + 8, (uint32_t(uint16_t(o.s)) << 16) | uint16_t(o.t));
+        wr_w(out + 12, (uint32_t(o.c[0]) << 24) | (uint32_t(o.c[1]) << 16) | (uint32_t(o.c[2]) << 8) | uint32_t(o.c[3]));
+    }
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
 }
 
 // The texture rectangle at addr (G_TEXRECT, then its texture coordinates, G_RDPHALF_1: s and t, and steps,
@@ -300,6 +374,12 @@ void walk(uint32_t list, int depth) {
             case G_SETSCISSOR:
                 scissor(addr);
                 break;
+            case G_VTX:
+                if (g_fill && g_opening && ((w0 >> 12) & 0xFF) == SKY_COUNT &&
+                    ((w1 & 0x1FFFFFFF) == SKY_VERTICES[0] || (w1 & 0x1FFFFFFF) == SKY_VERTICES[1])) {
+                    sky(addr);
+                }
+                break;
             case G_TEXRECT:
                 rect(addr);
                 addr += 16;
@@ -326,6 +406,7 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_texture = 0;
     g_zimg = 0;
     g_cycle = 0;
+    g_opening = loaded(OPENING_OVERLAY);
     g_blacked = false;
     uint32_t start = in_ram(list);
     if (start != 0) {
