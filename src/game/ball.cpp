@@ -43,9 +43,11 @@
 // display rate. us.toml hooks func_80065650 where it truncates x and y, and while the ball is drawn
 // (mg_ball_begin to mg_ball_end) mg_ball_project_x and _y note each point and what was dropped; mg_ball_end then moves
 // a rectangle whose middle across is a noted point's x by that fraction, rounded to the quarter pixel a rectangle's
-// corners take. It keeps the game's size, so RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with
-// the last frame's rectangle and slides it between the two frames at the display's rate. This happens whatever the
-// window's shape, and before a rectangle at a side is widened. The game still rounds a sprite's size to whole pixels,
+// corners take, and a sprite the game draws in two halves, one over the other (the intro's ball), moves whole, its
+// other half with the one the point is in (nudge_all() says why). It keeps the game's size, so RT64
+// (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with the last frame's rectangle and slides it between
+// the two frames at the display's rate. This happens whatever the window's shape, and before a rectangle at a side is
+// widened. The game still rounds a sprite's size to whole pixels,
 // so a frame in which the ball's sprite grows or shrinks by one isn't slid. A rectangle moved so that its top is no
 // longer on a whole pixel (or is again) has its texture's t moved by the row RT64 then adds (nudge() says why), or the
 // sprite's top row went missing.
@@ -94,6 +96,8 @@ constexpr uint32_t MG_SCREEN_MIDDLE_X = 0x800E1738;
 constexpr uint32_t MG_SCREEN_MIDDLE_Y = 0x800E173C;
 // Points noted while the ball is drawn, at most (the ball and its shadow, and the far balls' and their shadows').
 constexpr int MAX_SPOTS = 1024;
+// Rectangles in the ball's list looked at for a move, at most.
+constexpr int MAX_NUDGED = 1024;
 
 uint8_t* g_rdram;
 uint32_t g_start;
@@ -209,29 +213,28 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     return true;
 }
 
-// The rectangle at addr moved by the fraction of a pixel the point it is drawn around lost, if it is one: its middle
-// across on a noted point's x, and that point's y within it, the nearest to its middle down if more than one (the ball
-// is as tall as it is wide, its shadow flatter). It keeps the game's size, so RT64 still pairs it with the last frame's
-// and slides it between the two. One at or past a side of the screen is left for widen().
-//
-// Its texture moves with it whole. RT64 draws a rectangle whose top isn't on a whole pixel with its texture a row
-// further on, as the RDP starts it on the next scanline with the next row, but at a high resolution it still draws
-// that rectangle from its top, so the sprite's top row went missing whenever the ball's top fell between pixels, and
-// the ball flicked between cut and whole as it moved (RT64 then also slid the texture between the frames). So t is
-// moved back by the row RT64 adds when the top is moved off a whole pixel (forward when moved onto one). copy: the RDP's
-// copy mode, in which RT64 puts the top on a whole pixel and adds no row.
-void nudge(uint32_t addr, bool copy) {
-    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
-    int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
-    int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
-    if (ulx <= 0 || lrx >= SCREEN_WIDTH || lrx <= ulx || uly <= 0 || lry >= SCREEN_HEIGHT || ((ulx + lrx) & 1) != 0) {
-        return;
+// A texture rectangle in the ball's list: where it is (quarter pixels), and the move nudge() gives it.
+struct Rect {
+    uint32_t addr;
+    bool copy;
+    int ulx, uly, lrx, lry;
+    bool found = false;
+    int dx = 0, dy = 0;
+};
+
+// The move for a rectangle drawn around a noted point, to the quarter pixel: its middle across on the point's x, and
+// the point's y within it, the nearest to its middle down if more than one (the ball is as tall as it is wide, its
+// shadow flatter). False if it is no such rectangle, or is at or past a side of the screen (left for widen()).
+bool find_move(Rect& r) {
+    if (r.ulx <= 0 || r.lrx >= SCREEN_WIDTH || r.lrx <= r.ulx || r.uly <= 0 || r.lry >= SCREEN_HEIGHT ||
+        ((r.ulx + r.lrx) & 1) != 0) {
+        return false;
     }
-    int mid_x = (ulx + lrx) / 2, mid_y = uly + (lrx - ulx) / 2;
+    int mid_x = (r.ulx + r.lrx) / 2, mid_y = r.uly + (r.lrx - r.ulx) / 2;
     const Spot* best = nullptr;
     for (int i = 0; i < g_spot_count; i++) {
         const Spot& spot = g_spots[i];
-        if (spot.x * 4 != mid_x || spot.y * 4 < uly - 4 || spot.y * 4 > std::max(lry, mid_y) + 4) {
+        if (spot.x * 4 != mid_x || spot.y * 4 < r.uly - 4 || spot.y * 4 > std::max(r.lry, mid_y) + 4) {
             continue;
         }
         if (best == nullptr || std::abs(spot.y * 4 - mid_y) < std::abs(best->y * 4 - mid_y)) {
@@ -239,31 +242,60 @@ void nudge(uint32_t addr, bool copy) {
         }
     }
     if (best == nullptr) {
+        return false;
+    }
+    r.dx = int(std::lround(best->dx * 4));
+    r.dy = int(std::lround(best->dy * 4));
+    return true;
+}
+
+// Whether a and b are the two halves of one sprite, the game's way of drawing a texture too tall to load at once: as
+// wide as each other, one right under the other.
+bool halves(const Rect& a, const Rect& b) {
+    return a.ulx == b.ulx && a.lrx == b.lrx && (a.lry == b.uly || b.lry == a.uly);
+}
+
+// The rectangle moved by its move. It keeps the game's size, so RT64 still pairs it with the last frame's and slides it
+// between the two.
+//
+// Its texture moves with it whole. RT64 draws a rectangle whose top isn't on a whole pixel with its texture a row
+// further on, as the RDP starts it on the next scanline with the next row, but at a high resolution it still draws
+// that rectangle from its top, so the sprite's top row went missing whenever the ball's top fell between pixels, and
+// the ball flicked between cut and whole as it moved (RT64 then also slid the texture between the frames). So t is
+// moved back by the row RT64 adds when the top is moved off a whole pixel (forward when moved onto one). copy: the RDP's
+// copy mode, in which RT64 puts the top on a whole pixel and adds no row.
+void nudge(const Rect& r) {
+    int dx = r.dx, dy = r.dy;
+    if ((dx == 0 && dy == 0) || r.ulx + dx <= 0 || r.lrx + dx >= SCREEN_WIDTH || r.uly + dy <= 0 ||
+        r.lry + dy >= SCREEN_HEIGHT) {
         return;
     }
-    int dx = int(std::lround(best->dx * 4)), dy = int(std::lround(best->dy * 4));
-    if ((dx == 0 && dy == 0) || ulx + dx <= 0 || lrx + dx >= SCREEN_WIDTH || uly + dy <= 0 || lry + dy >= SCREEN_HEIGHT) {
-        return;
-    }
-    wr_w(addr, (w0 & 0xFF000000) | (uint32_t(lrx + dx) << 12) | uint32_t(lry + dy));
-    wr_w(addr + 4, (w1 & 0xFF000000) | (uint32_t(ulx + dx) << 12) | uint32_t(uly + dy));
-    if (!copy && ((uly & 3) != 0) != (((uly + dy) & 3) != 0)) {
-        uint32_t st = rd_w(addr + 12);
-        int t = int16_t(st & 0xFFFF);                      // s10.5
-        int row = int16_t(rd_w(addr + 20) & 0xFFFF) >> 5; // dtdy (s5.10) in t's units, as RT64 adds it
-        t += ((uly & 3) != 0) ? row : -row;
-        wr_w(addr + 12, (st & 0xFFFF0000) | (uint32_t(t) & 0xFFFF));
+    uint32_t w0 = rd_w(r.addr), w1 = rd_w(r.addr + 4);
+    wr_w(r.addr, (w0 & 0xFF000000) | (uint32_t(r.lrx + dx) << 12) | uint32_t(r.lry + dy));
+    wr_w(r.addr + 4, (w1 & 0xFF000000) | (uint32_t(r.ulx + dx) << 12) | uint32_t(r.uly + dy));
+    if (!r.copy && ((r.uly & 3) != 0) != (((r.uly + dy) & 3) != 0)) {
+        uint32_t st = rd_w(r.addr + 12);
+        int t = int16_t(st & 0xFFFF);                        // s10.5
+        int row = int16_t(rd_w(r.addr + 20) & 0xFFFF) >> 5; // dtdy (s5.10) in t's units, as RT64 adds it
+        t += ((r.uly & 3) != 0) ? row : -row;
+        wr_w(r.addr + 12, (st & 0xFFFF0000) | (uint32_t(t) & 0xFFFF));
     }
 }
 
+// Each rectangle drawn around a noted point moved by the fraction of a pixel the point lost. A sprite drawn in two
+// halves (the intro's ball, 8 pixels by two of 4) has its point in one half only, at its foot, and the other half
+// moves with it, or the sprite came apart by up to a pixel, the top half where the game put it and the bottom half
+// moved. Two rectangles that each have a point of their own (the ball and its shadow under it) each move by their own.
 void nudge_all(uint32_t start, uint32_t end) {
     if (g_spot_count == 0 || end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
+    static Rect rects[MAX_NUDGED];
+    int count = 0;
     // The cycle type the list last set (G_SETOTHERMODE_H's or G_RDPSETOTHERMODE's bits 20-21); one or two cycles until
     // it sets one, as the ball's sprites are drawn scaled, which copy mode can't.
     uint32_t cycle = 0;
-    for (uint32_t addr = start; addr + 8 <= end; addr += 8) {
+    for (uint32_t addr = start; addr + 8 <= end && count < MAX_NUDGED; addr += 8) {
         uint32_t w0 = rd_w(addr), op = w0 >> 24;
         if (op == G_SETOTHERMODE_H) {
             int len = int(w0 & 0xFF) + 1, shift = 32 - int((w0 >> 8) & 0xFF) - len;
@@ -274,9 +306,32 @@ void nudge_all(uint32_t start, uint32_t end) {
             cycle = (w0 >> G_MDSFT_CYCLETYPE) & 3;
         } else if (op == G_TEXRECT && addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
                    (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-            nudge(addr, cycle == G_CYCLE_COPY);
+            uint32_t w1 = rd_w(addr + 4);
+            Rect& r = rects[count++];
+            r = Rect{ addr, cycle == G_CYCLE_COPY, int((w1 >> 12) & 0xFFF), int(w1 & 0xFFF), int((w0 >> 12) & 0xFFF),
+                      int(w0 & 0xFFF) };
+            r.found = find_move(r);
             addr += 16;
         }
+    }
+    for (int i = 0; i < count; i++) {
+        Rect& r = rects[i];
+        if (r.found) {
+            continue;
+        }
+        const Rect* other = nullptr;
+        if (i > 0 && rects[i - 1].found && halves(rects[i - 1], r)) {
+            other = &rects[i - 1];
+        } else if (i + 1 < count && rects[i + 1].found && halves(r, rects[i + 1])) {
+            other = &rects[i + 1];
+        }
+        if (other != nullptr) {
+            r.dx = other->dx;
+            r.dy = other->dy;
+        }
+    }
+    for (int i = 0; i < count; i++) {
+        nudge(rects[i]);
     }
 }
 
