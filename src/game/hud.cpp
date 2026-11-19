@@ -35,6 +35,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
+#include <cstdlib>
 
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
@@ -279,6 +281,7 @@ Cmd g_cmds[MAX_COMMANDS];
 Piece g_pieces[MAX_COMMANDS];
 
 uint32_t g_start;
+bool g_dbg_joined = false;
 bool g_open = false;
 uint32_t g_next_buffer = 0;
 
@@ -437,6 +440,7 @@ void anchor(uint32_t start, uint32_t end) {
         }
         if (pieces > 0 && model && g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.overlaps_middle(box)) {
             g_pieces[pieces - 1].box.add(box);
+            g_dbg_joined = true;
             continue;
         }
         g_pieces[pieces] = Piece{};
@@ -447,6 +451,32 @@ void anchor(uint32_t start, uint32_t end) {
     if (pieces == 0) {
         return;
     }
+    // DEBUG (temporary): the commands of a frame where models joined.
+    static const bool dbg = getenv("MG_HUD_LOG") != nullptr;
+    static int dbg_frame = 0;
+    dbg_frame++;
+    if (dbg && g_dbg_joined) {
+        Rsp r2;
+        r2.viewport(MG_HUD_VIEWPORT);
+        for (uint32_t i = 0; i < count; i++) {
+            const Cmd& cmd = g_cmds[i];
+            uint32_t op = cmd.w0 >> 24;
+            fprintf(stderr, "HUD %d %u %02X %08X %08X p%d", dbg_frame, i, op, cmd.w0, cmd.w1, cmd.piece);
+            if (op == G_MTX && resolve(cmd.w1) != 0) {
+                Mat m = read_mtx(resolve(cmd.w1));
+                fprintf(stderr, " m %.3f %.3f %.3f %.3f t %.2f %.2f %.2f", m.m[0][0], m.m[0][1], m.m[1][0], m.m[1][1], m.m[3][0], m.m[3][1], m.m[3][2]);
+                r2.matrix(cmd.w0, cmd.w1);
+            }
+            if (op == G_POPMTX) r2.pop(cmd.w1);
+            Box b;
+            if (op == G_VTX) b = r2.vertices(cmd.w0, cmd.w1);
+            if (op == G_DL) b = r2.call(resolve(cmd.w1), 0);
+            if (!b.empty()) fprintf(stderr, " box %.1f %.1f %.1f %.1f", b.x0, b.y0, b.x1, b.y1);
+            fprintf(stderr, "
+");
+        }
+    }
+    g_dbg_joined = false;
     for (int p = 0; p < pieces; p++) {
         Piece& piece = g_pieces[p];
         float middle = (piece.box.x0 + piece.box.x1) * 0.5f;
