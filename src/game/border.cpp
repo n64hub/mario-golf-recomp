@@ -30,12 +30,13 @@
 // as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor this file makes,
 // and reach the picture's edges by hud.cpp's hand.
 //
-// The sky (backdrop.cpp's) is three triangles of a plane, under a projection of its own, whose near edge the game moves
-// each frame with the camera's pitch to a line or so below the screen's top; looking up (in the opening) it came 4
-// lines down, inside the border, and those lines kept what an earlier frame left there. The sky's vertices are copied
-// with the edge nearest the camera moved on along the plane, its position, texture coordinates and color carried on
-// from the far edge's as the game's are (the plane's own mapping, so its picture inside the border is the same), until
-// it lies 2 lines above the screen's top, and the sky is drawn from the copy.
+// The opening's sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws:
+// backdrop.cpp's) ends a few lines below the screen's top at most of its camera's heights, its near edge (vertices 0, 3
+// and 4, at y 120 under that camera, line 4) inside the border, and the opening never clears the screen, so those lines
+// kept an older frame's picture: grass and trees over the sky. There its G_VTX is pointed at a copy of the ten (in a
+// buffer of this file's) whose near three are moved a tenth further along the plane, away from their far partners (1, 2
+// and between them), their texture coordinates and colours with them, so the sky's picture is the game's where it was
+// and goes on above it, past the screen's top.
 //
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
 // lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 7 loaded;
@@ -46,8 +47,6 @@
 // mark the RDP and RT64 never read. Only the scissors and rectangles drawn to the screen (a color image 320 wide, not
 // the z-buffer) are changed.
 
-#include <algorithm>
-#include <cmath>
 #include <cstdint>
 
 bool mg_aspect_expand();
@@ -57,7 +56,7 @@ namespace {
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETZIMG = 0xFE, G_SPNOOP = 0x00;
-constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6;
+constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6, G_VTX = 0x01;
 // G_SETOTHERMODE_H's cycle type (G_MDSFT_CYCLETYPE) and its copy and fill values; black as a fill of 16-bit pixels.
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
 // Past billboard.cpp's buffers: 16 of 0x100 bytes.
@@ -67,8 +66,14 @@ constexpr uint32_t BUFFER_BASE = 0x807B0000, BUFFER_SIZE = 0x100, BUFFER_COUNT =
 // overlay, the opening's and the end credits'.
 constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28;
 constexpr uint32_t HOLE_OVERLAY = 2, OPENING_OVERLAY = 7, CREDITS_OVERLAY = 16;
+// The sky's ten vertices (backdrop.cpp's SKY_VERTICES: two buffers, on alternate frames), 16 bytes each (Vtx_t: x, y,
+// z, flag, s, t, red, green, blue, alpha), and how far its near ones are moved, as a share of the way to the far ones.
+constexpr uint32_t SKY_VERTICES[2] = { 0x000C69C0, 0x000C6A60 }, SKY_COUNT = 10, VERTEX_BYTES = 16;
+constexpr float SKY_REACH = 0.1f;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 224 * 2, GAME_RAM = 0x00800000;
+// The rows of the hills' texture each of their strips draws.
+constexpr uint32_t STRIP_ROWS = 4;
 
 // The border's scissor and the screen's, as G_SETSCISSOR's coordinates (quarter pixels). The game sets the screen's
 // itself too (around its clears), so the one made here carries a mark in a bit of the second word neither the RDP nor
@@ -81,19 +86,6 @@ constexpr uint32_t COORDS = 0xFFFFFF, MARK = 0x10000000;
 constexpr uint32_t WIDE_ULX = 8 * 4, WIDE_LRX = 311 * 4;
 constexpr uint32_t BORDER_TOP = 8 * 4, BORDER_BOTTOM = 232 * 4, SCREEN_BOTTOM = 240 * 4, BORDER_ROWS = 8;
 constexpr uint32_t BORDER_RIGHT = 312 * 4, SCREEN_RIGHT = 320 * 4;
-// The rows of the hills' texture each of their strips draws.
-constexpr uint32_t STRIP_ROWS = 4;
-
-// The sky's vertices (backdrop.cpp's): ten, in one of two buffers used on alternate frames. Their copies go past this
-// file's buffers, in turn, as the renderer may read them a frame or more later.
-constexpr uint32_t SKY_VERTICES[2] = { 0x800C69C0, 0x800C6A60 }, SKY_COUNT = 10, VERTEX_SIZE = 16;
-constexpr uint32_t SKY_BASE = BUFFER_BASE + BUFFER_SIZE * BUFFER_COUNT, SKY_COPIES = 8;
-constexpr uint32_t G_MTX = 0xDA, G_VTX = 0x01, G_TRI1 = 0x05, G_TRI2 = 0x06, G_QUAD = 0x07, G_RDPPIPESYNC = 0xE7;
-// G_MTX's parameter byte (F3DEX2's): a projection, and a load rather than a multiply.
-constexpr uint32_t MTX_PROJECTION = 0x04, MTX_LOAD = 0x02;
-// Where the sky's near edge goes, as a y over w: 2 of the screen's 120 half-lines above its top. How far along the
-// plane it may go, as a multiple of the near edge's distance from the far one.
-constexpr float SKY_TOP = 1.0f + 2.0f / 120.0f, SKY_MAX_STRETCH = 8.0f;
 
 constexpr int MAX_DEPTH = 10;
 constexpr uint32_t MAX_COMMANDS = 400000;
@@ -107,12 +99,10 @@ bool g_screen;
 uint32_t g_texture;
 uint32_t g_zimg;
 uint32_t g_cycle;
+// Whether this frame is the opening's (overlay 7 loaded).
+bool g_opening;
 bool g_blacked;
 uint32_t g_next_buffer;
-// The last projection and modelview matrices loaded (0 for none, or a multiply), and the next copy of the sky.
-uint32_t g_projection;
-uint32_t g_modelview;
-uint32_t g_next_sky;
 // The screen's color images the game has drawn to (it keeps three, in turn), the latest first: a texture in one (each
 // strip's texture image is its own first row) is a copy of a frame.
 constexpr int SCREENS = 4;
@@ -146,14 +136,6 @@ uint32_t rd_w(uint32_t addr) {
 
 void wr_w(uint32_t addr, uint32_t value) {
     *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u)) = value;
-}
-
-int16_t rd_h(uint32_t addr) {
-    return *reinterpret_cast<int16_t*>(g_rdram + ((addr & 0x7FFFFF) ^ 2));
-}
-
-void wr_h(uint32_t addr, int16_t value) {
-    *reinterpret_cast<int16_t*>(g_rdram + ((addr & 0x7FFFFF) ^ 2)) = value;
 }
 
 bool loaded(uint32_t overlay) {
@@ -209,6 +191,66 @@ void black_border(uint32_t addr) {
         wr_w(addr + i * 8, G_SPNOOP << 24);
         wr_w(addr + i * 8 + 4, 0);
     }
+}
+
+// The opening's sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
+// edge (0, 3 and 4) moved on along its plane, away from the far one (1, 2, and 4's between them). Left as it is unless
+// the ten are laid out as the game draws them.
+void sky(uint32_t addr) {
+    uint32_t from = 0x80000000u | (rd_w(addr + 4) & 0x1FFFFFFF);
+    struct Vertex {
+        int32_t x, y, z, s, t, c[4];
+        uint32_t flag;
+    } v[SKY_COUNT];
+    for (uint32_t i = 0; i < SKY_COUNT; i++) {
+        uint32_t a = rd_w(from + i * VERTEX_BYTES), b = rd_w(from + i * VERTEX_BYTES + 4);
+        uint32_t c = rd_w(from + i * VERTEX_BYTES + 8), d = rd_w(from + i * VERTEX_BYTES + 12);
+        v[i] = { int16_t(a >> 16), int16_t(a), int16_t(b >> 16), int16_t(c >> 16), int16_t(c),
+                 { int32_t(d >> 24), int32_t((d >> 16) & 0xFF), int32_t((d >> 8) & 0xFF), int32_t(d & 0xFF) },
+                 b & 0xFFFF };
+    }
+    const Vertex &n0 = v[0], &n3 = v[3], &n4 = v[4], &f1 = v[1], &f2 = v[2];
+    if (n0.z != n3.z || n0.z != n4.z || n0.y != n3.y || n0.y != n4.y || f1.z != f2.z || f1.y != f2.y ||
+        n0.z <= f1.z || n0.x != f1.x || n3.x != f2.x || n4.x * 2 != n0.x + n3.x) {
+        return;
+    }
+    Vertex mid = f1;
+    mid.x = (f1.x + f2.x) / 2;
+    mid.s = (f1.s + f2.s) / 2;
+    mid.t = (f1.t + f2.t) / 2;
+    for (int k = 0; k < 4; k++) {
+        mid.c[k] = (f1.c[k] + f2.c[k]) / 2;
+    }
+    auto on = [](int32_t near, int32_t far, int32_t lo, int32_t hi) {
+        float x = near + (near - far) * SKY_REACH;
+        return x < lo ? lo : x > hi ? hi : int32_t(x + (x < 0 ? -0.5f : 0.5f));
+    };
+    const Vertex* fars[SKY_COUNT] = {};
+    fars[0] = &f1;
+    fars[3] = &f2;
+    fars[4] = &mid;
+    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+    for (uint32_t i = 0; i < SKY_COUNT; i++) {
+        Vertex o = v[i];
+        if (fars[i] != nullptr) {
+            const Vertex& f = *fars[i];
+            o.x = on(o.x, f.x, INT16_MIN, INT16_MAX);
+            o.y = on(o.y, f.y, INT16_MIN, INT16_MAX);
+            o.z = on(o.z, f.z, INT16_MIN, INT16_MAX);
+            o.s = on(o.s, f.s, INT16_MIN, INT16_MAX);
+            o.t = on(o.t, f.t, INT16_MIN, INT16_MAX);
+            for (int k = 0; k < 4; k++) {
+                o.c[k] = on(o.c[k], f.c[k], 0, 255);
+            }
+        }
+        uint32_t out = buffer + i * VERTEX_BYTES;
+        wr_w(out, (uint32_t(uint16_t(o.x)) << 16) | uint16_t(o.y));
+        wr_w(out + 4, (uint32_t(uint16_t(o.z)) << 16) | o.flag);
+        wr_w(out + 8, (uint32_t(uint16_t(o.s)) << 16) | uint16_t(o.t));
+        wr_w(out + 12, (uint32_t(o.c[0]) << 24) | (uint32_t(o.c[1]) << 16) | (uint32_t(o.c[2]) << 8) | uint32_t(o.c[3]));
+    }
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
 }
 
 // The texture rectangle at addr (G_TEXRECT, then its texture coordinates, G_RDPHALF_1: s and t, and steps,
@@ -303,195 +345,6 @@ void rect(uint32_t addr) {
     }
 }
 
-// An N64 matrix (s15.16, its integer halves then its fractions) at addr, and a row vector times it.
-struct Matrix {
-    float m[4][4];
-};
-
-Matrix read_matrix(uint32_t addr) {
-    Matrix out;
-    for (int i = 0; i < 16; i++) {
-        int32_t whole = rd_h(addr + i * 2);
-        uint32_t fraction = uint16_t(rd_h(addr + 32 + i * 2));
-        out.m[i / 4][i % 4] = float(whole) + float(fraction) / 65536.0f;
-    }
-    return out;
-}
-
-void times(const float v[4], const Matrix& m, float out[4]) {
-    for (int j = 0; j < 4; j++) {
-        out[j] = v[0] * m.m[0][j] + v[1] * m.m[1][j] + v[2] * m.m[2][j] + v[3] * m.m[3][j];
-    }
-}
-
-// A vertex of the sky: its position, texture coordinates and color, as numbers to carry on along the plane.
-struct Vertex {
-    float x, y, z, s, t, color[4];
-};
-
-Vertex read_vertex(uint32_t addr) {
-    uint32_t rgba = rd_w(addr + 12);
-    return { float(rd_h(addr)), float(rd_h(addr + 2)), float(rd_h(addr + 4)), float(rd_h(addr + 8)),
-             float(rd_h(addr + 10)),
-             { float(rgba >> 24), float((rgba >> 16) & 0xFF), float((rgba >> 8) & 0xFF), float(rgba & 0xFF) } };
-}
-
-Vertex mix(const Vertex& a, const Vertex& b, float k) {
-    Vertex out;
-    out.x = a.x + (b.x - a.x) * k;
-    out.y = a.y + (b.y - a.y) * k;
-    out.z = a.z + (b.z - a.z) * k;
-    out.s = a.s + (b.s - a.s) * k;
-    out.t = a.t + (b.t - a.t) * k;
-    for (int c = 0; c < 4; c++) {
-        out.color[c] = a.color[c] + (b.color[c] - a.color[c]) * k;
-    }
-    return out;
-}
-
-void clip(const Vertex& v, const Matrix& modelview, const Matrix& projection, float out[4]) {
-    float p[4] = { v.x, v.y, v.z, 1.0f }, eye[4];
-    times(p, modelview, eye);
-    times(eye, projection, out);
-}
-
-// The sky's G_VTX at addr: where its triangles' edge nearest the camera is their top on the screen and lies below the
-// screen's top, its vertices are copied with that edge carried on along the plane to SKY_TOP, and drawn from the copy.
-void sky(uint32_t addr) {
-    uint32_t w0 = rd_w(addr), source = in_ram(rd_w(addr + 4));
-    uint32_t count = (w0 >> 12) & 0xFF, first = ((w0 >> 1) & 0x7F) - count;
-    if (source == 0 || (source != SKY_VERTICES[0] && source != SKY_VERTICES[1]) || count != SKY_COUNT || first != 0 ||
-        g_projection == 0 || g_modelview == 0) {
-        return;
-    }
-    // The vertices its triangles use (a pipe sync may come between).
-    bool used[SKY_COUNT] = {};
-    for (uint32_t a = addr + 8;; a += 8) {
-        uint32_t c0 = rd_w(a), c1 = rd_w(a + 4), op = c0 >> 24;
-        if (op == G_RDPPIPESYNC) {
-            continue;
-        }
-        if (op != G_TRI1 && op != G_TRI2 && op != G_QUAD) {
-            break;
-        }
-        uint32_t words[2] = { c0, op == G_TRI1 ? 0 : c1 };
-        for (uint32_t w : words) {
-            for (int b = 0; b < 3; b++) {
-                uint32_t index = ((w >> (16 - b * 8)) & 0xFF) / 2;
-                if (index >= SKY_COUNT) {
-                    return;
-                }
-                used[index] = true;
-            }
-        }
-    }
-    Vertex v[SKY_COUNT];
-    float near_z = -1e9f, far_z = 1e9f;
-    for (uint32_t i = 0; i < SKY_COUNT; i++) {
-        v[i] = read_vertex(source + i * VERTEX_SIZE);
-        if (used[i]) {
-            near_z = std::max(near_z, v[i].z);
-            far_z = std::min(far_z, v[i].z);
-        }
-    }
-    // The far edge: two vertices of one height, apart on x. The near edge: the rest, of one height.
-    int far[2], fars = 0;
-    float near_y = 0;
-    bool any_near = false;
-    for (uint32_t i = 0; i < SKY_COUNT; i++) {
-        if (!used[i]) {
-            continue;
-        }
-        if (v[i].z == far_z) {
-            if (fars == 2) {
-                return;
-            }
-            far[fars++] = i;
-        }
-        else if (v[i].z == near_z) {
-            if (any_near && v[i].y != near_y) {
-                return;
-            }
-            near_y = v[i].y;
-            any_near = true;
-        }
-        else {
-            return;
-        }
-    }
-    if (!any_near || fars != 2 || near_z <= far_z || v[far[0]].y != v[far[1]].y || v[far[0]].x == v[far[1]].x) {
-        return;
-    }
-    Matrix modelview = read_matrix(g_modelview), projection = read_matrix(g_projection);
-    // Each near vertex goes on from the far edge's point straight behind it: k times as far from it (clip space is
-    // linear along the line, so k solves y = SKY_TOP * w there).
-    float stretch = 1.0f;
-    Vertex behind[SKY_COUNT];
-    for (uint32_t i = 0; i < SKY_COUNT; i++) {
-        if (!used[i] || v[i].z != near_z) {
-            continue;
-        }
-        behind[i] = mix(v[far[0]], v[far[1]], (v[i].x - v[far[0]].x) / (v[far[1]].x - v[far[0]].x));
-        float n[4], f[4];
-        clip(v[i], modelview, projection, n);
-        clip(behind[i], modelview, projection, f);
-        if (n[3] <= 0 || f[3] <= 0 || n[1] / n[3] <= f[1] / f[3]) {
-            return;
-        }
-        float denominator = (n[1] - f[1]) - SKY_TOP * (n[3] - f[3]);
-        if (denominator <= 0) {
-            return;
-        }
-        stretch = std::max(stretch, (SKY_TOP * f[3] - f[1]) / denominator);
-    }
-    if (stretch <= 1.0f) {
-        return;
-    }
-    if (stretch > SKY_MAX_STRETCH) {
-        return;
-    }
-    uint32_t copy = SKY_BASE + SKY_COUNT * VERTEX_SIZE * g_next_sky;
-    Vertex moved[SKY_COUNT];
-    for (uint32_t i = 0; i < SKY_COUNT; i++) {
-        moved[i] = v[i];
-        if (!used[i] || v[i].z != near_z) {
-            continue;
-        }
-        moved[i] = mix(behind[i], v[i], stretch);
-        float c[4];
-        clip(moved[i], modelview, projection, c);
-        // In front of the near plane, and every number within its field.
-        if (c[3] <= 0 || c[2] < -c[3]) {
-            return;
-        }
-        for (float value : { moved[i].y, moved[i].z, moved[i].s, moved[i].t }) {
-            if (std::fabs(value) > 32767.0f) {
-                return;
-            }
-        }
-    }
-    g_next_sky = (g_next_sky + 1) % SKY_COPIES;
-    for (uint32_t i = 0; i < SKY_COUNT; i++) {
-        uint32_t from = source + i * VERTEX_SIZE, to = copy + i * VERTEX_SIZE;
-        for (uint32_t w = 0; w < VERTEX_SIZE; w += 4) {
-            wr_w(to + w, rd_w(from + w));
-        }
-        if (!used[i] || v[i].z != near_z) {
-            continue;
-        }
-        wr_h(to + 2, int16_t(std::lround(moved[i].y)));
-        wr_h(to + 4, int16_t(std::lround(moved[i].z)));
-        wr_h(to + 8, int16_t(std::lround(moved[i].s)));
-        wr_h(to + 10, int16_t(std::lround(moved[i].t)));
-        uint32_t rgba = 0;
-        for (int c = 0; c < 4; c++) {
-            rgba = (rgba << 8) | uint32_t(std::clamp(std::lround(moved[i].color[c]), 0L, 255L));
-        }
-        wr_w(to + 12, rgba);
-    }
-    wr_w(addr + 4, copy & 0x1FFFFFFF);
-}
-
 void walk(uint32_t list, int depth) {
     if (depth > MAX_DEPTH) {
         return;
@@ -532,18 +385,9 @@ void walk(uint32_t list, int depth) {
             case G_SETSCISSOR:
                 scissor(addr);
                 break;
-            case G_MTX: {
-                uint32_t matrix = (w0 & MTX_LOAD) != 0 ? in_ram(w1) : 0;
-                if ((w0 & MTX_PROJECTION) != 0) {
-                    g_projection = matrix;
-                }
-                else {
-                    g_modelview = matrix;
-                }
-                break;
-            }
             case G_VTX:
-                if (g_fill) {
+                if (g_fill && g_opening && ((w0 >> 12) & 0xFF) == SKY_COUNT &&
+                    ((w1 & 0x1FFFFFFF) == SKY_VERTICES[0] || (w1 & 0x1FFFFFFF) == SKY_VERTICES[1])) {
                     sky(addr);
                 }
                 break;
@@ -573,9 +417,8 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_texture = 0;
     g_zimg = 0;
     g_cycle = 0;
+    g_opening = loaded(OPENING_OVERLAY);
     g_blacked = false;
-    g_projection = 0;
-    g_modelview = 0;
     uint32_t start = in_ram(list);
     if (start != 0) {
         walk(start, 0);
