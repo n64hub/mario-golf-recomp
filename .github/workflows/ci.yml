@@ -198,13 +198,24 @@ jobs:
         with:
           path: ~/apt-archives
           key: ${{ steps.key.outputs.apt }}
+      # From the cached .debs when they still install (about 15 s), else from the mirror (a minute or two). This step
+      # once hung for over 20 minutes where a rerun took 13 s: each apt-get try gets 5 minutes, three tries, and the
+      # step a limit of its own, so a hung mirror or install fails it in minutes rather than holding the job to its 90.
       - name: Install dependencies
+        timeout-minutes: 20
         run: |
           pkgs="clang lld libsdl2-dev libgtk-3-dev libfreetype-dev"
           if ls ~/apt-archives/*.deb > /dev/null 2>&1 && sudo dpkg -i ~/apt-archives/*.deb > /dev/null &&
               dpkg -s $pkgs > /dev/null; then exit 0; fi
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends $pkgs
+          for try in 1 2 3; do
+            if sudo timeout -k 30s 5m sh -c "apt-get update && apt-get install -y --no-install-recommends $pkgs"; then
+              break
+            fi
+            [ $try -lt 3 ] || exit 1
+            echo "apt-get failed or hung (try $try of 3), retrying"
+            sleep 15
+            sudo dpkg --configure -a
+          done
           mkdir -p ~/apt-archives && cp /var/cache/apt/archives/*.deb ~/apt-archives/
       # CMake 3.31: CMake 4 rejects the older submodules' cmake_minimum_required.
       - uses: lukka/get-cmake@latest
