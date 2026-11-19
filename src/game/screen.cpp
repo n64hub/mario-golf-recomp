@@ -326,24 +326,32 @@ uint32_t wipe_tile(uint32_t at, uint32_t end) {
     put((G_DL << 24) | (G_DL_NOPUSH << 16), (at + 8) & 0x1FFFFFFF);
     wr_w(at, (G_DL << 24) | (G_DL_NOPUSH << 16));
     wr_w(at + 4, buffer & 0x1FFFFFFF);
-    // The load: the image's texels under the scaled tile, a row of them in TMEM's 8-byte words.
-    uint32_t line = (uint32_t(x1 - x0) * 2 + 7) / 8;
+    // The load: the image's texels under the scaled tile, a row of them in TMEM's 8-byte words. RT64 draws the image at
+    // the window's width, its 320 columns across all of it, so the 4:3 frame's column x is its 160 + (x - 160) / wide.
+    float wide = mg_wide_scale();
+    float s0 = CENTRE_X + (float(x0) - CENTRE_X) / wide;
+    int sx0 = int(std::floor(s0)), sx1 = int(std::ceil(CENTRE_X + (float(x1) - CENTRE_X) / wide));
+    if (sx1 <= sx0) {
+        sx1 = sx0 + 1;
+    }
+    uint32_t line = (uint32_t(sx1 - sx0) * 2 + 7) / 8;
     wr_w(settile7, (rd_w(settile7) & ~(0x1FFu << 9)) | (line << 9));
     wr_w(settile0, (rd_w(settile0) & ~(0x1FFu << 9)) | (line << 9));
-    uint32_t ul = (uint32_t(x0) << 14) | (uint32_t(y0) << 2), lr = (uint32_t(x1 - 1) << 14) | (uint32_t(y1 - 1) << 2);
+    uint32_t ul = (uint32_t(sx0) << 14) | (uint32_t(y0) << 2), lr = (uint32_t(sx1 - 1) << 14) | (uint32_t(y1 - 1) << 2);
     wr_w(loadtile, 0xF4000000 | ul);
     wr_w(loadtile + 4, 0x07000000 | lr);
     wr_w(tilesize, 0xF2000000 | ul);
     wr_w(tilesize + 4, lr);
-    // The rectangle, at its shape, at 1:1, and the game's RAM back after it.
+    // The rectangle, at its shape, a texel of the image a pixel high and 1 / wide of one wide, and the game's RAM back
+    // after it.
     buffer = next_buffer();
     pos = buffer;
     gEXSetRectAspect(c, G_EX_ASPECT_ADJUST);
     put(c[0].values.word0, c[0].values.word1);
     put((w0 & 0xFF000000) | (uint32_t(x1 * 4) << 12) | uint32_t(y1 * 4),
         (w1 & 0xFF000000) | (uint32_t(x0 * 4) << 12) | uint32_t(y0 * 4));
-    put(rd_w(rect + 8) & 0xFF000000, (uint32_t(x0 << 5) << 16) | uint32_t(y0 << 5));
-    put(rd_w(rect + 16), d);
+    put(rd_w(rect + 8) & 0xFF000000, (uint32_t(int(std::lround(s0 * 32))) << 16) | uint32_t(y0 << 5));
+    put(rd_w(rect + 16), (uint32_t(int(std::lround(1024 / wide))) << 16) | 0x0400);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     put(c[0].values.word0, c[0].values.word1);
     gEXSetRDRAMExtended(c, 0);
