@@ -1,1 +1,0 @@
-- **The Game Boy golfers' shots:** Kid, Sherry, Azalea and Joe (the Game Boy Golfers option) hit the ball as far as their clubs say, so it leaves the tee and the lie follows it onto the fairway, the rough, a bunker or the green. Their shots went a few hundredths of a yard, so the ball stayed on the tee all round ([#90](https://github.com/n64hub/mario-golf-recomp/issues/90)).
