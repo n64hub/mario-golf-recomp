@@ -46,7 +46,9 @@
 // corners take. It keeps the game's size, so RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with
 // the last frame's rectangle and slides it between the two frames at the display's rate. This happens whatever the
 // window's shape, and before a rectangle at a side is widened. The game still rounds a sprite's size to whole pixels,
-// so a frame in which the ball's sprite grows or shrinks by one isn't slid.
+// so a frame in which the ball's sprite grows or shrinks by one isn't slid. A rectangle moved so that its top is no
+// longer on a whole pixel (or is again) has its texture's t moved by the row RT64 then adds (nudge() says why), or the
+// sprite's top row went missing.
 
 #include <algorithm>
 #include <cmath>
