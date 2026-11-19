@@ -61,7 +61,8 @@
 // at least) and starts its texture earlier by what the truncation dropped, each way, before it is widened: the light
 // is drawn that far right and down inside the rectangle, whose texture's edges are clear. RT64 pairs the rectangle
 // with the last frame's as before and slides that step of its texture between them as it does a scroll. widen()
-// puts a cut at the left back in whole pixels and keeps the fraction in s. Whatever the window's shape.
+// puts a cut at the left back in whole pixels and keeps the fraction in s, and puts the squeezed rectangle's left
+// edge on the whole pixel RT64 would, its texture starting as much further on. Whatever the window's shape.
 
 #include <algorithm>
 #include <cmath>
