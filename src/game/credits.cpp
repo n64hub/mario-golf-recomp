@@ -1,4 +1,4 @@
-// The staff credits' last picture at the picture's full height in a wide window, its shape kept, the rest black, as
+// The staff credits' last picture at the picture's full height in any window, its shape kept, the rest black, as
 // screen.cpp draws the title and the menus (RT64's Aspect Ratio Expand).
 //
 // The credits (scene 0x1E, overlay 16) end on a 304x224 picture that fades in over them and stays until START or A:
@@ -24,7 +24,7 @@
 //   (mg_screen_fill_range), which scales the scissor and the strips to the picture's full height and keeps the strips
 //   at their shape (gEXSetRectAspect(G_EX_ASPECT_ADJUST)), point sampled; then the scissor and the filter are set back
 //   as the function set them.
-// With Aspect Ratio Original, or a window no wider than 4:3, nothing is added.
+// With Aspect Ratio Original nothing is added.
 
 #include <cstdint>
 

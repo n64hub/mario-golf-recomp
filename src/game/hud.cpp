@@ -12,7 +12,8 @@
 // screen, each placed by a modelview matrix. So the commands are followed as the RSP would (the matrices, the viewport,
 // the vertices, the display lists they call) to know where on the screen each draws, and they are split into pieces:
 // a rectangle joins the piece before it when it lies within a few pixels of it, so a number stays with its label and
-// the meter with its marks, and each model is a piece of its own. A piece across the middle of the screen, or near it,
+// the meter with its marks, and each model is a piece of its own, but for one drawn over another (the shot's banner and
+// its letters as it spins). A piece across the middle of the screen, or near it,
 // stays where the game draws it; one left of it is placed from the left side and one right of it from the right
 // (gEXSetRectAlign for its rectangles, gEXSetViewportAlign and the viewport again for its models). A piece placed from
 // a side draws under the game's scissors widened to the picture, a little inside the 3D's border (WIDE_MARGIN). A piece
@@ -30,7 +31,12 @@
 // it, at 0x800E21D0 and on, 0x1E0 bytes a player, under matrices that never change. RT64 draws between the game's frames
 // by blending matrices, and with no group it leaves vertices as the game's next frame has them, so the sign stepped at
 // the game's rate while the rest moved at the display's. So its vertex load is put in an RT64 matrix group of its own
-// whose vertices RT64 interpolates (everything else as with no group), closed before the next load.
+// whose vertices RT64 interpolates (everything else as with no group), closed before the next load. The banner a shot
+// comes to rest under, a quad with a model for each letter, spins and scales in and out over the course: its models
+// are one piece, kept where the game draws it as it spins in from the left, so its letters stay on it in a wide
+// picture, and one matrix group, so they keep their places on it in the frames between the game's, its letters drawn
+// as models once more on the frame they turn to rectangles at its rest, so they turn with it to the end (anchor()
+// says why).
 
 #include <cstdint>
 #include <cstring>
@@ -59,6 +65,9 @@ constexpr uint32_t SIGN_VTX_W0 = 0x0101E03C;
 constexpr uint32_t SIGN_VERTICES = 0x800E21D0, SIGN_VERTICES_SIZE = 4 * 0x1E0;
 // Its matrix group's ID, away from the other groups' (src/game/backdrop.cpp's sky is 0x4D47534B).
 constexpr uint32_t SIGN_GROUP_ID = 0x4D475347;
+// The shot's banner: its quad's vertex load (4 vertices), whatever it says, and its matrix group's ID.
+constexpr uint32_t BANNER_VTX_W0 = 0x01004008, BANNER_VERTICES = 0x800C5A18;
+constexpr uint32_t BANNER_GROUP_ID = 0x4D474252;
 // The HUD's scissor, set before it.
 constexpr int MG_HUD_SCISSOR_ULX = 8, MG_HUD_SCISSOR_ULY = 8, MG_HUD_SCISSOR_LRX = 312, MG_HUD_SCISSOR_LRY = 232;
 
@@ -98,6 +107,11 @@ void wr_w(uint32_t addr, uint32_t value) {
     *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u)) = value;
 }
 
+void wr_h(uint32_t addr, uint16_t value) {
+    uint32_t w = rd_w(addr);
+    wr_w(addr, (addr & 2) ? ((w & 0xFFFF0000u) | value) : ((w & 0xFFFFu) | (uint32_t(value) << 16)));
+}
+
 // A KSEG0 or segment 0 address in RDRAM (the game's lists use KSEG0 addresses, segment 0); 0 for any other segment.
 uint32_t resolve(uint32_t seg_addr) {
     if ((seg_addr & 0x0F000000) != 0) {
@@ -133,6 +147,15 @@ Mat mul(const Mat& a, const Mat& b) {
     return r;
 }
 
+// Adds to an N64 fixed-point Mtx's element (row i, column j).
+void add_mtx(uint32_t addr, int i, int j, float value) {
+    int idx = i * 4 + j;
+    int32_t old = int32_t((uint32_t(uint16_t(rd_h(addr + idx * 2))) << 16) | uint16_t(rd_h(addr + 32 + idx * 2)));
+    int32_t fixed = old + int32_t(value * 65536.0f);
+    wr_h(addr + idx * 2, uint16_t(uint32_t(fixed) >> 16));
+    wr_h(addr + 32 + idx * 2, uint16_t(uint32_t(fixed) & 0xFFFF));
+}
+
 // An N64 fixed-point Mtx: sixteen integer halves, then sixteen fraction halves.
 Mat read_mtx(uint32_t addr) {
     Mat r{};
@@ -161,6 +184,12 @@ struct Box {
             add(b.x0, b.y0);
             add(b.x1, b.y1);
         }
+    }
+    bool contains(float x, float y) const { return !empty() && x >= x0 && x <= x1 && y >= y0 && y <= y1; }
+    bool inside(const Box& b) const { return !empty() && x0 >= b.x0 && x1 <= b.x1 && y0 >= b.y0 && y1 <= b.y1; }
+    // Whether either box's middle lies inside the other.
+    bool overlaps_middle(const Box& b) const {
+        return contains((b.x0 + b.x1) * 0.5f, (b.y0 + b.y1) * 0.5f) || b.contains((x0 + x1) * 0.5f, (y0 + y1) * 0.5f);
     }
     bool near(const Box& b) const {
         return !empty() && !b.empty() && b.x0 <= x1 + PIECE_GAP && x0 <= b.x1 + PIECE_GAP && b.y0 <= y1 + PIECE_GAP &&
@@ -267,10 +296,71 @@ struct Piece {
     Box box;
     bool models = false;
     uint32_t origin = G_EX_ORIGIN_NONE;
+    // Its first and last drawing commands.
+    uint32_t first = 0, last = 0;
 };
+
+// Commands from open to close (not included) drawn in a matrix group: the shot's banner.
+struct Span {
+    uint32_t open, close;
+};
+constexpr int MAX_SPANS = 8;
 
 Cmd g_cmds[MAX_COMMANDS];
 Piece g_pieces[MAX_COMMANDS];
+
+// Whether a piece is the shot's banner: models that start with its quad.
+bool is_banner(const Piece& piece) {
+    const Cmd& quad = g_cmds[piece.first];
+    return piece.models && quad.w0 == BANNER_VTX_W0 && quad.w1 == BANNER_VERTICES;
+}
+
+bool is_triangle(const Cmd& cmd) {
+    uint32_t op = cmd.w0 >> 24;
+    return op == 0x05 || op == 0x06 || op == 0x07;
+}
+
+// The banner's letters as the last frame drew them as models: its commands from after its quad's triangles to its
+// group's end, and the matrices they load (index into g_letter_mtx, or -1 for a command that loads none).
+constexpr uint32_t MAX_LETTER_CMDS = 1024, MAX_LETTER_MATRICES = 32, MTX_SIZE = 64;
+uint32_t g_letter_cmds[MAX_LETTER_CMDS][2];
+int g_letter_mtx_of[MAX_LETTER_CMDS];
+uint32_t g_letter_count = 0;
+uint32_t g_letter_mtx[MAX_LETTER_MATRICES][MTX_SIZE / 4];
+uint32_t g_letter_mtx_count = 0;
+// Whether the last frame's HUD kept them.
+bool g_letters_kept = false;
+
+// Keeps the banner's letters, from the command after its quad's triangles to close. False if they don't fit.
+bool keep_letters(uint32_t from, uint32_t close) {
+    g_letter_count = 0;
+    g_letter_mtx_count = 0;
+    while (from < close && is_triangle(g_cmds[from])) {
+        from++;
+    }
+    for (uint32_t i = from; i < close; i++) {
+        const Cmd& cmd = g_cmds[i];
+        if (g_letter_count == MAX_LETTER_CMDS) {
+            return false;
+        }
+        int mtx = -1;
+        if ((cmd.w0 >> 24) == G_MTX) {
+            uint32_t addr = resolve(cmd.w1);
+            if (addr == 0 || (cmd.w0 & G_MTX_PROJECTION) != 0 || g_letter_mtx_count == MAX_LETTER_MATRICES) {
+                return false;
+            }
+            for (uint32_t w = 0; w < MTX_SIZE / 4; w++) {
+                g_letter_mtx[g_letter_mtx_count][w] = rd_w(addr + w * 4);
+            }
+            mtx = int(g_letter_mtx_count++);
+        }
+        g_letter_cmds[g_letter_count][0] = cmd.w0;
+        g_letter_cmds[g_letter_count][1] = cmd.w1;
+        g_letter_mtx_of[g_letter_count] = mtx;
+        g_letter_count++;
+    }
+    return g_letter_mtx_count > 0;
+}
 
 uint32_t g_start;
 bool g_open = false;
@@ -376,6 +466,8 @@ bool spanning_rect_from_left(Cmd& rect, Cmd& half1, const Cmd& half2, int sc_ulx
 }
 
 void anchor(uint32_t start, uint32_t end) {
+    bool letters_kept = g_letters_kept;
+    g_letters_kept = false;
     uint32_t count = (end - start) / 8;
     if (end <= start || count > MAX_COMMANDS || (start & 7) != 0) {
         return;
@@ -421,14 +513,24 @@ void anchor(uint32_t start, uint32_t end) {
         }
         // Rectangles join the piece before them when they lie near it. A model is a piece of its own: the shot type's
         // arc, the club's head, the meter's marker and the lie are each within a few pixels of the next and of the
-        // meter, so joined they made one piece across the middle.
+        // meter, so joined they made one piece across the middle. But a model joins the models before it when the
+        // middle of one lies inside the other: the banner a shot comes to rest under (ROUGH, ON GREEN, its distance)
+        // spins and scales in and out as a black quad and a model for each letter on it, and the letters each placed
+        // by where they lay on their own went to the picture's sides while the quad stayed in the middle.
         if (pieces > 0 && !model && !g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.near(box)) {
             g_pieces[pieces - 1].box.add(box);
+            g_pieces[pieces - 1].last = i;
+            continue;
+        }
+        if (pieces > 0 && model && g_pieces[pieces - 1].models && g_pieces[pieces - 1].box.overlaps_middle(box)) {
+            g_pieces[pieces - 1].box.add(box);
+            g_pieces[pieces - 1].last = i;
             continue;
         }
         g_pieces[pieces] = Piece{};
         g_pieces[pieces].box = box;
         g_pieces[pieces].models = model;
+        g_pieces[pieces].first = g_pieces[pieces].last = i;
         cmd.piece = pieces++;
     }
     if (pieces == 0) {
@@ -438,7 +540,10 @@ void anchor(uint32_t start, uint32_t end) {
         Piece& piece = g_pieces[p];
         float middle = (piece.box.x0 + piece.box.x1) * 0.5f;
         bool across = piece.box.x0 < SCREEN_MIDDLE && piece.box.x1 > SCREEN_MIDDLE;
-        if (across || (middle > SCREEN_MIDDLE - MIDDLE_ZONE && middle < SCREEN_MIDDLE + MIDDLE_ZONE)) {
+        // The shot's banner spins in from the left to the middle: placed by where it lay, it went from the left side to
+        // the middle halfway, a jump of the picture's extra width at once. It stays where the game draws it throughout.
+        if (across || is_banner(piece) ||
+            (middle > SCREEN_MIDDLE - MIDDLE_ZONE && middle < SCREEN_MIDDLE + MIDDLE_ZONE)) {
             piece.origin = G_EX_ORIGIN_NONE;
         }
         else {
@@ -449,7 +554,9 @@ void anchor(uint32_t start, uint32_t end) {
     // Write them to the next buffer with the alignments.
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
-    Writer out{ buffer, buffer + BUFFER_SIZE };
+    // The letters' matrices, when they are drawn again, go at the buffer's end.
+    uint32_t matrices = buffer + BUFFER_SIZE - MAX_LETTER_MATRICES * MTX_SIZE;
+    Writer out{ buffer, matrices };
     GfxCommand c[2];
     gEXEnable(c);
     out.put(c, 1);
@@ -474,10 +581,200 @@ void anchor(uint32_t start, uint32_t end) {
     uint32_t rect_origin = G_EX_ORIGIN_NONE;
     uint32_t vp_origin = G_EX_ORIGIN_NONE;
     const Cmd* last_scissor = nullptr;
+    // The banner a shot comes to rest under: its quad's matrix (rotation and scale) loaded, then each letter's place on
+    // it multiplied on, its quad drawn and the matrix popped. RT64 left to itself blends each matrix's position only
+    // while it keeps its pace (rt64_transform_group.h), so as the banner spun and scaled in or out, a letter now and
+    // then jumped to its next place in the frames between the game's while the rest were blended, and stood over its
+    // neighbour or under the line. So the banner's piece is put in a matrix group, from the matrix before its quad to
+    // the next matrix or piece after its last model: its matrices blended whole, their positions always, paired by
+    // their order (the quad's first, then the letters'), as golfer.cpp does a golfer's. Its quad starts the group
+    // whether its letters are models or, once it has come to rest, rectangles, so RT64 blends it from its last turn
+    // to its rest as it did with no group, where a group only while its letters were models left the quad to jump.
+    // At rest the game draws the letters as rectangles, level, from the frame the quad comes to its rest, so in the
+    // frames between that one and the last the quad turned its last few degrees with the letters already level on it.
+    // So on that frame the letters are drawn as the frame before drew them, as models, on the quad at its rest, in
+    // place of its rectangles, each moved to where its rectangle lies: RT64 blends them with the quad, and the frame
+    // after draws the game's rectangles where the letters are.
+    Span spans[MAX_SPANS];
+    int span_count = 0;
+    // Where the last frame's letters are drawn again: after the triangles of a quad drawn with none (count for nowhere).
+    uint32_t replay_at = count;
+    // The quad it is drawn on, and up to where the game's rectangles on it (its letters at rest) are left out.
+    Box replay_box;
+    uint32_t replay_end = 0;
+    // Those rectangles, each with its texture's s and t (its G_RDPHALF_1's word), in the order the game draws them.
+    struct LetterRect {
+        Box box;
+        uint32_t st;
+        bool used;
+    };
+    constexpr int MAX_LETTER_RECTS = 64;
+    LetterRect letter_rects[MAX_LETTER_RECTS];
+    int letter_rect_count = 0;
+    for (int p = 0; p < pieces && span_count < MAX_SPANS; p++) {
+        const Piece& piece = g_pieces[p];
+        if (!is_banner(piece)) {
+            continue;
+        }
+        uint32_t open = piece.first;
+        for (uint32_t j = piece.first; j > 0 && piece.first - j < 8; j--) {
+            const Cmd& before = g_cmds[j - 1];
+            if (before.piece >= 0 || (span_count > 0 && j - 1 < spans[span_count - 1].close)) {
+                break;
+            }
+            if ((before.w0 >> 24) == G_MTX && (before.w0 & G_MTX_PROJECTION) == 0) {
+                open = j - 1;
+                break;
+            }
+        }
+        uint32_t close = piece.last + 1;
+        while (close < count && (g_cmds[close].w0 >> 24) != G_MTX && g_cmds[close].piece < 0) {
+            close++;
+        }
+        spans[span_count++] = Span{ open, close };
+        if (piece.last > piece.first) {
+            if (!g_letters_kept) {
+                g_letters_kept = keep_letters(piece.first + 1, close);
+            }
+        }
+        else if (letters_kept && replay_at == count) {
+            replay_at = piece.first + 1;
+            while (replay_at < close && is_triangle(g_cmds[replay_at])) {
+                replay_at++;
+            }
+            replay_box = piece.box;
+            replay_end = close;
+            for (int q = p + 1; q < pieces && !g_pieces[q].models && g_pieces[q].box.inside(replay_box); q++) {
+                replay_end = g_pieces[q].last + 1;
+            }
+            for (uint32_t j = replay_at; j < replay_end && j + 1 < count && letter_rect_count < MAX_LETTER_RECTS;
+                 j++) {
+                const Cmd& rect = g_cmds[j];
+                if (((rect.w0 >> 24) != G_TEXRECT && (rect.w0 >> 24) != G_TEXRECTFLIP) ||
+                    (g_cmds[j + 1].w0 >> 24) != G_RDPHALF_1) {
+                    continue;
+                }
+                Box box;
+                box.add(float((rect.w1 >> 12) & 0xFFF) / 4.0f, float(rect.w1 & 0xFFF) / 4.0f);
+                box.add(float((rect.w0 >> 12) & 0xFFF) / 4.0f, float(rect.w0 & 0xFFF) / 4.0f);
+                if (box.inside(replay_box)) {
+                    letter_rects[letter_rect_count++] = LetterRect{ box, g_cmds[j + 1].w1, false };
+                }
+            }
+        }
+    }
+    int next_span = 0;
+    bool banner_group = false;
+    uint32_t banner_close = 0;
+
     bool sign_group = false;
     for (uint32_t i = 0; i < count; i++) {
         Cmd& cmd = g_cmds[i];
         uint32_t op = cmd.w0 >> 24;
+        if (i == replay_at) {
+            for (uint32_t m = 0; m < g_letter_mtx_count; m++) {
+                for (uint32_t w = 0; w < MTX_SIZE / 4; w++) {
+                    wr_w(matrices + m * MTX_SIZE + w * 4, g_letter_mtx[m][w]);
+                }
+            }
+            // Each letter moved to its rectangle, the one whose texture starts where the letter's first vertex's does
+            // (the game spaces the letters evenly as they spin and by their widths at rest), so the frames between
+            // blend the spacing too. Where each lands is followed as the RSP would, from this frame's state there.
+            Rsp rsp_at;
+            rsp_at.viewport(MG_HUD_VIEWPORT);
+            for (uint32_t j = 0; j < replay_at; j++) {
+                uint32_t jop = g_cmds[j].w0 >> 24;
+                if (jop == G_MTX) {
+                    rsp_at.matrix(g_cmds[j].w0, g_cmds[j].w1);
+                }
+                else if (jop == G_POPMTX) {
+                    rsp_at.pop(g_cmds[j].w1);
+                }
+                else if (jop == G_DL) {
+                    rsp_at.call(resolve(g_cmds[j].w1), 0);
+                }
+                else if (jop == G_MOVEMEM && (g_cmds[j].w0 & 0xFF) == G_MV_VIEWPORT && resolve(g_cmds[j].w1) != 0) {
+                    rsp_at.viewport(resolve(g_cmds[j].w1));
+                }
+            }
+            int letter_mtx = -1;
+            Box letter_box;
+            for (uint32_t k = 0; k < g_letter_count; k++) {
+                uint32_t w0 = g_letter_cmds[k][0], w1 = g_letter_cmds[k][1];
+                uint32_t kop = w0 >> 24;
+                if (kop == G_MTX) {
+                    letter_mtx = g_letter_mtx_of[k];
+                    rsp_at.matrix(w0, (matrices + letter_mtx * MTX_SIZE) & 0x1FFFFFFF);
+                }
+                else if (kop == G_POPMTX) {
+                    rsp_at.pop(w1);
+                    letter_mtx = -1;
+                }
+                else if (kop == G_VTX) {
+                    letter_box = rsp_at.vertices(w0, w1);
+                }
+                else if (w0 == 0x02140000 && letter_mtx >= 0 && rsp_at.depth > 0 && !letter_box.empty()) {
+                    for (int r = 0; r < letter_rect_count; r++) {
+                        LetterRect& rect = letter_rects[r];
+                        if (rect.used || rect.st != w1) {
+                            continue;
+                        }
+                        rect.used = true;
+                        float dx = rect.box.x0 - letter_box.x0, dy = rect.box.y0 - letter_box.y0;
+                        // The screen's pixels for a unit of the letter's place: its quad's matrix, the projection
+                        // and the viewport (y down).
+                        Mat m = mul(rsp_at.mv[rsp_at.depth - 1], rsp_at.proj);
+                        float a = m.m[0][0] * rsp_at.vp_scale_x, b = m.m[1][0] * rsp_at.vp_scale_x;
+                        float c2 = -m.m[0][1] * rsp_at.vp_scale_y, d = -m.m[1][1] * rsp_at.vp_scale_y;
+                        float det = a * d - b * c2;
+                        if (dx * dx + dy * dy < 24.0f * 24.0f && (det > 1e-6f || det < -1e-6f)) {
+                            uint32_t addr = matrices + letter_mtx * MTX_SIZE;
+                            add_mtx(addr, 3, 0, (d * dx - b * dy) / det);
+                            add_mtx(addr, 3, 1, (a * dy - c2 * dx) / det);
+                        }
+                        break;
+                    }
+                    letter_box = Box{};
+                }
+            }
+            for (uint32_t k = 0; k < g_letter_count; k++) {
+                int m = g_letter_mtx_of[k];
+                out.put(g_letter_cmds[k][0], m < 0 ? g_letter_cmds[k][1] : (matrices + m * MTX_SIZE) & 0x1FFFFFFF);
+            }
+        }
+        if (banner_group && i >= banner_close) {
+            gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+            out.put(c, 1);
+            banner_group = false;
+        }
+        if (i >= replay_at && i < replay_end && (op == G_TEXRECT || op == G_TEXRECTFLIP)) {
+            Box rect;
+            rect.add(float((cmd.w1 >> 12) & 0xFFF) / 4.0f, float(cmd.w1 & 0xFFF) / 4.0f);
+            rect.add(float((cmd.w0 >> 12) & 0xFFF) / 4.0f, float(cmd.w0 & 0xFFF) / 4.0f);
+            if (rect.inside(replay_box)) {
+                // With its texture coordinates and steps.
+                while (i + 1 < count && ((g_cmds[i + 1].w0 >> 24) == G_RDPHALF_1 ||
+                                         (g_cmds[i + 1].w0 >> 24) == G_RDPHALF_2)) {
+                    i++;
+                }
+                continue;
+            }
+        }
+        if (next_span < span_count && i >= spans[next_span].open) {
+            if (sign_group) {
+                gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
+                out.put(c, 1);
+                sign_group = false;
+            }
+            gEXMatrixGroupSimple(c, BANNER_GROUP_ID, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_COMPONENT_INTERPOLATE,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_AUTO, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_AUTO, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_AUTO);
+            out.put(c, 2);
+            banner_group = true;
+            banner_close = spans[next_span].close;
+            next_span++;
+        }
         // The sign's group ends before the next load, which would take it.
         if (sign_group && (op == G_VTX || op == G_DL)) {
             gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
@@ -533,7 +830,7 @@ void anchor(uint32_t start, uint32_t end) {
         }
         out.put(cmd.w0, cmd.w1);
     }
-    if (sign_group) {
+    if (sign_group || banner_group) {
         gEXPopMatrixGroup(c, G_MTX_MODELVIEW);
         out.put(c, 1);
     }

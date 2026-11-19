@@ -1,5 +1,5 @@
-// The title and the menus at the picture's full height (RT64's Aspect Ratio Expand): a 2D screen fills the window's
-// height, or its width where the window is no wider than the screen, its shape kept, centred, the rest black.
+// The title and the menus at the picture's full height (RT64's Aspect Ratio Expand): a 2D screen fills the 4:3 frame's
+// height in any window, its shape kept, centred, the rest black.
 //
 // The game draws every screen inside a border of its own: under a scissor of 8, 8 to 312, 232, the 304x224 a TV's edge
 // left in sight. On the course RT64 widens the 3D past it to the window's sides, but the title (its painting, 38 strips
@@ -8,8 +8,9 @@
 // at 4:3 in the middle of a wider picture: so they stood in a 912x672 box in a 1280x720 window, black above and below
 // as well as beside them.
 //
-// Here each such screen is scaled about the screen's middle until its 224 lines fill the picture's 240, by 240/224, or
-// in a window no wider than 4:3 until its 304 columns fill the 320, by 320/304, whichever is less. nuGfxTaskStart sends
+// Here each such screen is scaled about the screen's middle until its 224 lines fill the picture's 240, by 240/224, in
+// every window, 4:3 and narrower too: filling its 304 columns to the 320 there instead (by 320/304) left 235.8 of the
+// 240 lines, a black band of about 1% above and below that a TV's edge hid. nuGfxTaskStart sends
 // each frame's display list, and us.toml hooks its start: mg_screen_fill reads the list it is given, while the game is
 // on the title (overlay 8 loaded) or in its menus (overlay 3), from the main menu to Course Select. In the list's own
 // commands (the frame's, which the game writes anew each frame; the lists it calls are its data and are left alone):
@@ -19,12 +20,12 @@
 //   scaled strip of the backdrop is as wide as the frame. They are point sampled: the game filters them bilinearly,
 //   which at 1:1 reads each texel as it is, but scaled it blurs each strip's rows into each other and stops at its
 //   edges (a strip's texture is only its own rows), so every strip of the title's painting showed as a band;
-// - each scissor is scaled the same way and clipped to the frame, so the border's 8, 8 to 312, 232 becomes 0.25, 0 to
-//   319.75, 240: a quarter pixel inside the frame's sides, or RT64 widens a model drawn under it (Course Select's sea)
+// - each scissor is scaled the same way and clipped to the frame, so the border's 8, 8 to 312, 232 becomes 0, 0 to
+//   320, 240, or in a window wider than 4:3 0.25, 0 to 319.75, 240: a quarter pixel inside the frame's sides, or RT64 widens a model drawn under it (Course Select's sea)
 //   to the window as it does the course's (scale_scissor). Nothing reaches past the frame's sides: RT64 takes the
-//   widest scissor a frame draws under as the screen (iris.cpp says what one past the sides did), so in a wide window
+//   widest scissor a frame draws under as the screen (iris.cpp says what one past the sides did), so in every window
 //   the screen's sides lose what scaling it to the full height takes them past the frame's, 2.9 of its 325.7 columns
-//   at each side;
+//   at each side, where the game's own border hid 8;
 // - each viewport is a copy scaled the same way, so a model drawn on a menu (the golfer) grows with it.
 // Only what is drawn to the screen is scaled: while the color image is another (G_SETCIMG of a width other than the
 // screen's), the commands are left as the game wrote them. Metal Mario's shine on Play Modes is a 32x32 map the game
@@ -43,9 +44,11 @@
 // before (card.cpp's mg_copy_frame_list: the whole picture, as RT64 drew it), and each tile is drawn at the place it is
 // scaled to, reading that image at the same place (wipe_tile), so the old screen is the picture it was until its tiles
 // go. RT64 draws the image at the window's width, so a tile reads its columns 1 / wide of a column apart, about the
-// middle. The buffers are this file's in RDRAM, above the 4 MB the game
-// uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D screen drawn in a frame with 3D,
-// goes through the same scaling from credits.cpp (mg_screen_fill_range).
+// middle. The wipe's second frame is drawn while the game swaps the two overlays, neither of them loaded, so a wipe
+// under way is scaled on through it and keeps its image to its last tile; let go of there, its tiles drew at 4:3 that
+// frame, inside a black band, and from the next each copied that shrunk picture anew. The buffers are this file's in
+// RDRAM, above the 4 MB the game uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D
+// screen drawn in a frame with 3D, goes through the same scaling from credits.cpp (mg_screen_fill_range).
 
 #include <cmath>
 #include <cstdint>
@@ -78,8 +81,8 @@ constexpr uint32_t OVERLAYS = 0x800B5F58, OVERLAY_SIZE = 0x28, MENU_OVERLAY = 3,
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 304 * 224 * 2, GAME_RAM = 0x00800000;
 
 constexpr float SCREEN_WIDTH = 320.0f, SCREEN_HEIGHT = 240.0f, CENTRE_X = 160.0f, CENTRE_Y = 120.0f;
-// The 2D screen inside the game's border: 304x224.
-constexpr float INNER_WIDTH = 304.0f, INNER_HEIGHT = 224.0f;
+// The 2D screen inside the game's border: 304x224, of which its height is what the screen is scaled to fill.
+constexpr float INNER_HEIGHT = 224.0f;
 
 // Above backdrop.cpp's buffers and below ball.cpp's: 64 KB, 1024 of 64 bytes, used in turn. A menu draws up to ~200
 // rectangles a frame, and the renderer may read a list a frame or more after the game sends it.
@@ -92,6 +95,8 @@ constexpr uint32_t MAX_COMMANDS = 0x8000;
 uint8_t* g_rdram;
 uint32_t g_next_buffer = 0;
 float g_fill = 1.0f;
+// Whether the window is wider than the 4:3 frame, where RT64 can widen a model past it.
+bool g_wide = false;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -201,17 +206,19 @@ void replace_rect(uint32_t addr, bool copy) {
 // The scissor at addr scaled and clipped to the frame, in place. One the game set inside the frame's sides stays a
 // quarter pixel inside them: RT64 widens a model to the window when its scissor spans the whole width the frame drew
 // in, which the frame's clear makes the frame's, and a menu's models (Course Select's sea) are kept at the screen's
-// shape as before.
+// shape as before. Only in a window wider than 4:3: RT64 draws the scissor from whole columns, so the quarter pixel
+// left the frame's first column black, which there is beside the black past the frame, but in a 4:3 window was a
+// column of black at the window's left edge, where nothing is widened.
 void scale_scissor(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
     float ulx = ((w0 >> 12) & 0xFFF) / 4.0f, uly = (w0 & 0xFFF) / 4.0f;
     float lrx = ((w1 >> 12) & 0xFFF) / 4.0f, lry = (w1 & 0xFFF) / 4.0f;
     uint32_t new_ulx = uint32_t(edge(scale_x(ulx), SCREEN_WIDTH)) * 4, new_uly = uint32_t(edge(scale_y(uly), SCREEN_HEIGHT)) * 4;
     uint32_t new_lrx = uint32_t(edge(scale_x(lrx), SCREEN_WIDTH)) * 4, new_lry = uint32_t(edge(scale_y(lry), SCREEN_HEIGHT)) * 4;
-    if (ulx > 0.0f && new_ulx < 1) {
+    if (g_wide && ulx > 0.0f && new_ulx < 1) {
         new_ulx = 1;
     }
-    if (lrx < SCREEN_WIDTH && new_lrx > SCREEN_WIDTH * 4 - 1) {
+    if (g_wide && lrx < SCREEN_WIDTH && new_lrx > SCREEN_WIDTH * 4 - 1) {
         new_lrx = uint32_t(SCREEN_WIDTH * 4 - 1);
     }
     wr_w(addr, (w0 & 0xFF000000) | (new_ulx << 12) | new_uly);
@@ -374,15 +381,15 @@ uint32_t wipe_tile(uint32_t at, uint32_t end) {
     return rect + 24;
 }
 
-// How much a screen is scaled, false if not at all: in a window no wider than 4:3 the frame fills its width; in a wider
-// one, its height, and as much of the width. With Aspect Ratio Original, not at all.
+// How much a screen is scaled, false if not at all: until it fills the frame's height, in any window. With Aspect Ratio
+// Original, not at all.
 bool set_fill() {
     if (!mg_aspect_expand()) {
         return false;
     }
-    float width = SCREEN_WIDTH * mg_wide_scale();
-    g_fill = std::fmin(SCREEN_HEIGHT / INNER_HEIGHT, width / INNER_WIDTH);
-    return g_fill > 1.0f;
+    g_fill = SCREEN_HEIGHT / INNER_HEIGHT;
+    g_wide = mg_wide_scale() > 1.0f;
+    return true;
 }
 
 // The commands from list to end that draw to the screen scaled: rectangles, scissors and viewports, rectangles point
@@ -443,7 +450,9 @@ void fill(uint32_t list, uint32_t end) {
 
 extern "C" void mg_screen_fill(uint8_t* rdram, uint32_t list) {
     g_rdram = rdram;
-    if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY)) || !set_fill()) {
+    // A wipe under way goes on through its second frame, in which the game swaps the two overlays and neither is loaded.
+    bool wiping = g_wipe_image != 0;
+    if ((list & 7) != 0 || !(loaded(MENU_OVERLAY) || loaded(TITLE_OVERLAY) || wiping) || !set_fill()) {
         g_wipe_image = 0;
         g_last_cimg = 0;
         return;
