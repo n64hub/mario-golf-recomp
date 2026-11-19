@@ -25,8 +25,11 @@
 # set after it, since a computer golfer's aim is turned to 0x80104F78 before then. The wind, which the hole draws with
 # rand() as its flyover ends, a frame apart in each window, is set before each swing but the putt (Mini-Golf has
 # none): its speed (16.16) and heading (the high half) at 0x800BA9F0 and 0x800BA9F4, and the vector the game works out
-# of them at 0x80104F44 and 0x80104F4C (func_8007E7B8). And rand() (its state at 0x800FBD30), which others call at
-# each window's pace and a ball through a tree's leaves draws on, is seeded as the meter stops.
+# of them at 0x80104F44 and 0x80104F4C (func_8007E7B8). And rand() (its state at 0x800FBD30), called 6 times a game
+# frame and once more as the ball is struck, and so at another point in each window by then, is seeded a few frames
+# before the meter's last stop with the meter set back to the start of the 4 values its wait takes (0x24, or 0x0C for
+# the putt): a poke that lands a frame late sets the meter back that frame too, so the seed is always the same number
+# of frames from the stop.
 
 # The logos and the intro: the golfers one by one, Luigi's swing and its crossfade to the overhead shot.
 3 shot 00_logos
@@ -64,8 +67,10 @@
 74.5 poke 0x80104F90 0
 74.5 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 74.5 poke 0x80227194 1
-74.5 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+74.5 until 0x800FBE88 0x000000FC 0x00000024 5
+74.5 poke 0x800FBE88 0x24
 74.5 poke 0x800FBD30 1
+74.5 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
 78.9 shot 10_tournament_flight
 86.9 shot 11_tournament_landing
 87.4 poke 0x800BA9F0 0x00081650
@@ -78,8 +83,10 @@
 87.4 poke 0x80104F90 0
 87.4 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 87.4 poke 0x80227194 1
-87.4 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+87.4 until 0x800FBE88 0x000000FC 0x00000024 5
+87.4 poke 0x800FBE88 0x24
 87.4 poke 0x800FBD30 1
+87.4 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
 91.8 shot 12_tournament_second
 99.8 shot 13_tournament_second_landing
 100.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
@@ -112,8 +119,10 @@
 115.1 poke 0x80104F90 0
 115.1 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 115.1 poke 0x80227194 1
-115.1 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+115.1 until 0x800FBE88 0x000000FC 0x00000024 5
+115.1 poke 0x800FBE88 0x24
 115.1 poke 0x800FBD30 1
+115.1 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
 119.5 shot 23_ring_shot_flight
 127.5 shot 24_ring_shot_landing
 128.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
@@ -146,8 +155,10 @@
 143 poke 0x80104F90 0
 143 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 143 poke 0x80227194 1
-143 until 0x800FBE88 0xFFFFFFFF 0x00000012 5
+143 until 0x800FBE88 0x000000FC 0x0000000C 5
+143 poke 0x800FBE88 0x0C
 143 poke 0x800FBD30 1
+143 until 0x800FBE88 0xFFFFFFFF 0x00000012 5
 147.4 shot 32_mini_golf_flight
 155.4 shot 33_mini_golf_landing
 159.4 key Space
@@ -210,8 +221,10 @@
 184.4 poke 0x80104F90 0
 184.4 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 184.4 poke 0x80227194 1
-184.4 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+184.4 until 0x800FBE88 0x000000FC 0x00000024 5
+184.4 poke 0x800FBE88 0x24
 184.4 poke 0x800FBD30 1
+184.4 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
 188.8 shot 44_get_character_flight
 196.8 shot 45_get_character_landing
 204.8 shot 46_get_character_rival
@@ -269,8 +282,10 @@
 248.8 poke 0x80104F90 0
 248.8 until 0x800FBE88 0x000000F8 0x00000008 15 Space
 248.8 poke 0x80227194 1
-248.8 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+248.8 until 0x800FBE88 0x000000FC 0x00000024 5
+248.8 poke 0x800FBE88 0x24
 248.8 poke 0x800FBD30 1
+248.8 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
 253.2 shot 64_speed_golf_flight
 261.2 shot 65_speed_golf_landing
 267.2 shot 66_speed_golf_run
