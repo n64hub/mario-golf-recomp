@@ -206,7 +206,7 @@ text = "{ void mg_ball_project_y(uint8_t*, float); mg_ball_project_y(rdram, ctx-
 [[patches.hook]]
 func = "nuGfxTaskStart"
 before_vram = 0x80029774
-text = "{ void mg_billboards(uint8_t*, uint32_t); void mg_iris_fix(uint8_t*, uint32_t); void mg_border_fill(uint8_t*, uint32_t); void mg_screen_fill(uint8_t*, uint32_t); mg_billboards(rdram, (uint32_t)ctx->r4); mg_iris_fix(rdram, (uint32_t)ctx->r4); mg_border_fill(rdram, (uint32_t)ctx->r4); mg_screen_fill(rdram, (uint32_t)ctx->r4); }"
+text = "{ void mg_billboards(uint8_t*, uint32_t); void mg_iris_fix(uint8_t*, uint32_t); void mg_border_fill(uint8_t*, uint32_t); void mg_screen_fill(uint8_t*, uint32_t); mg_billboards(rdram, (uint32_t)ctx->r4); mg_iris_fix(rdram, (uint32_t)ctx->r4); mg_border_fill(rdram, (uint32_t)ctx->r4); void mg_dbg_log(uint8_t*, uint32_t); mg_dbg_log(rdram, (uint32_t)ctx->r4); mg_screen_fill(rdram, (uint32_t)ctx->r4); }"
 
 # The course's terrain without cracks at a high resolution. The course is 8 by 16 blocks, and each frame func_80062A8C
 # picks each block's level of detail by its distance: 2, its own fine display list; 1, a 2x2 grid of quads; 0, one quad.
