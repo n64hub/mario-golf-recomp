@@ -1,0 +1,1 @@
+- **Ring Shot's stage select:** changing stage now closes the wooden slats over the board, keeps them shut while the next course loads and opens them on it, as on a console, where only two corner pieces flashed for a frame; and the picture's bottom lines there now show the course, not a band of streaks ([#124](https://github.com/n64hub/mario-golf-recomp/issues/124)).

@@ -121,7 +121,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
-  own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it, both where
+  own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it and to its top and bottom, both where
   RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker, and draws them between game frames only with
