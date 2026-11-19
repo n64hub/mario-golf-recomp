@@ -24,6 +24,9 @@
 // that reads a framebuffer stretched across the picture, as the framebuffer it reads was drawn, so the doors slide
 // over the whole width, and in a 4:3 menu the old one's black sides come with it.
 //
+// screen.cpp's wipe between the title and the main menu makes its copy of the frame before the same way, into an image
+// of its own (mg_copy_frame_list).
+//
 // Any other strips the drawer draws (another mode or type, a copy elsewhere) keep their 4:3 shape in the middle of the
 // picture (gEXSetRectAspect(G_EX_ASPECT_ADJUST) around them). The drawer's other transitions need nothing: its tiles
 // (type 10) are each narrower than the screen, and the card that turns over to a course's next shot (type 2) is a

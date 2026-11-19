@@ -33,7 +33,17 @@
 // map drew black: nearly half his face, cap and body.
 // A rectangle that reads the copy of the frame before that a transition draws (card.cpp's, of the picture RT64 drew,
 // already scaled, or the game's own in its z-buffer) is left as it is, and so is one iris.cpp has already sent through
-// a buffer of its own, so us.toml calls mg_iris_fix first. The buffers are this file's in RDRAM, above the 4 MB the game
+// a buffer of its own, so us.toml calls mg_iris_fix first. But for the wipe between the title and the main menu (both
+// ways): the game draws the new screen whole and over it the old one, 64 tiles of 38x28 of its copy in the z-buffer
+// (304x224, the frame inside its border, read by the CPU out of the framebuffer RT64 wrote back), in a spiral from the
+// top left corner inwards, and each frame leaves out 4 more from the spiral's inner end, the last few fading, so the new
+// screen opens from the middle (in 16 frames). Left at 4:3 while the new screen was scaled, the tiles left the new
+// screen showing in a band round them from the wipe's first frame, where the old one filled the picture a frame before,
+// and the old menu's sign and board stayed over the title to the wipe's end. So the wipe's first frame copies the frame
+// before (card.cpp's mg_copy_frame_list: the whole picture, as RT64 drew it), and each tile is drawn at the place it is
+// scaled to, reading that image at the same place (wipe_tile), so the old screen is the picture it was until its tiles
+// go. RT64 draws the image at the window's width, so a tile reads its columns 1 / wide of a column apart, about the
+// middle. The buffers are this file's in RDRAM, above the 4 MB the game
 // uses. With Aspect Ratio Original nothing changes. The credits' last picture, a 2D screen drawn in a frame with 3D,
 // goes through the same scaling from credits.cpp (mg_screen_fill_range).
 
@@ -293,7 +303,8 @@ uint32_t wipe_tile(uint32_t at, uint32_t end) {
         return 0;
     }
     uint32_t w0 = rd_w(rect), w1 = rd_w(rect + 4), st = rd_w(rect + 12), d = rd_w(rect + 20);
-    uint32_t ulx = ((w1 >> 12) & 0xFFF) >> 2, uly = (w1 & 0xFFF) >> 2, lrx = ((w0 >> 12) & 0xFFF) >> 2, lry = (w0 & 0xFFF) >> 2;
+    uint32_t ulx = ((w1 >> 12) & 0xFFF) >> 2, uly = (w1 & 0xFFF) >> 2;
+    uint32_t lrx = ((w0 >> 12) & 0xFFF) >> 2, lry = (w0 & 0xFFF) >> 2;
     if (d != 0x04000400 || ulx < 8 || uly < 8 || st != ((((ulx - 8) << 5) << 16) | ((uly - 8) << 5))) {
         return 0;
     }
