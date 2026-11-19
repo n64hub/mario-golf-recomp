@@ -271,8 +271,9 @@ void rect(uint32_t addr) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
     }
     // The hills' last strip, where it already runs on past its rows (the RDP repeating its last one down to the
-    // border, as the game draws it), runs on to the screen's bottom the same way.
-    else if (!game_copy && lry == BORDER_BOTTOM - inside && lry > uly + STRIP_ROWS * 4) {
+    // border, as the game draws it), runs on to the screen's bottom the same way. The game draws it in copy mode to
+    // 232 itself, a line past the border's last, so either bottom is the border's.
+    else if (!game_copy && lry >= BORDER_BOTTOM - 4 && lry <= BORDER_BOTTOM && lry > uly + STRIP_ROWS * 4) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
     }
     // The pause's copy holds the 224 lines inside the border, and its last strip runs on past them, into what lies
