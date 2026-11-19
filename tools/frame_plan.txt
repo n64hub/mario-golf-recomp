@@ -76,26 +76,26 @@
 112.6 until 0x80243EE4 0xFFFFFFFF 0x00000000 15 D
 112.6 until 0x80243EE4 0xFFFFFFFF 0x00000001 15
 112.6 until 0x80243EE0 0xFFFFFFFF 0x00000000 15
-112.6 shot 20a_ring_shot_stage_next
-112.6 until 0x80243EE4 0xFFFFFFFF 0x00000000 15 A
-112.6 until 0x80243EE4 0xFFFFFFFF 0x00000001 15
-112.6 until 0x80243EE0 0xFFFFFFFF 0x00000000 15
-112.6 shot 20b_ring_shot_stage_back
-112.6 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-113.6 shot 21_ring_shot_open
-113.6 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-114.6 shot 22_ring_shot_tee
-115.1 key Space
-115.8 key Space
-116.5 key Space
-119.5 shot 23_ring_shot_flight
-127.5 shot 24_ring_shot_landing
-128.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-130 shot 25_ring_shot_pause
-130 until 0x80224924 0x000000FF 0x00000005 15 W
-130.5 shot 26_ring_shot_quit
-130.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-132.5 shot 27_ring_shot_main_menu
+113.1 shot 20a_ring_shot_stage_next
+113.1 until 0x80243EE4 0xFFFFFFFF 0x00000000 15 A
+113.1 until 0x80243EE4 0xFFFFFFFF 0x00000001 15
+113.1 until 0x80243EE0 0xFFFFFFFF 0x00000000 15
+113.6 shot 20b_ring_shot_stage_back
+113.6 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+114.6 shot 21_ring_shot_open
+114.6 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+115.6 shot 22_ring_shot_tee
+116.1 key Space
+116.8 key Space
+117.5 key Space
+120.5 shot 23_ring_shot_flight
+128.5 shot 24_ring_shot_landing
+129.5 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+131 shot 25_ring_shot_pause
+131 until 0x80224924 0x000000FF 0x00000005 15 W
+131.5 shot 26_ring_shot_quit
+131.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+133.5 shot 27_ring_shot_main_menu
 
 # Mini-Golf on Luigi's Garden (overlay 2): its course select, hole 1's flyover and a putt that drops, the view of
 # the cup with its stars and the score card, then hole 2's camera swooping in behind the tee and its aim turned right,
@@ -104,147 +104,147 @@
 # turned back left until the sun's x is -64 to -96, where the game cuts its light (a square 128 across here) off the
 # screen's left side to nothing, and on a tap at a time as it leaves the picture (issue 97: put back 128 wide whatever
 # the sun's size, a sun of half that size, as in hole 10's drive in Training, showed a second sun beside it).
-133 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-134.5 shot 28_character_select
-135.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-137 shot 29_play_modes
-138 until 0x801323A8 0x000000FF 0x5 15 D
-139 key Space
-140.5 shot 30_mini_golf_select
-141.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-141.5 until 0x800B5FF8 0xFF000000 0x00000000 60
-142.5 shot 31_mini_golf_tee
-143 key Space
-143.7 key Space
-144.4 key Space
-147.4 shot 32_mini_golf_flight
-155.4 shot 33_mini_golf_landing
-159.4 key Space
-161.4 shot 34_mini_golf_next
-161.4 until 0x800B5FF8 0xFF000000 0x00000000 60
-162.4 shot 35_mini_golf_hole2
-162.5 until 0x800C5F24 0xFFF00000 0x43800000 60 D 80 0.6
-162.9 key D 80
-163.3 shot 35a_mini_golf_flare
-163.4 key D 80
-163.8 shot 35b_mini_golf_flare
+134 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+135.5 shot 28_character_select
+136.5 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+138 shot 29_play_modes
+139 until 0x801323A8 0x000000FF 0x5 15 D
+140 key Space
+141.5 shot 30_mini_golf_select
+142.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+142.5 until 0x800B5FF8 0xFF000000 0x00000000 60
+143.5 shot 31_mini_golf_tee
+144 key Space
+144.7 key Space
+145.4 key Space
+148.4 shot 32_mini_golf_flight
+156.4 shot 33_mini_golf_landing
+160.4 key Space
+162.4 shot 34_mini_golf_next
+162.4 until 0x800B5FF8 0xFF000000 0x00000000 60
+163.4 shot 35_mini_golf_hole2
+163.5 until 0x800C5F24 0xFFF00000 0x43800000 60 D 80 0.6
 163.9 key D 80
-164.3 shot 35c_mini_golf_flare
+164.3 shot 35a_mini_golf_flare
 164.4 key D 80
-164.8 shot 35d_mini_golf_flare
+164.8 shot 35b_mini_golf_flare
 164.9 key D 80
-165.3 shot 35e_mini_golf_flare
+165.3 shot 35c_mini_golf_flare
 165.4 key D 80
-165.8 shot 35f_mini_golf_flare
+165.8 shot 35d_mini_golf_flare
 165.9 key D 80
-166.3 shot 35g_mini_golf_flare
+166.3 shot 35e_mini_golf_flare
 166.4 key D 80
-166.8 shot 35h_mini_golf_flare
-166.85 until 0x800C5F24 0xFFC00000 0xC2800000 90 A 80 0.3
-166.9 shot 35i_mini_golf_sun_left
-166.95 key A 80
-167.05 shot 35j_mini_golf_sun_left
-167.1 key A 80
-167.2 shot 35k_mini_golf_sun_left
-167.25 key A 80
-167.35 shot 35l_mini_golf_sun_left
-167.4 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-168.9 shot 36_mini_golf_pause
-168.9 until 0x80224924 0x000000FF 0x00000005 15 W
-169.4 shot 37_mini_golf_quit
-169.4 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-171.4 shot 38_mini_golf_main_menu
+166.8 shot 35f_mini_golf_flare
+166.9 key D 80
+167.3 shot 35g_mini_golf_flare
+167.4 key D 80
+167.8 shot 35h_mini_golf_flare
+167.85 until 0x800C5F24 0xFFC00000 0xC2800000 90 A 80 0.3
+167.9 shot 35i_mini_golf_sun_left
+167.95 key A 80
+168.05 shot 35j_mini_golf_sun_left
+168.1 key A 80
+168.2 shot 35k_mini_golf_sun_left
+168.25 key A 80
+168.35 shot 35l_mini_golf_sun_left
+168.4 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+169.9 shot 36_mini_golf_pause
+169.9 until 0x80224924 0x000000FF 0x00000005 15 W
+170.4 shot 37_mini_golf_quit
+170.4 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+172.4 shot 38_mini_golf_main_menu
 
 # Get Character: a match against a computer golfer, whose turn the camera follows.
-171.9 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-173.4 shot 39_character_select
-174.4 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-175.9 shot 40_play_modes
-176.9 until 0x801323A8 0x000000FF 0x1 15 D
-177.9 key Space
-179.4 shot 41_get_character_select
-180.4 key Space
-181.9 shot 42_get_character_course
-182.9 key Space
-182.9 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-182.9 until 0x800B5FF8 0xFF000000 0x00000000 60
-183.9 shot 43_get_character_tee
-184.4 key Space
-185.1 key Space
-185.8 key Space
-188.8 shot 44_get_character_flight
-196.8 shot 45_get_character_landing
-204.8 shot 46_get_character_rival
-212.8 shot 47_get_character_rival2
-213.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-215.3 shot 48_get_character_pause
-215.3 until 0x80224924 0x000000FF 0x00000005 15 W
-215.8 shot 49_get_character_quit
-215.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-217.8 shot 50_get_character_main_menu
+172.9 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+174.4 shot 39_character_select
+175.4 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+176.9 shot 40_play_modes
+177.9 until 0x801323A8 0x000000FF 0x1 15 D
+178.9 key Space
+180.4 shot 41_get_character_select
+181.4 key Space
+182.9 shot 42_get_character_course
+183.9 key Space
+183.9 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+183.9 until 0x800B5FF8 0xFF000000 0x00000000 60
+184.9 shot 43_get_character_tee
+185.4 key Space
+186.1 key Space
+186.8 key Space
+189.8 shot 44_get_character_flight
+197.8 shot 45_get_character_landing
+205.8 shot 46_get_character_rival
+213.8 shot 47_get_character_rival2
+214.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+216.3 shot 48_get_character_pause
+216.3 until 0x80224924 0x000000FF 0x00000005 15 W
+216.8 shot 49_get_character_quit
+216.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+218.8 shot 50_get_character_main_menu
 
 # Training: its hole picker over the course map, hole 2 picked (it hung there once), A through its flyover to the
 # tee, left from there (a shot ends on a menu that Start doesn't pause); its pause menu has nine items, the last Return
 # to Menu.
-218.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-219.8 shot 51_character_select
-220.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-222.3 shot 52_play_modes
-223.3 until 0x801323A8 0x000000FF 0x6 15 D
-224.3 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
-225.8 shot 53_training_select
-226.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
-228.3 shot 54_training_hole
-228.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-228.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-229.3 shot 55_training_tee
-230.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-231.8 shot 56_training_pause
-231.8 until 0x80224924 0x000000FF 0x00000008 15 W
-232.3 shot 57_training_quit
-232.3 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-234.3 shot 58_training_main_menu
+219.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+220.8 shot 51_character_select
+221.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+223.3 shot 52_play_modes
+224.3 until 0x801323A8 0x000000FF 0x6 15 D
+225.3 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+226.8 shot 53_training_select
+227.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
+229.3 shot 54_training_hole
+229.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+229.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+230.3 shot 55_training_tee
+231.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+232.8 shot 56_training_pause
+232.8 until 0x80224924 0x000000FF 0x00000008 15 W
+233.3 shot 57_training_quit
+233.3 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+235.3 shot 58_training_main_menu
 
 # Speed Golf, last: Lakitu starts the clock (a press before is lost), and the golfer runs to the ball after the
 # shot; its pause menu has five items, and its Quit Game asks first, NO lit, which A answers, back in play. (No word in
 # RAM was found to hold which of YES and NO is lit, and A toggles it, so the plan never takes YES.)
-234.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-236.3 shot 59_character_select
-237.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-238.8 shot 60_play_modes
-239.8 until 0x801323A8 0x000000FF 0x3 15 D
-240.8 key Space
-242.3 shot 61_speed_golf_select
-243.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-243.3 until 0x800B5FF8 0xFF000000 0x00000000 60
-244.3 shot 62_speed_golf_tee
-248.3 shot 63_speed_golf_lakitu
-248.8 key Space
-249.5 key Space
-250.2 key Space
-253.2 shot 64_speed_golf_flight
-261.2 shot 65_speed_golf_landing
-267.2 shot 66_speed_golf_run
-268.2 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-269.7 shot 67_speed_golf_pause
-269.7 until 0x80224924 0x000000FF 0x00000004 15 W
-270.2 shot 68_speed_golf_quit
-270.7 key Space
-273.7 shot 69_speed_golf_ask
-273.7 until 0x800C306C 0x000000FF 0x00000000 15 Space
-275.2 shot 70_speed_golf_resumed
+235.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+237.3 shot 59_character_select
+238.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+239.8 shot 60_play_modes
+240.8 until 0x801323A8 0x000000FF 0x3 15 D
+241.8 key Space
+243.3 shot 61_speed_golf_select
+244.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+244.3 until 0x800B5FF8 0xFF000000 0x00000000 60
+245.3 shot 62_speed_golf_tee
+249.3 shot 63_speed_golf_lakitu
+249.8 key Space
+250.5 key Space
+251.2 key Space
+254.2 shot 64_speed_golf_flight
+262.2 shot 65_speed_golf_landing
+268.2 shot 66_speed_golf_run
+269.2 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+270.7 shot 67_speed_golf_pause
+270.7 until 0x80224924 0x000000FF 0x00000004 15 W
+271.2 shot 68_speed_golf_quit
+271.7 key Space
+274.7 shot 69_speed_golf_ask
+274.7 until 0x800C306C 0x000000FF 0x00000000 15 Space
+276.2 shot 70_speed_golf_resumed
 
 # The end credits, which a round can't reach in minutes: from Speed Golf's round the round's state machine is set
 # to its credits state (0x801B6088 = 7, 0x800C30AC = 0xF) and the fade between (scene 0xC at 0x800BB020) let through
 # (0x800C401C = 0), then the credits (scene 0x1E) play whole, the names rising beside the course in its box, until
 # their timer (0x801F89A4) passes 0xE00, and the Congratulations picture fades in.
-275.7 poke 0x801B6088 7
-275.7 poke 0x800C30AC 0xF
-275.7 until 0x800BB020 0xFFFFFFFF 0xC 30
-275.7 poke 0x800C401C 0
-275.7 until 0x800BB020 0xFFFFFFFF 0x1E 60
-278.7 shot 71_credits_start
-318.7 shot 72_credits_names
-318.7 until 0x801F89A4 0xFFFFFE00 0xE00 240
-338.7 shot 73_credits_picture
-341.7 end
+276.7 poke 0x801B6088 7
+276.7 poke 0x800C30AC 0xF
+276.7 until 0x800BB020 0xFFFFFFFF 0xC 30
+276.7 poke 0x800C401C 0
+276.7 until 0x800BB020 0xFFFFFFFF 0x1E 60
+279.7 shot 71_credits_start
+319.7 shot 72_credits_names
+319.7 until 0x801F89A4 0xFFFFFE00 0xE00 240
+339.7 shot 73_credits_picture
+342.7 end
