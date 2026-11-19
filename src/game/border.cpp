@@ -18,8 +18,11 @@
 // (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
 // texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
 // course does; one wholly above the border has its bottom where it was (above the screen's top, which wraps to a large
-// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's; the hills' last
-// strip, whose texture ends there, stays (the sky goes on below it, where the course doesn't). One over the whole of
+// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's. So does the
+// hills' last strip where it already runs on past its 4 rows, its last row repeated down to the border as the game
+// draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last 8
+// lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below it,
+// where the course doesn't). One over the whole of
 // the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's copy holds only
 // the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it that the console
 // draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the pause), and its
@@ -69,6 +72,8 @@ constexpr uint32_t SKY_VERTICES[2] = { 0x000C69C0, 0x000C6A60 }, SKY_COUNT = 10,
 constexpr float SKY_REACH = 0.1f;
 // Where a transition's copy of the frame before lies (screen.cpp's), and the game's RAM.
 constexpr uint32_t GAME_COPY = 0x002EA000, GAME_COPY_END = GAME_COPY + 320 * 224 * 2, GAME_RAM = 0x00800000;
+// The rows of the hills' texture each of their strips draws.
+constexpr uint32_t STRIP_ROWS = 4;
 
 // The border's scissor and the screen's, as G_SETSCISSOR's coordinates (quarter pixels). The game sets the screen's
 // itself too (around its clears), so the one made here carries a mark in a bit of the second word neither the RDP nor
@@ -305,6 +310,12 @@ void rect(uint32_t addr) {
     // Only a copy of the frame has the lines below: a texture of the hills ends at their last row, which the RDP
     // would repeat down to the screen's bottom, a band of streaks over the sky where the flyover looks down.
     if (is_screen(g_texture) && lry == BORDER_BOTTOM - inside) {
+        w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+    }
+    // The hills' last strip, where it already runs on past its rows (the RDP repeating its last one down to the
+    // border, as the game draws it), runs on to the screen's bottom the same way. The game draws it in copy mode to
+    // 232 itself, a line past the border's last, so either bottom is the border's.
+    else if (!game_copy && lry >= BORDER_BOTTOM - 4 && lry <= BORDER_BOTTOM && lry > uly + STRIP_ROWS * 4) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
     }
     // The pause's copy holds the 224 lines inside the border, and its last strip runs on past them, into what lies
