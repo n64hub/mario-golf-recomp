@@ -34,6 +34,16 @@
 // bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
 // this file makes, and reach the picture's edges by hud.cpp's hand.
 //
+// While the view holds still (a golfer aiming, or swinging, as the ball flies), the game draws the course again from
+// its color image and its depth from its own copy of it: each frame clears the z-buffer and draws that copy, a whole
+// 320x240 depth image at GAME_COPY, into it in strips (texture rectangles to a color image that is the z-buffer), and
+// then draws what moves (the golfer, the water's ripples) against it. Its strips are the border's inside, so past the
+// border the depth stayed cleared, as far as it goes, and the water there was drawn over the course held in the
+// picture: at Toad Highlands hole 4's tee, flat strips of the pond along the window's left and bottom edges, over the
+// tee's grass, that went as the view turned (issue 182). Those strips are widened as the picture's are, whole rows
+// loaded, with the copy's rows above and below the border drawn after the first and the last, so the depth the game
+// holds reaches the picture's edges, its own outermost columns past the 4:3 frame's sides.
+//
 // The sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws: backdrop.cpp's) ends a
 // few lines below the screen's top at most of the opening's camera's heights, and on a hole wherever the camera tilts
 // up (a ball's flight as the view follows it into the sky), its near edge (vertices 0, 3 and 4; at y 120 under the
@@ -50,10 +60,11 @@
 // are its data too, so with Aspect Ratio Original, or elsewhere, it puts any scissor it made back as the game wrote it:
 // Original keeps the console's border. The game sets the screen's scissor itself too, so the one made here carries a
 // mark the RDP and RT64 never read. Only the scissors and rectangles drawn to the screen (a color image 320 wide, not
-// the z-buffer) are changed. The other files' buffers that the lists branch to hold RT64's extended commands, some
-// longer than one command, which the walk steps over whole: read a command at a time, the words of the sun's light's
-// extended rectangle (backdrop.cpp's) read as the end of the list wherever its texture started left of 0, so the far
-// hills after it, which backdrop.cpp also draws from buffers of its own, were left at the 4:3 frame's sides.
+// the z-buffer) are changed, and the strips of the game's copy of the course's depth drawn to the z-buffer. The other
+// files' buffers that the lists branch to hold RT64's extended commands, some longer than one command, which the walk
+// steps over whole: read a command at a time, the words of the sun's light's extended rectangle (backdrop.cpp's) read
+// as the end of the list wherever its texture started left of 0, so the far hills after it, which backdrop.cpp also
+// draws from buffers of its own, were left at the 4:3 frame's sides.
 
 #include <cstdint>
 
@@ -126,9 +137,11 @@ constexpr uint32_t MAX_COMMANDS = 400000;
 uint8_t* g_rdram;
 bool g_fill;
 uint32_t g_commands;
-// Whether the color image is the screen (320 wide, not the z-buffer), the texture image, the z-buffer, the cycle type,
-// and whether this frame's border has been filled black.
+// Whether the color image is the screen (320 wide, not the z-buffer) or the z-buffer itself (where the game draws its
+// copy of the course's depth), the texture image, the z-buffer, the cycle type, and whether this frame's border has
+// been filled black.
 bool g_screen;
+bool g_depth;
 uint32_t g_texture;
 uint32_t g_zimg;
 uint32_t g_cycle;
@@ -232,7 +245,8 @@ void black_border(uint32_t addr) {
 }
 
 // The rows outside the border beside a strip of a screen's color image that starts or ends at it (the old frame Ring
-// Shot's stage select holds while its slats close, 6 rows a strip and 2 the last): the strip loads only its own rows,
+// Shot's stage select holds while its slats close, 6 rows a strip and 2 the last), or of the game's copy of the
+// course's depth: the strip loads only its own rows,
 // so drawn on past the border it showed rows its tile doesn't hold, black above it and its last row repeated below, a
 // band of streaks. Here the strip stays as it is and strips of 4 rows each draw screen rows first to last (0 to 8, or
 // 232 to 240), each loading its own rows of the same image as the game loads its strips (its tile's rows moved by as
@@ -401,15 +415,17 @@ void whole_rows(uint32_t addr) {
 // written anew each frame, so this needs no undoing. A rectangle from the game's own copy of the course (GAME_COPY: the
 // pause's) holds only the 224 lines inside the border, so the screen goes black before the first of it, as the console
 // draws the border's lines; otherwise they kept whatever was drawn there before the pause, the course undimmed. One
-// from card.cpp's copy, past the game's RAM, is card.cpp's.
+// from card.cpp's copy, past the game's RAM, is card.cpp's. A strip of the game's copy drawn to the z-buffer (depth) is
+// the course's depth, held: a whole image, so its first and last strips have the rows past the border drawn with them.
 void rect(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4);
     uint32_t ulx = (w1 >> 12) & 0xFFF, uly = w1 & 0xFFF, lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF;
-    if (!g_fill || !g_screen || g_texture >= GAME_RAM || ulx > WIDE_ULX || lrx < WIDE_LRX ||
+    bool game_copy = g_texture >= GAME_COPY && g_texture < GAME_COPY_END;
+    bool depth = g_depth && game_copy;
+    if (!g_fill || !(g_screen || depth) || g_texture >= GAME_RAM || ulx > WIDE_ULX || lrx < WIDE_LRX ||
         (rd_w(addr + 8) >> 24) != G_RDPHALF_1 || (rd_w(addr + 16) >> 24) != G_RDPHALF_2) {
         return;
     }
-    bool game_copy = g_texture >= GAME_COPY && g_texture < GAME_COPY_END;
     bool copy = g_cycle == G_CYC_COPY;
     uint32_t inside = copy ? 4 : 0;
     // One over the whole of the border's inside, of no copy of a frame, is a picture over the screen (the opening's
@@ -430,7 +446,7 @@ void rect(uint32_t addr) {
     // A strip wholly above the border has its bottom above the screen's top, which wraps past its bottom (lry is
     // unsigned): left as it is.
     // A strip of a screen's color image has the rows above drawn by outside_rows.
-    bool above = uly == BORDER_TOP && strip_of_rows(addr);
+    bool above = uly == BORDER_TOP && (depth || strip_of_rows(addr));
     if (!game_copy && !above && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
         // t is 10.5 fixed point, dtdy 5.10: a row of the rectangle steps t by dtdy / 32.
         uint32_t half1 = rd_w(addr + 12);
@@ -458,6 +474,9 @@ void rect(uint32_t addr) {
         else {
             w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
         }
+    }
+    else if (depth && lry == BORDER_BOTTOM - inside) {
+        below = true;
     }
     // The hills' last strip, where it already runs on past its rows (the RDP repeating its last one down to the
     // border, as the game draws it), runs on to the screen's bottom the same way. The game draws it in copy mode to
@@ -495,7 +514,7 @@ void rect(uint32_t addr) {
     else if (below) {
         outside_rows(addr, BORDER_BOTTOM / 4, SCREEN_BOTTOM / 4, inside);
     }
-    if (game_copy && !g_blacked) {
+    if (game_copy && !depth && !g_blacked) {
         g_blacked = true;
         black_border(addr);
     }
@@ -523,6 +542,7 @@ void walk(uint32_t list, int depth) {
             }
             case G_SETCIMG:
                 g_screen = (w0 & 0xFFF) + 1 == 320 && (w1 & 0x1FFFFFFF) != g_zimg;
+                g_depth = (w0 & 0xFFF) + 1 == 320 && (w1 & 0x1FFFFFFF) == g_zimg;
                 if (g_screen) {
                     saw_screen(w1 & 0x1FFFFFFF);
                 }
@@ -590,6 +610,7 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_fill = mg_border_fills(rdram);
     g_commands = 0;
     g_screen = true;
+    g_depth = false;
     g_texture = 0;
     g_zimg = 0;
     g_cycle = 0;
