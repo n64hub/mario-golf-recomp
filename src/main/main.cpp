@@ -480,6 +480,13 @@ void on_launcher_init(recompui::LauncherMenu* menu) {
     const recomp::GameEntry& game = supported_games[0];
     auto game_options_menu = menu->init_game_options_menu(game.game_id, game.mod_game_id, game.display_name, game.thumbnail_bytes);
     game_options_menu->add_default_options();
+    // The backdrop behind the menu (assets/launcher_background.svg, drawn for the project from plain shapes). The
+    // launcher sizes it by its width and centres it; filling the window instead lets the SVG's own slice crop it to a
+    // window of any shape, so a 4:3 or tall window has no bands of solid colour above and below it.
+    recompui::Svg* backdrop = menu->set_launcher_background_svg("launcher_background.svg");
+    backdrop->set_top(0);
+    backdrop->set_height(100.0f, recompui::Unit::Percent);
+    backdrop->set_translate_2D(0.0f, 0.0f, recompui::Unit::Percent);
 }
 
 void enable_texture_pack(recomp::mods::ModContext& context, const recomp::mods::ModHandle& mod) {
