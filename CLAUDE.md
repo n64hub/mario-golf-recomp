@@ -120,7 +120,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   between the game's frames, and draws the far hills on to the wide picture's sides at the width they have in the 4:3
   frame, where RT64 stretched them across it, `src/game/ball.cpp` draws the ball's sprites, the stars in the view of the cup and the sun's lens flare on into
   the wide picture's sides, where the game cuts them at the screen's, and with Enhancements On fades the flare's
-  circles out near the edge where the game drops them, and `src/game/screen.cpp` scales the title and the menus, 2D screens
+  circles out near the edge where the game drops them, `src/game/aim.cpp` puts the red pin flag in the sky and the
+  landing point's label where their points are across, to a quarter pixel, not the whole one the game truncates them
+  to, or they slid in whole console pixels a game frame as the view turned, and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
