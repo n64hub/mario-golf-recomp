@@ -31,13 +31,14 @@
 // bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
 // this file makes, and reach the picture's edges by hud.cpp's hand.
 //
-// The opening's sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws:
-// backdrop.cpp's) ends a few lines below the screen's top at most of its camera's heights, its near edge (vertices 0, 3
-// and 4, at y 120 under that camera, line 4) inside the border, and the opening never clears the screen, so those lines
-// kept an older frame's picture: grass and trees over the sky. There its G_VTX is pointed at a copy of the ten (in a
-// buffer of this file's) whose near three are moved a tenth further along the plane, away from their far partners (1, 2
-// and between them), their texture coordinates and colours with them, so the sky's picture is the game's where it was
-// and goes on above it, past the screen's top.
+// The sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws: backdrop.cpp's) ends a
+// few lines below the screen's top at most of the opening's camera's heights, and on a hole wherever the camera tilts
+// up (a ball's flight as the view follows it into the sky), its near edge (vertices 0, 3 and 4; at y 120 under the
+// opening's camera, line 4) inside the border. Neither clears the screen, so those lines kept an older frame's picture:
+// grass and trees over the opening's sky, and on a hole a band at the window's top that smeared as the view moved. So
+// its G_VTX is pointed at a copy of the ten (in a buffer of this file's) whose near three are moved a tenth further
+// along the plane, away from their far partners (1, 2 and between them), their texture coordinates and colours with
+// them, so the sky's picture is the game's where it was and goes on above it, past the screen's top.
 //
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
 // lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 7 loaded;
@@ -128,8 +129,6 @@ bool g_screen;
 uint32_t g_texture;
 uint32_t g_zimg;
 uint32_t g_cycle;
-// Whether this frame is the opening's (overlay 7 loaded).
-bool g_opening;
 bool g_blacked;
 uint32_t g_next_buffer;
 // The last G_SETTIMG's first word (its format, size and width), the last G_LOADTILE, and each tile's last
@@ -285,7 +284,7 @@ bool strip_of_rows(uint32_t addr) {
            ((g_timg0 >> 19) & 3) == 2 && ((g_timg0 & 0xFFF) + 1) * 2 * 4 <= 4096 && ult >= BORDER_TOP;
 }
 
-// The opening's sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
+// The sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
 // edge (0, 3 and 4) moved on along its plane, away from the far one (1, 2, and 4's between them). Left as it is unless
 // the ten are laid out as the game draws them.
 void sky(uint32_t addr) {
@@ -502,7 +501,7 @@ void walk(uint32_t list, int depth) {
                 scissor(addr);
                 break;
             case G_VTX:
-                if (g_fill && g_opening && ((w0 >> 12) & 0xFF) == SKY_COUNT &&
+                if (g_fill && ((w0 >> 12) & 0xFF) == SKY_COUNT &&
                     ((w1 & 0x1FFFFFFF) == SKY_VERTICES[0] || (w1 & 0x1FFFFFFF) == SKY_VERTICES[1])) {
                     sky(addr);
                 }
@@ -539,7 +538,6 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_texture = 0;
     g_zimg = 0;
     g_cycle = 0;
-    g_opening = loaded(OPENING_OVERLAY);
     g_blacked = false;
     g_timg0 = 0;
     g_load0 = 0;
