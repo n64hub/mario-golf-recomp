@@ -13,9 +13,10 @@
 // wide as the 3D drawn to the screen runs on to the screen's sides, its texture's start moved back with its left. Those
 // are the far hills, and the frame before where the game draws it again from its color image (as it does while a golfer
 // aims and swings and the ball flies, and the course isn't drawn again) or from its own copy (GAME_COPY: the pause's),
-// whose columns past the border hold the course as it was drawn. The game loads each strip of its color image only
-// inside the border, columns 8 to 311, so those loads are widened to the whole row with it, or the RDP's clamp repeated
-// columns 8 and 311 out to the picture's sides, bars over its outer edges as the aim turned. The hills (func_80091110, backdrop.cpp's) are strips of a
+// whose columns past the border hold the course as it was drawn. The game loads each strip of either only inside the
+// border, columns 8 to 311, so those loads are widened to the whole row with it, or the RDP's clamp repeated columns 8
+// and 311 out to the picture's sides: bars over its outer edges as the aim turned, and behind the pause, the leaderboard
+// a hole ends on and every menu over the course the game holds still (all drawn over its copy). The hills (func_80091110, backdrop.cpp's) are strips of a
 // texture whose tops the game cuts at the border, the strip's texture starting as many rows further in
 // (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
 // texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
@@ -55,7 +56,6 @@
 // hills after it, which backdrop.cpp also draws from buffers of its own, were left at the 4:3 frame's sides.
 
 #include <cstdint>
-#include <cstdio>
 
 bool mg_aspect_expand();
 
@@ -349,18 +349,20 @@ void sky(uint32_t addr) {
     wr_w(addr + 4, buffer & 0x1FFFFFFF);
 }
 
-// The strip of a screen's color image that the rectangle at addr draws, loaded whole across: the game loads only the
+// The strip of a screen's color image or of the game's copy of one (GAME_COPY, 320 wide) that the rectangle at addr
+// draws, loaded whole across: the game loads only the
 // border's inside, columns 8 to 311 (its G_LOADTILE and G_SETTILESIZE), and the RDP clamps a texel left of a tile's
 // first column or right of its last to that column, so the strip run on to the screen's sides repeated columns 8 and
 // 311 out to them, and RT64 drew those as bars over the picture's outer edges (8/320 of the window's width each side)
-// in every frame the game drew again from its color image. Its load and tile size are made columns 0 to 319, and the
+// in every frame the game drew again from its color image or its copy (the copy's strips 6 rows each, drawn in one
+// cycle mode, dimmed behind the pause). Its load and tile size are made columns 0 to 319, and the
 // line of both tiles (the load's and the strip's) as long, where the strip's rows still fit the 4 KB of TMEM. They
 // are the game's commands, written anew each frame like the rectangles.
 void whole_rows(uint32_t addr) {
     uint32_t tile = (rd_w(addr + 4) >> 24) & 7, load_tile = (g_load1 >> 24) & 7;
     constexpr uint32_t INSIDE_LEFT = 8 * 4, INSIDE_RIGHT = 311 * 4, LEFT = 0, RIGHT = 319 * 4;
     if (g_load_addr == 0 || g_size_addr[tile] == 0 || g_tile_addr[tile] == 0 || g_tile_addr[load_tile] == 0 ||
-        ((g_timg0 >> 19) & 3) != 2 || ((g_load0 >> 12) & 0xFFF) != INSIDE_LEFT ||
+        ((g_timg0 >> 19) & 3) != 2 || (g_timg0 & 0xFFF) + 1 != 320 || ((g_load0 >> 12) & 0xFFF) != INSIDE_LEFT ||
         ((g_load1 >> 12) & 0xFFF) != INSIDE_RIGHT || ((g_size0[tile] >> 12) & 0xFFF) != INSIDE_LEFT ||
         ((g_size1[tile] >> 12) & 0xFFF) != INSIDE_RIGHT) {
         return;
@@ -477,16 +479,6 @@ void rect(uint32_t addr) {
         int32_t s = int16_t(half1 >> 16);
         int32_t dsdx = int16_t(rd_w(addr + 20) >> 16);
         s -= int32_t(ulx) * dsdx / (copy ? 512 : 128);
-        if (game_copy) {
-            static int logged = 0;
-            if (logged < 12) {
-                logged++;
-                fprintf(stderr, "mg174 rect w0=%08X w1=%08X st=%08X steps=%08X timg0=%08X tex=%08X load=%08X %08X "
-                        "size=%08X %08X tile=%08X cycle=%08X\n", w0, w1, rd_w(addr + 12), rd_w(addr + 20), g_timg0,
-                        g_texture, g_load0, g_load1, g_size0[(w1 >> 24) & 7], g_size1[(w1 >> 24) & 7],
-                        g_tile_addr[(w1 >> 24) & 7] ? rd_w(g_tile_addr[(w1 >> 24) & 7] + 0) : 0, g_cycle);
-            }
-        }
         if ((copy && is_screen(g_texture)) || game_copy) {
             whole_rows(addr);
         }
