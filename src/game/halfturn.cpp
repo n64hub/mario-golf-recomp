@@ -27,6 +27,7 @@
 // black a frame longer than those round them). With Aspect Ratio Original nothing changes.
 
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 
 #define F3DEX_GBI_2
@@ -181,6 +182,17 @@ float clear_radius() {
 bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1) {
     constexpr float S = FILL * OPAQUE;
     float radius = clear_radius();
+    {   // DEBUG: the texture's clear rows down word 76's column.
+        uint32_t tex = rd_w(0x800E1C00) + 8;
+        int top = -1, bottom = -1;
+        for (int r = 0; r < 224; r++) {
+            uint32_t w = rd_w(tex + r * 608 + 76 * 4);
+            if ((w & 0x00010001) == 0x00010001) { if (top < 0) top = r; bottom = r; }
+        }
+        static int n = 0;
+        fprintf(stderr, "HT %d phase %d counter %d radius %.1f clear rows %d..%d\n", n++, int(rd_w(IRIS_PHASE)),
+                int(rd_w(IRIS_COUNTER)), radius, top, bottom);
+    }
     if (radius >= 1.0e5f) {
         return false;
     }
