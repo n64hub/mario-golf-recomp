@@ -1,7 +1,9 @@
 // The settings: RecompFrontend's General, Controls, Graphics, Sound and Mods tabs, with its default bindings. Its own
 // Graphics options carry what a recomp needs: Resolution and MS Anti-Aliasing (high resolution), Framerate
 // (interpolation to the display's rate) and Aspect Ratio and HUD Placement (widescreen). The General tab adds the
-// game's own options: Game Boy Golfers and Game Boy Golfers' Stats (disabled while the first is Original), which
+// game's own options: Enhancements, the one switch for the changes to how the game looks that a console doesn't make,
+// On by default (mg::enhancements(); its description lists them, and a new one goes under it rather than an option
+// of its own), and Game Boy Golfers and Game Boy Golfers' Stats (disabled while the first is Original), which
 // us.toml's hooks in character select (func_8005CA48) read through mg_gb_golfers and mg_gb_golfers_setup, and
 // mg_gb_golfers_clubs works out the four golfers' shots once they are in.
 
@@ -14,8 +16,14 @@
 #include "mg.h"
 
 namespace {
+    constexpr const char* enhancements_id = "enhancements";
     constexpr const char* gb_golfers_id = "gb_golfers";
     constexpr const char* gb_golfer_stats_id = "gb_golfer_stats";
+
+    enum class Enhancements : uint32_t {
+        Original,
+        On,
+    };
 
     enum class GbGolfers : uint32_t {
         Original,
@@ -113,6 +121,11 @@ extern "C" void mg_gb_golfers_clubs(uint8_t* rdram, recomp_context* ctx) {
     }
 }
 
+bool mg::enhancements() {
+    auto value = recompui::config::get_general_config().get_option_value(enhancements_id);
+    return std::get<uint32_t>(value) == static_cast<uint32_t>(Enhancements::On);
+}
+
 void mg::init_config() {
     std::filesystem::path app_dir = recompui::file::get_app_folder_path();
     if (!app_dir.empty()) {
@@ -124,6 +137,15 @@ void mg::init_config() {
     general_options.has_gyro_sensitivity = true;
     general_options.has_mouse_sensitivity = true;
     recomp::config::Config& general = recompui::config::create_general_tab(general_options);
+    general.add_enum_option(
+        enhancements_id,
+        "Enhancements",
+        "Changes to how the game looks that a console doesn't make, none of them to how it plays: the sun's lens flare "
+        "fades out as the sun nears an edge of the screen, where the game takes it away at once. "
+        "<recomp-color primary>Original</recomp-color> draws it all as a console does.",
+        {{Enhancements::Original, "Original"}, {Enhancements::On, "On"}},
+        Enhancements::On
+    );
     general.add_enum_option(
         gb_golfers_id,
         "Game Boy Golfers",
