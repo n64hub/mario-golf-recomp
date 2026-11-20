@@ -33,11 +33,9 @@
 // branch back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no
 // wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
 //
-// The flare's circles are also drawn where the game works them out to be, to a fraction of a pixel, not on the whole
-// pixels it truncates them to (place_flare() says how), so at a high display rate they glide with the sun and the
-// course rather than jittering against them a pixel at a time; widen() keeps that fraction for one at a side. And with
-// the General tab's Enhancements On (src/game/config.cpp) they fade out over the last 32 pixels before the line where
-// the game stops drawing them, 16 pixels inside each side of the screen, rather than all going in one frame.
+// With the General tab's Enhancements On (src/game/config.cpp), the flare's circles also fade out over the last 32
+// pixels before the line where the game stops drawing them, 16 pixels inside each side of the screen, rather than all
+// going in one frame (fade_flare() says how).
 //
 // The ball's sprites are also put where the ball is on the screen, across to a quarter of a pixel and down to the
 // nearest whole one (its far dot of colour, which samples no texture, down to the quarter too), rather than on the
@@ -103,10 +101,10 @@ constexpr int MAX_SPOTS = 1024;
 // Rectangles in the ball's list looked at for a move, at most.
 constexpr int MAX_NUDGED = 1024;
 
-// The sun's place on the screen, as floats (func_8008FF20 works them out; src/game/backdrop.cpp), which the flare reads
-// the first of. The flare's eight circles (its table at 0x800C6920, 0x14 bytes each, the float at 0x10 where on the line
-// from the sun to the point it runs through each lies), drawn only while the sun is more than 16 pixels inside the
-// screen. That point is the screen's middle across and 96 pixels down, not 120 (func_8008D3F4's constants).
+// The sun's place on the screen, as floats (func_8008FF20 works them out; src/game/backdrop.cpp), which the flare reads.
+// The flare's eight circles (its table at 0x800C6920, 0x14 bytes each, the float at 0x10 where on the line from the sun
+// to the point it runs through each lies), drawn only while the sun is more than 16 pixels inside the screen. That
+// point is the screen's middle across and 96 pixels down, not 120 (func_8008D3F4's constants).
 constexpr uint32_t SUN_X = 0x800C5F24;
 constexpr uint32_t SUN_Y = 0x800C5F2C;
 constexpr uint32_t FLARE_TABLE = 0x800C6920;
@@ -186,14 +184,12 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     int start = tile.uls * 32;
     int end = (tile.uls + (tile.lrs - tile.uls + 1) * (tile.mirror ? 2 : 1)) * 32;
     int new_ulx = ulx, new_lrx = lrx, new_s = s;
-    // s moves by dsdx / 128 a quarter pixel. The cut is put back in whole pixels, as RT64 puts a textured rectangle's
-    // edges on them, and s keeps what is left of it (place_flare's fraction of a pixel).
+    // s moves by dsdx / 128 a quarter pixel.
     if (ulx == 0 && s > start) {
-        int cut = ((s - start) * 32 + dsdx - 1) / dsdx; // pixels, rounded up
-        new_ulx = -cut * 4;
-        new_s = s - int(std::lround(cut * dsdx / 32.0f));
+        new_ulx = -((s - start) * 128 / dsdx);
+        new_s = start;
         if (lrx == 0) {
-            new_lrx = new_ulx + (end - new_s) * 128 / dsdx;
+            new_lrx = new_ulx + (end - start) * 128 / dsdx;
         }
     }
     if (lrx == SCREEN_WIDTH && ulx < lrx) {
@@ -214,15 +210,6 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     if (wide_dsdx > INT16_MAX) {
         return false;
     }
-    // RT64 puts a textured rectangle's left edge on the whole pixel at or right of it, and starts its texture there,
-    // so the squeezed left edge goes on that pixel and the texture starts as much further on: what is drawn stays where
-    // it is to a fraction of a pixel, not where the squeeze rounds it to.
-    float left = SCREEN_WIDTH / 2 + (new_ulx - SCREEN_WIDTH / 2) / scale; // quarter pixels
-    int wide_ulx = int(std::ceil(left / 4.0f - 1e-4f)) * 4;
-    new_s += int(std::lround((wide_ulx - left) * wide_dsdx / 128.0f));
-    if (new_s < INT16_MIN || new_s > INT16_MAX) {
-        return false;
-    }
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
@@ -232,7 +219,7 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, wide_ulx, uly, squeeze(new_lrx), lry,
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), uly, squeeze(new_lrx), lry,
                         (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
@@ -386,15 +373,17 @@ float rd_f(uint32_t addr) {
     return f;
 }
 
-// The flare's circles where the game works them out to be, to a thirty-second of a pixel, not on the whole pixels it
-// truncates them to. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the
-// table's float, as floats, and draws it as a square from that less its half size to that plus it, each truncated and
-// at 0 at least, over a texture stepped 0x10000 / half (s5.10), its start as far in as a side at 0 cut. A rectangle in
-// the list that is just that square for one of the circles has its texture started earlier by what the truncation of
-// its upper left dropped, each way, so the circle is drawn that much further right and down in it (a circle's texture
-// is clear at its edges). The rectangle stays as the game's, so RT64 still pairs it with the last frame's and slides the
-// texture's step between them as it does a scroll, as it does the sun's light (src/game/backdrop.cpp's place_sun).
-void place_flare(uint32_t start, uint32_t end) {
+// With Enhancements On, the flare's circles fade out as the sun nears the line where the game stops drawing them,
+// FLARE_EDGE pixels inside each side of the screen, over the last FLARE_FADE pixels before it, rather than all going
+// in one frame. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the table's float, as
+// floats, and draws it as a square from that less its half size to that plus it, each truncated and at 0 at least,
+// over a texture stepped 0x10000 / half (s5.10), after a G_SETPRIMCOLOR whose alpha is the flare's brightness. A
+// rectangle in the list that is just that square for one of the circles has the alpha of the G_SETPRIMCOLOR before it
+// scaled by how far the sun is into the fade; nothing else in the list is touched. The circles are left where the game
+// puts them, on whole pixels: RT64 pairs each with the last frame's and draws it between there and here in the frames
+// between, which moves them evenly, where moving their texture within them by the fraction of a pixel the game drops
+// made them lag in those frames and catch up on the game's own.
+void fade_flare(uint32_t start, uint32_t end) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
@@ -403,7 +392,10 @@ void place_flare(uint32_t start, uint32_t end) {
     if (!(inside > 0.0f)) {
         return;
     }
-    float fade = mg::enhancements() ? std::min(1.0f, inside / FLARE_FADE) : 1.0f;
+    float fade = std::min(1.0f, inside / FLARE_FADE);
+    if (!mg::enhancements() || !(fade < 1.0f)) {
+        return;
+    }
     float cx[FLARE_CIRCLES], cy[FLARE_CIRCLES];
     for (int i = 0; i < FLARE_CIRCLES; i++) {
         float f = rd_f(FLARE_TABLE + FLARE_STRIDE * i + 0x10);
@@ -423,7 +415,7 @@ void place_flare(uint32_t start, uint32_t end) {
             (rd_w(addr + 16) >> 24) != G_RDPHALF_2) {
             continue;
         }
-        uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
+        uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), d = rd_w(addr + 20);
         int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF);
         int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
         int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF);
@@ -439,15 +431,7 @@ void place_flare(uint32_t start, uint32_t end) {
                     lry != edge(cy[i] + h)) {
                     continue;
                 }
-                // A pixel is dsdx / 32 of s (s10.5); the truncation is toward 0, so a corner past the screen's side
-                // (where the game starts the texture as far in as it cut) is moved left, or up, by its fraction.
-                float fx = (cx[i] - h) - std::trunc(cx[i] - h), fy = (cy[i] - h) - std::trunc(cy[i] - h);
-                int s = int16_t(st >> 16) - int(std::lround(fx * dsdx / 32.0f));
-                int t = int16_t(st & 0xFFFF) - int(std::lround(fy * dtdy / 32.0f));
-                if (s >= INT16_MIN && s <= INT16_MAX && t >= INT16_MIN && t <= INT16_MAX) {
-                    wr_w(addr - 4, (uint32_t(s & 0xFFFF) << 16) | uint32_t(t & 0xFFFF));
-                }
-                if (fade < 1.0f && prim != 0) {
+                if (prim != 0) {
                     uint32_t color = rd_w(prim + 4);
                     wr_w(prim + 4, (color & ~0xFFu) | uint32_t(std::lround((color & 0xFF) * fade)));
                 }
@@ -536,7 +520,7 @@ extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     g_open = false;
     g_rdram = rdram;
     uint32_t end = rd_w(head);
-    place_flare(g_start, end);
+    fade_flare(g_start, end);
     nudge_all(g_start, end);
     widen_all(g_start, end);
 }
