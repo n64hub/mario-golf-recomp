@@ -15,7 +15,10 @@
 // list's head stands and what func_80065650 dropped of the point's x (src/game/ball.cpp notes it as it truncates), and
 // where that drawing ends (where its branches meet again) mg_aim_end moves each texture rectangle added since right by
 // that fraction, to the quarter pixel. It keeps the game's size, so RT64 still pairs it with the last frame's and
-// slides it between the two. y stays on the game's whole pixel: RT64 draws a texture rectangle from the whole pixel its
+// slides it between the two. RT64 itself puts a texture rectangle's edges on whole pixels, which slid from the quarter
+// pixel one game frame had to the whole one the next has, so each began off where the last ended and the flag hopped
+// as much as before: runtime-patches/rt64-1-textured-rects-across-to-a-quarter-pixel.patch draws one across at the
+// quarter pixel it is given. y stays on the game's whole pixel: RT64 draws a texture rectangle from the whole pixel its
 // top rounds up to, and a top moved by a fraction moved a sprite a whole pixel down (ball.cpp's find_move() says how).
 // A rectangle the game cut at a side of the screen is left as it is. Whatever the window's shape.
 
