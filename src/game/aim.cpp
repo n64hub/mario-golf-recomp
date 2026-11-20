@@ -25,9 +25,14 @@
 // course. The game draws a mark wherever its point is, but the RDP's scissor, the 3D's (8 to 312), cut it there, and
 // RT64 draws a texture rectangle in the 4:3 frame, so the flag went out at a vertical line 8 pixels inside the 4:3
 // frame's side as the view turned it toward the window's edge, with a quarter of the window still to go (issue 181).
-// mg_aim_end hands each mark's rectangles to src/game/ball.cpp, which draws one that reaches into the 3D's border band,
-// or that the game cut at a side, as the ball's sprites are drawn there (mg_widen_rects, its header says how), one the
-// game cut moved across by the same fraction there, as it is never moved here.
+// mg_aim_end hands each mark's rectangles to src/game/ball.cpp, which draws them as the ball's sprites are drawn into
+// the sides (mg_widen_rects, its header says how), one the game cut at a side moved across by the same fraction there,
+// as it is never moved here. It draws them that way wherever they are in a wide window, not only near a side: RT64
+// slides a rectangle between two game frames only from one drawn the same way, and the flag drawn the one way and then
+// the other slid tens of pixels the wrong way for a game frame as it came in past the 4:3 frame's side. RT64 pairs a
+// rectangle with the last game frame's only if it moved less than its longer side, and the flag moves 22 to 26 pixels
+// a game frame as the view turns fast: runtime-patches/rt64-2-pair-a-lone-look-farther.patch pairs it up to four times
+// that far, as no other rectangle looks like it, or it held still between game frames and stepped against the course.
 
 #include <cmath>
 #include <cstdint>
