@@ -33,12 +33,21 @@
 // rectangle with the last game frame's only if it moved less than its longer side, and the flag moves 22 to 26 pixels
 // a game frame as the view turns fast: RT64 (N64Recomp-browser's rt64.patch) pairs it up to four times that far, as no
 // other rectangle looks like it, or it held still between game frames and stepped against the course.
+//
+// The flag's texture is a tile of 32 by 16 texels, its four frames side by side, and the game draws the frame its
+// counter (D_ovl0_80224B0C, 0 to 15, a quarter of it the frame) is on. Where the flag's left lies past the screen's,
+// the game starts it at 0 and its texture as far into that frame as it cut (and one wholly past the left at 0, 0
+// wide). ball.cpp puts such a rectangle back to its tile's start, which for the flag is the first frame's: the flag
+// was drawn with the frames before its own to its left, and wholly past the side all four in a row, a line of flags
+// across the wide picture's left that shrank into one as it came back in, and as its width changed each game frame
+// RT64 paired it with nothing and it stepped (issue 190). mg_aim_end hands ball.cpp the frame's 8 texels for the
+// flag, which it puts the rectangle back to instead.
 
 #include <cmath>
 #include <cstdint>
 
 float mg_last_projected_dx();
-void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx);
+void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx, int sprite_uls, int sprite_texels);
 
 namespace {
 
@@ -51,6 +60,10 @@ constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
 constexpr int SCREEN_WIDTH = 320 * 4;
 // The commands one mark adds, at most (the label's letters and the flag, a few hundred).
 constexpr uint32_t MAX_COMMANDS = 4096;
+// The flag's animation counter (overlay 0's data), 0 to 15, a quarter of it the frame the game draws, and the width of
+// a frame in the flag's tile.
+constexpr uint32_t FLAG_COUNTER = 0x80224B0C;
+constexpr int FLAG_FRAME_TEXELS = 8;
 
 uint8_t* g_rdram;
 bool g_open;
@@ -75,8 +88,9 @@ extern "C" void mg_aim_begin(uint8_t* rdram) {
     g_open = true;
 }
 
-// Where the mark's drawing ends: each texture rectangle it added moved across by the fraction.
-extern "C" void mg_aim_end(uint8_t* rdram) {
+// Where the mark's drawing ends: each texture rectangle it added moved across by the fraction. flag: 1 for the flag's
+// drawing (its frame's texels go to mg_widen_rects), 0 for the label's.
+extern "C" void mg_aim_end(uint8_t* rdram, int flag) {
     if (!g_open) {
         return;
     }
@@ -99,5 +113,6 @@ extern "C" void mg_aim_end(uint8_t* rdram) {
         }
         addr += 16;
     }
-    mg_widen_rects(rdram, g_start, end, g_dx);
+    int frame = flag ? int(rd_w(FLAG_COUNTER) & 0xF) / 4 : 0;
+    mg_widen_rects(rdram, g_start, end, g_dx, frame * FLAG_FRAME_TEXELS, flag ? FLAG_FRAME_TEXELS : 0);
 }
