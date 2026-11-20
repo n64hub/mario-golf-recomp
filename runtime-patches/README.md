@@ -10,3 +10,8 @@ that submodule's highest, with a line here.
 - `N64ModernRuntime-2-tlb-callbacks.patch`: ultramodern's `TlbCallbacks`, which the game sets (`src/game/tlb.cpp`):
   osVirtualToPhysical asks it for a KUSEG address the game has mapped, and each RSP task first lets it write the
   pages mapped there back to RDRAM, where the RSP reads them.
+- `rt64-1-shown-framebuffer.patch`: a frame is interpolated into, and presented from, the framebuffer it shows (the last
+  one it draws that the VI has shown), not an earlier color image of its own. As a putt's aim turns, the game draws the
+  course alone into a framebuffer it showed two frames before, then the whole picture into another; RT64 took the course
+  alone for the frame and the one drawn after it at the display's rate, and the golfer, the HUD and the aim's grid
+  vanished for a frame.

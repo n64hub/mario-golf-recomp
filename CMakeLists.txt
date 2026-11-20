@@ -278,6 +278,7 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/game/iris.cpp
     ${CMAKE_SOURCE_DIR}/src/game/golfer.cpp
     ${CMAKE_SOURCE_DIR}/src/game/billboard.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/callout.cpp
     ${CMAKE_SOURCE_DIR}/src/game/loader.cpp
     ${CMAKE_SOURCE_DIR}/src/game/slats.cpp
 )

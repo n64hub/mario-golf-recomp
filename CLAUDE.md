@@ -42,7 +42,8 @@ This repo is the game: its recompilation, the patches over it, the desktop build
 - The scope is the game as it plays, plus what a web page needs (RT64 interpolation to the display's rate, resolution
   Auto), plus modern enhancements: each an option with an Original value that plays as the console does, none
   changing how the game plays, but for what a console gets only through an accessory the recompilation lacks, made
-  from the game's own data: the Game Boy Golfers option (`us.toml`). USA only.
+  from the game's own data: the Game Boy Golfers option (`us.toml`). A change to how the game looks goes under the
+  General tab's one Enhancements option, On by default (`src/game/config.cpp`), not an option of its own. USA only.
 - Code from any other Mario Golf project may be read for what it changes, but nothing that isn't the decomp's (MIT) or
   CC0 is copied.
 - Write for a stranger, in the present tense: nothing about a contributor's machine, servers, paths or accounts, and
@@ -118,7 +119,8 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, puts them where the sun is between whole pixels, by moving their texture, rather than on the game's whole one, puts the sky in a matrix group whose clouds RT64 slides
   between the game's frames, and draws the far hills on to the wide picture's sides at the width they have in the 4:3
   frame, where RT64 stretched them across it, `src/game/ball.cpp` draws the ball's sprites, the stars in the view of the cup and the sun's lens flare on into
-  the wide picture's sides, where the game cuts them at the screen's, and `src/game/screen.cpp` scales the title and the menus, 2D screens
+  the wide picture's sides, where the game cuts them at the screen's, and with Enhancements On fades the flare's
+  circles out near the edge where the game drops them, and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
@@ -138,7 +140,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   matrix split into rotation and scale) or jumped there ahead of his glove (it blends a position only while it keeps
   its pace). `src/game/billboard.cpp` puts each of the course's billboards (its trees and Bomb-ombs, one quad scaled to
   each) in a matrix group of its scale, so RT64 pairs one between the game's frames only with one of its own size, or
-  a Bomb-omb coming into view as a tree left it was drawn halfway to the tree's size for a frame.
+  a Bomb-omb coming into view as a tree left it was drawn halfway to the tree's size for a frame. `src/game/callout.cpp`
+  puts each letter of the big words a hole or a shot ends on (HOLE-IN-ONE!, NICE SHOT!, one quad shared by every
+  letter) in a matrix group of its own, keyed by its texture, or between the game's frames letters went missing or
+  stood doubled as the word squashed and bounced.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/frame_plan.txt` walks
