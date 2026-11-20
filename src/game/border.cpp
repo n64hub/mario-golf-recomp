@@ -12,8 +12,10 @@
 // RT64 also stretches across the window only a rectangle as wide as that widest scissor, so each texture rectangle as
 // wide as the 3D drawn to the screen runs on to the screen's sides, its texture's start moved back with its left. Those
 // are the far hills, and the frame before where the game draws it again from its color image (as it does while a golfer
-// swings and the ball flies, and the course isn't drawn again) or from its own copy (GAME_COPY: the pause's), whose
-// columns past the border hold the course as it was drawn. The hills (func_80091110, backdrop.cpp's) are strips of a
+// aims and swings and the ball flies, and the course isn't drawn again) or from its own copy (GAME_COPY: the pause's),
+// whose columns past the border hold the course as it was drawn. The game loads each strip of its color image only
+// inside the border, columns 8 to 311, so those loads are widened to the whole row with it, or the RDP's clamp repeated
+// columns 8 and 311 out to the picture's sides, bars over its outer edges as the aim turned. The hills (func_80091110, backdrop.cpp's) are strips of a
 // texture whose tops the game cuts at the border, the strip's texture starting as many rows further in
 // (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
 // texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
@@ -31,13 +33,14 @@
 // bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
 // this file makes, and reach the picture's edges by hud.cpp's hand.
 //
-// The opening's sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws:
-// backdrop.cpp's) ends a few lines below the screen's top at most of its camera's heights, its near edge (vertices 0, 3
-// and 4, at y 120 under that camera, line 4) inside the border, and the opening never clears the screen, so those lines
-// kept an older frame's picture: grass and trees over the sky. There its G_VTX is pointed at a copy of the ten (in a
-// buffer of this file's) whose near three are moved a tenth further along the plane, away from their far partners (1, 2
-// and between them), their texture coordinates and colours with them, so the sky's picture is the game's where it was
-// and goes on above it, past the screen's top.
+// The sky (three triangles on one plane, from ten vertices, the first thing func_80091110 draws: backdrop.cpp's) ends a
+// few lines below the screen's top at most of the opening's camera's heights, and on a hole wherever the camera tilts
+// up (a ball's flight as the view follows it into the sky), its near edge (vertices 0, 3 and 4; at y 120 under the
+// opening's camera, line 4) inside the border. Neither clears the screen, so those lines kept an older frame's picture:
+// grass and trees over the opening's sky, and on a hole a band at the window's top that smeared as the view moved. So
+// its G_VTX is pointed at a copy of the ten (in a buffer of this file's) whose near three are moved a tenth further
+// along the plane, away from their far partners (1, 2 and between them), their texture coordinates and colours with
+// them, so the sky's picture is the game's where it was and goes on above it, past the screen's top.
 //
 // nuGfxTaskStart sends each frame's display list, and us.toml hooks its start: mg_border_fill follows the list and the
 // lists it calls, in RAM (the game's and this program's buffers), while the game is in the opening (overlay 7 loaded;
@@ -61,7 +64,7 @@ namespace {
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
 constexpr uint32_t G_SETSCISSOR = 0xED, G_SETTIMG = 0xFD, G_SETCIMG = 0xFF, G_SETZIMG = 0xFE, G_SPNOOP = 0x00;
 constexpr uint32_t G_SETOTHERMODE_H = 0xE3, G_SETFILLCOLOR = 0xF7, G_FILLRECT = 0xF6, G_VTX = 0x01;
-constexpr uint32_t G_LOADTILE = 0xF4, G_SETTILESIZE = 0xF2, G_RDPLOADSYNC = 0xE6, G_RDPPIPESYNC = 0xE7;
+constexpr uint32_t G_SETTILE = 0xF5, G_LOADTILE = 0xF4, G_SETTILESIZE = 0xF2, G_RDPLOADSYNC = 0xE6, G_RDPPIPESYNC = 0xE7;
 // RT64's extended commands (its rt64_extended_gbi.h), which this program's buffers hold among the game's: their
 // opcode, and the length of each that is longer than one command. The rest of their words are no command of their own:
 // gEXTextureRectangle's third holds s and t, whose top byte reads as any command where s is negative (the sun's light,
@@ -128,8 +131,6 @@ bool g_screen;
 uint32_t g_texture;
 uint32_t g_zimg;
 uint32_t g_cycle;
-// Whether this frame is the opening's (overlay 7 loaded).
-bool g_opening;
 bool g_blacked;
 uint32_t g_next_buffer;
 // The last G_SETTIMG's first word (its format, size and width), the last G_LOADTILE, and each tile's last
@@ -137,6 +138,8 @@ uint32_t g_next_buffer;
 uint32_t g_timg0;
 uint32_t g_load0, g_load1;
 uint32_t g_size0[8], g_size1[8];
+// Where each of those is in the list (and each tile's last G_SETTILE), so a strip's load can be widened.
+uint32_t g_load_addr, g_size_addr[8], g_tile_addr[8];
 // The screen's color images the game has drawn to (it keeps three, in turn), the latest first: a texture in one (each
 // strip's texture image is its own first row) is a copy of a frame.
 constexpr int SCREENS = 4;
@@ -285,7 +288,7 @@ bool strip_of_rows(uint32_t addr) {
            ((g_timg0 >> 19) & 3) == 2 && ((g_timg0 & 0xFFF) + 1) * 2 * 4 <= 4096 && ult >= BORDER_TOP;
 }
 
-// The opening's sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
+// The sky reaching past the screen's top: the G_VTX at addr pointed at a copy of its vertices with the near
 // edge (0, 3 and 4) moved on along its plane, away from the far one (1, 2, and 4's between them). Left as it is unless
 // the ten are laid out as the game draws them.
 void sky(uint32_t addr) {
@@ -343,6 +346,46 @@ void sky(uint32_t addr) {
         wr_w(out + 12, (uint32_t(o.c[0]) << 24) | (uint32_t(o.c[1]) << 16) | (uint32_t(o.c[2]) << 8) | uint32_t(o.c[3]));
     }
     wr_w(addr + 4, buffer & 0x1FFFFFFF);
+}
+
+// The strip of a screen's color image that the rectangle at addr draws, loaded whole across: the game loads only the
+// border's inside, columns 8 to 311 (its G_LOADTILE and G_SETTILESIZE), and the RDP clamps a texel left of a tile's
+// first column or right of its last to that column, so the strip run on to the screen's sides repeated columns 8 and
+// 311 out to them, and RT64 drew those as bars over the picture's outer edges (8/320 of the window's width each side)
+// in every frame the game drew again from its color image. Its load and tile size are made columns 0 to 319, and the
+// line of both tiles (the load's and the strip's) as long, where the strip's rows still fit the 4 KB of TMEM. They
+// are the game's commands, written anew each frame like the rectangles.
+void whole_rows(uint32_t addr) {
+    uint32_t tile = (rd_w(addr + 4) >> 24) & 7, load_tile = (g_load1 >> 24) & 7;
+    constexpr uint32_t INSIDE_LEFT = 8 * 4, INSIDE_RIGHT = 311 * 4, LEFT = 0, RIGHT = 319 * 4;
+    if (g_load_addr == 0 || g_size_addr[tile] == 0 || g_tile_addr[tile] == 0 || g_tile_addr[load_tile] == 0 ||
+        ((g_timg0 >> 19) & 3) != 2 || ((g_load0 >> 12) & 0xFFF) != INSIDE_LEFT ||
+        ((g_load1 >> 12) & 0xFFF) != INSIDE_RIGHT || ((g_size0[tile] >> 12) & 0xFFF) != INSIDE_LEFT ||
+        ((g_size1[tile] >> 12) & 0xFFF) != INSIDE_RIGHT) {
+        return;
+    }
+    // A 16-bit row of 320 texels is 80 of TMEM's 64-bit words.
+    constexpr uint32_t LINE = 320 * 2 / 8;
+    uint32_t rows = ((g_load1 & 0xFFF) - (g_load0 & 0xFFF)) / 4 + 1;
+    const uint32_t tiles[2] = { tile, load_tile };
+    for (uint32_t t : tiles) {
+        uint32_t w0 = rd_w(g_tile_addr[t]);
+        if ((w0 & 0x1FF) + rows * LINE > 4096 / 8) {
+            return;
+        }
+    }
+    for (uint32_t t : tiles) {
+        uint32_t w0 = rd_w(g_tile_addr[t]);
+        wr_w(g_tile_addr[t], (w0 & ~(0x1FFu << 9)) | (LINE << 9));
+    }
+    g_load0 = (g_load0 & ~(0xFFFu << 12)) | (LEFT << 12);
+    g_load1 = (g_load1 & ~(0xFFFu << 12)) | (RIGHT << 12);
+    g_size0[tile] = (g_size0[tile] & ~(0xFFFu << 12)) | (LEFT << 12);
+    g_size1[tile] = (g_size1[tile] & ~(0xFFFu << 12)) | (RIGHT << 12);
+    wr_w(g_load_addr, g_load0);
+    wr_w(g_load_addr + 4, g_load1);
+    wr_w(g_size_addr[tile], g_size0[tile]);
+    wr_w(g_size_addr[tile] + 4, g_size1[tile]);
 }
 
 // The texture rectangle at addr (G_TEXRECT, then its texture coordinates, G_RDPHALF_1: s and t, and steps,
@@ -433,6 +476,9 @@ void rect(uint32_t addr) {
         int32_t s = int16_t(half1 >> 16);
         int32_t dsdx = int16_t(rd_w(addr + 20) >> 16);
         s -= int32_t(ulx) * dsdx / (copy ? 512 : 128);
+        if (copy && is_screen(g_texture)) {
+            whole_rows(addr);
+        }
         wr_w(addr + 4, rd_w(addr + 4) & ~(0xFFFu << 12));
         wr_w(addr + 12, (uint32_t(uint16_t(s)) << 16) | (half1 & 0xFFFF));
     }
@@ -490,19 +536,24 @@ void walk(uint32_t list, int depth) {
                 g_texture = w1 & 0x1FFFFFFF;
                 g_timg0 = w0;
                 break;
+            case G_SETTILE:
+                g_tile_addr[(w1 >> 24) & 7] = addr;
+                break;
             case G_LOADTILE:
                 g_load0 = w0;
                 g_load1 = w1;
+                g_load_addr = addr;
                 break;
             case G_SETTILESIZE:
                 g_size0[(w1 >> 24) & 7] = w0;
                 g_size1[(w1 >> 24) & 7] = w1;
+                g_size_addr[(w1 >> 24) & 7] = addr;
                 break;
             case G_SETSCISSOR:
                 scissor(addr);
                 break;
             case G_VTX:
-                if (g_fill && g_opening && ((w0 >> 12) & 0xFF) == SKY_COUNT &&
+                if (g_fill && ((w0 >> 12) & 0xFF) == SKY_COUNT &&
                     ((w1 & 0x1FFFFFFF) == SKY_VERTICES[0] || (w1 & 0x1FFFFFFF) == SKY_VERTICES[1])) {
                     sky(addr);
                 }
@@ -539,14 +590,16 @@ extern "C" void mg_border_fill(uint8_t* rdram, uint32_t list) {
     g_texture = 0;
     g_zimg = 0;
     g_cycle = 0;
-    g_opening = loaded(OPENING_OVERLAY);
     g_blacked = false;
     g_timg0 = 0;
     g_load0 = 0;
     g_load1 = 0;
+    g_load_addr = 0;
     for (int i = 0; i < 8; i++) {
         g_size0[i] = 0;
         g_size1[i] = 0;
+        g_size_addr[i] = 0;
+        g_tile_addr[i] = 0;
     }
     uint32_t start = in_ram(list);
     if (start != 0) {

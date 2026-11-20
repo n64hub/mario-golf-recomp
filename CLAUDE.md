@@ -126,7 +126,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
-  own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it and to its top and bottom, both where
+  own shape across the wide picture, with Enhancements On its black solid past the mask's edges, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it and to its top and bottom, both where
   RT64 stretched them, and `src/game/slats.cpp` closes Ring Shot's stage-select slats over the whole picture, plain
   planks past its 4:3 picture of Mario, where they covered only the 4:3 frame inside the border (their headers say
   how). The pin's flagstick is drawn from screen positions the game works out
