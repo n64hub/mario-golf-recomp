@@ -61,9 +61,10 @@
 // Original keeps the console's border. The game sets the screen's scissor itself too, so the one made here carries a
 // mark the RDP and RT64 never read. Only the scissors and rectangles drawn to the screen (a color image 320 wide, not
 // the z-buffer) are changed, and the strips of the game's copy of the course's depth drawn to the z-buffer. The other
-// files' buffers that the lists branch to hold RT64's extended commands, some longer than one command, which the walk steps over whole: read a command at a time, the words of the sun's light's
-// extended rectangle (backdrop.cpp's) read as the end of the list wherever its texture started left of 0, so the far
-// hills after it, which backdrop.cpp also draws from buffers of its own, were left at the 4:3 frame's sides.
+// files' buffers that the lists branch to hold RT64's extended commands, some longer than one command, which the walk
+// steps over whole: read a command at a time, the words of the sun's light's extended rectangle (backdrop.cpp's) read
+// as the end of the list wherever its texture started left of 0, so the far hills after it, which backdrop.cpp also
+// draws from buffers of its own, were left at the 4:3 frame's sides.
 
 #include <cstdint>
 
