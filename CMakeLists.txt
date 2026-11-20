@@ -281,6 +281,7 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/game/aim.cpp
     ${CMAKE_SOURCE_DIR}/src/game/card.cpp
     ${CMAKE_SOURCE_DIR}/src/game/credits.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/halfturn.cpp
     ${CMAKE_SOURCE_DIR}/src/game/iris.cpp
     ${CMAKE_SOURCE_DIR}/src/game/golfer.cpp
     ${CMAKE_SOURCE_DIR}/src/game/billboard.cpp

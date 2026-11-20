@@ -252,7 +252,7 @@ text = "{ void mg_aim_begin(uint8_t*); mg_aim_begin(rdram); }"
 [[patches.hook]]
 func = "func_ovl0_8021C6B4"
 before_vram = 0x8021D68C
-text = "{ void mg_aim_end(uint8_t*); mg_aim_end(rdram); }"
+text = "{ void mg_aim_end(uint8_t*, int); mg_aim_end(rdram, 0); }"
 
 [[patches.hook]]
 func = "func_ovl0_8021C6B4"
@@ -262,7 +262,7 @@ text = "{ void mg_aim_begin(uint8_t*); mg_aim_begin(rdram); }"
 [[patches.hook]]
 func = "func_ovl0_8021C6B4"
 before_vram = 0x8021DDC4
-text = "{ void mg_aim_end(uint8_t*); mg_aim_end(rdram); }"
+text = "{ void mg_aim_end(uint8_t*, int); mg_aim_end(rdram, 1); }"
 
 # The course's trees and Bomb-ombs paired between the game's frames only with billboards of their own size
 # (src/game/billboard.cpp): in each display list the game sends, each billboard is put in a matrix group of its scale's,
@@ -323,6 +323,18 @@ text = "{ void mg_credits_picture_begin(uint8_t*, uint32_t); mg_credits_picture_
 func = "func_ovl16_801F7554"
 before_vram = 0x801F8000
 text = "{ void mg_credits_picture_end(uint8_t*, uint32_t); mg_credits_picture_end(rdram, (uint32_t)ctx->r29); }"
+
+# Tournament's HALF TURN picture at the picture's full height (src/game/halfturn.cpp): where its drawing
+# (func_8006C918) begins the picture's strips, and where it puts back the list's head it keeps at sp + 0x28.
+[[patches.hook]]
+func = "func_8006C918"
+before_vram = 0x8006CB44
+text = "{ void mg_half_turn_begin(uint8_t*, uint32_t); mg_half_turn_begin(rdram, (uint32_t)ctx->r29); }"
+
+[[patches.hook]]
+func = "func_8006C918"
+before_vram = 0x8006CD20
+text = "{ void mg_half_turn_end(uint8_t*, uint32_t); mg_half_turn_end(rdram, (uint32_t)ctx->r29); }"
 
 # The Game Boy Color's golfers (Kid, Sherry, Azalea and Joe) at character select, with the General tab's Game Boy
 # Golfers option (src/game/config.cpp). On a console they come only through a Transfer Pak holding Mario Golf for the

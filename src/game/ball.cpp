@@ -434,7 +434,9 @@ void place_flare(uint32_t start, uint32_t end) {
     }
 }
 
-void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always) {
+// Each rectangle cut at a side is put back to the texels of its tile, or with sprite_texels not 0, of the sprite it
+// draws in a tile that holds several side by side: sprite_texels wide from sprite_uls.
+void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, int sprite_uls = 0, int sprite_texels = 0) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
@@ -458,7 +460,11 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always) {
             }
             case G_TEXRECT:
                 if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-                    if (widen(addr, tiles[(w1 >> 24) & 7], scale, cut_dx, always)) {
+                    Tile tile = tiles[(w1 >> 24) & 7];
+                    if (sprite_texels > 0) {
+                        tile = Tile{ sprite_uls, sprite_uls + sprite_texels - 1, false };
+                    }
+                    if (widen(addr, tile, scale, cut_dx, always)) {
                         done++;
                     }
                     addr += 16;
@@ -475,10 +481,12 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always) {
 // pixels, as aim.cpp moves the others. Each is drawn so wherever it is, not only near a side: RT64 pairs a rectangle
 // with the last game frame's by where each was drawn, and one drawn stretched and one drawn in the 4:3 frame are placed
 // in two ways, so the flag drawn the one way in one game frame and the other in the next slid between the two for a
-// game frame, the wrong way and by tens of pixels, as it came in past the 4:3 frame's side.
-void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx) {
+// game frame, the wrong way and by tens of pixels, as it came in past the 4:3 frame's side. With sprite_texels not 0,
+// each draws the sprite sprite_texels wide from texel sprite_uls of a tile that holds several side by side (the flag's
+// four frames), which is what one cut at a side is put back to (widen_all()).
+void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx, int sprite_uls, int sprite_texels) {
     g_rdram = rdram;
-    widen_all(start, end, cut_dx, true);
+    widen_all(start, end, cut_dx, true, sprite_uls, sprite_texels);
 }
 
 // The edge the game's test of whether the sun is far enough inside the screen for its flare reads (us.toml's hooks in
