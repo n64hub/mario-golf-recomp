@@ -27,7 +27,6 @@
 // black a frame longer than those round them). With Aspect Ratio Original nothing changes.
 
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
 
 #define F3DEX_GBI_2
@@ -78,6 +77,7 @@ uint8_t* g_rdram;
 uint32_t g_from = 0;
 uint32_t g_next_buffer = 0;
 uint32_t g_next_sides = 0;
+bool g_odd_frame = false;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + (addr & 0x7FFFFF));
@@ -154,11 +154,12 @@ void move_strip(uint32_t rect) {
     wr_w(rect + 4, buffer & 0x1FFFFFFF);
 }
 
-// A black rectangle from x0 to x1 and y0 to y1 (quarter pixels).
-void put_black(Writer& out, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1) {
+// A black rectangle from x0 to x1 and y0 to y1 (quarter pixels), its texture (which the combine never reads) at t and
+// stepped by dsdx (s10.5 and s5.10).
+void put_black(Writer& out, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t t, uint32_t dsdx) {
     out.put((G_TEXRECT << 24) | (x1 << 12) | y1, (x0 << 12) | y0);
-    out.put(G_RDPHALF_1 << 24, 0);
-    out.put(G_RDPHALF_2 << 24, 0);
+    out.put(G_RDPHALF_1 << 24, t & 0xFFFF);
+    out.put(G_RDPHALF_2 << 24, dsdx << 16);
 }
 
 // The radius (in the iris's units: a word of two pixels across, a row down) inside which the picture is clear this
@@ -182,17 +183,6 @@ float clear_radius() {
 bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1) {
     constexpr float S = FILL * OPAQUE;
     float radius = clear_radius();
-    {   // DEBUG: the texture's clear rows down word 76's column.
-        uint32_t tex = rd_w(0x800E1C00) + 8;
-        int top = -1, bottom = -1;
-        for (int r = 0; r < 224; r++) {
-            uint32_t w = rd_w(tex + r * 608 + 76 * 4);
-            if ((w & 0x00010001) == 0x00010001) { if (top < 0) top = r; bottom = r; }
-        }
-        static int n = 0;
-        fprintf(stderr, "HT %d phase %d counter %d radius %.1f clear rows %d..%d\n", n++, int(rd_w(IRIS_PHASE)),
-                int(rd_w(IRIS_COUNTER)), radius, top, bottom);
-    }
     if (radius >= 1.0e5f) {
         return false;
     }
@@ -203,10 +193,14 @@ bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1
     out.put(BLACK_W0, BLACK_W1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    // One rectangle a side for each of the texture's rows, at that row's place whatever the iris does, never one for a
-    // run of rows: RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) pairs a rectangle with the frame before's at its
-    // place, or else with the nearest of its size, and draws it between the two in the frames between the game's, so
-    // runs that changed height each frame were drawn between other runs, in wedges and bars across the course.
+    // One rectangle a side for each of the texture's rows, each a game frame at a texture scale and place the frame
+    // before's weren't: RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) pairs a rectangle with one of the frame
+    // before at its place or of its size nearby (or four times its size away) with the same scale, or of another scale
+    // with the same texels at its corners, and draws it between the two in the frames between the game's, so rows
+    // were drawn between other rows' places, in bars and wedges across the course. Unpaired, the sides step a game
+    // frame at a time, as the iris in the picture does.
+    g_odd_frame = !g_odd_frame;
+    uint32_t t = g_odd_frame ? 64 * 32 : 0, dsdx = g_odd_frame ? 1 : 0;
     bool any = false;
     for (int row = int(OPAQUE_FROM); row < 224; row++) {
         uint32_t y0 = uint32_t(std::lround((row - OPAQUE_FROM) * S * 4.0f));
@@ -222,8 +216,8 @@ bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1
         }
         uint32_t x = uint32_t(std::lround(std::fmax(black_to, 0.0f) * 4.0f));
         if (x > 0 && y1 > y0) {
-            put_black(out, 0, y0, x, y1);
-            put_black(out, uint32_t(SCREEN_WIDTH * 4) - x, y0, uint32_t(SCREEN_WIDTH * 4), y1);
+            put_black(out, 0, y0, x, y1, t, dsdx);
+            put_black(out, uint32_t(SCREEN_WIDTH * 4) - x, y0, uint32_t(SCREEN_WIDTH * 4), y1, t, dsdx);
             any = true;
         }
     }
