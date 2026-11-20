@@ -8,13 +8,13 @@
 // of each piece of its trail, scaled with the distance (only its printed logo is 3D, quads around the ball's centre).
 // The stars that ring the cup as the ball nears it are texture rectangles too, and so is each of the eight circles of
 // the sun's lens flare, which the game draws over the course while the sun is in the 4:3 frame, on the line from the
-// sun through the screen's middle (a table at 0x800C6920 gives each its place on that line, its size and its colour),
-// so that as the sun nears a side some of them lie past the other one. A rectangle can't start left of the screen, so
-// where one would, the game starts it at 0 and its texture as far in as it cut (and one wholly past the left side at 0
-// too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0 and 8, and on the right what lies
-// past 312. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that
-// scissor in the 4:3 frame too, so in a wider window the ball, the stars and the flare were cut along a vertical line 8
-// pixels inside the 4:3 frame's side, the course drawn on past it.
+// sun through the screen's middle across, 96 pixels down (a table at 0x800C6920 gives each its place on that line,
+// its size and its colour), so that as the sun nears a side some of them lie past the other one. A rectangle can't
+// start left of the screen, so where one would, the game starts it at 0 and its texture as far in as it cut (and one
+// wholly past the left side at 0 too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0
+// and 8, and on the right what lies past 312. RT64 widens the 3D to the picture but draws a rectangle where the game
+// puts it, in the 4:3 frame, under that scissor in the 4:3 frame too, so in a wider window the ball, the stars and the
+// flare were cut along a vertical line 8 pixels inside the 4:3 frame's side, the course drawn on past it.
 //
 // func_ovl0_801FE370 draws the ball's; func_8002DC10, the frame's drawing, calls it from two places (one per kind of
 // frame it draws), each only while the ball is shown, func_ovl0_80217164, which draws the stars, from one, and
@@ -32,6 +32,10 @@
 // file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a
 // branch back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no
 // wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
+//
+// With the General tab's Enhancements On (src/game/config.cpp), the flare's circles also fade out over the last 32
+// pixels before the line where the game stops drawing them, 16 pixels inside each side of the screen, rather than all
+// going in one frame (fade_flare() says how).
 //
 // The ball's sprites are also put where the ball is on the screen, across to a quarter of a pixel and down to the
 // nearest whole one (its far dot of colour, which samples no texture, down to the quarter too), rather than on the
@@ -55,9 +59,11 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
+#include "mg.h"
 
 float mg_wide_scale();
 
@@ -94,6 +100,24 @@ constexpr uint32_t MG_SCREEN_MIDDLE_Y = 0x800E173C;
 constexpr int MAX_SPOTS = 1024;
 // Rectangles in the ball's list looked at for a move, at most.
 constexpr int MAX_NUDGED = 1024;
+
+// The sun's place on the screen, as floats (func_8008FF20 works them out; src/game/backdrop.cpp), which the flare reads.
+// The flare's eight circles (its table at 0x800C6920, 0x14 bytes each, the float at 0x10 where on the line from the sun
+// to the point it runs through each lies), drawn only while the sun is more than 16 pixels inside the screen. That
+// point is the screen's middle across and 96 pixels down, not 120 (func_8008D3F4's constants).
+constexpr uint32_t SUN_X = 0x800C5F24;
+constexpr uint32_t SUN_Y = 0x800C5F2C;
+constexpr uint32_t FLARE_TABLE = 0x800C6920;
+constexpr uint32_t FLARE_STRIDE = 0x14;
+constexpr int FLARE_CIRCLES = 8;
+constexpr int FLARE_MAX_HALF = 255;
+constexpr float FLARE_MIDDLE_X = 160.0f;
+constexpr float FLARE_MIDDLE_Y = 96.0f;
+// The game draws the flare while the sun is more than FLARE_EDGE pixels inside each side of the screen. With
+// Enhancements On its circles fade out over the last FLARE_FADE pixels before that, rather than going at once.
+constexpr float FLARE_EDGE = 16.0f;
+constexpr float FLARE_FADE = 32.0f;
+constexpr uint32_t G_SETPRIMCOLOR = 0xFA;
 
 uint8_t* g_rdram;
 uint32_t g_start;
@@ -342,6 +366,82 @@ void nudge_all(uint32_t start, uint32_t end) {
     }
 }
 
+float rd_f(uint32_t addr) {
+    uint32_t w = rd_w(addr);
+    float f;
+    std::memcpy(&f, &w, sizeof f);
+    return f;
+}
+
+// With Enhancements On, the flare's circles fade out as the sun nears the line where the game stops drawing them,
+// FLARE_EDGE pixels inside each side of the screen, over the last FLARE_FADE pixels before it, rather than all going
+// in one frame. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the table's float, as
+// floats, and draws it as a square from that less its half size to that plus it, each truncated and at 0 at least,
+// over a texture stepped 0x10000 / half (s5.10), after a G_SETPRIMCOLOR whose alpha is the flare's brightness. A
+// rectangle in the list that is just that square for one of the circles has the alpha of the G_SETPRIMCOLOR before it
+// scaled by how far the sun is into the fade; nothing else in the list is touched. The circles are left where the game
+// puts them, on whole pixels: RT64 pairs each with the last frame's and draws it between there and here in the frames
+// between, which moves them evenly, where moving their texture within them by the fraction of a pixel the game drops
+// made them lag in those frames and catch up on the game's own.
+void fade_flare(uint32_t start, uint32_t end) {
+    if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
+        return;
+    }
+    float sx = rd_f(SUN_X), sy = rd_f(SUN_Y);
+    float inside = std::min(std::min(sx, SCREEN_WIDTH / 4 - sx), std::min(sy, SCREEN_HEIGHT / 4 - sy)) - FLARE_EDGE;
+    if (!(inside > 0.0f)) {
+        return;
+    }
+    float fade = std::min(1.0f, inside / FLARE_FADE);
+    if (!mg::enhancements() || !(fade < 1.0f)) {
+        return;
+    }
+    float cx[FLARE_CIRCLES], cy[FLARE_CIRCLES];
+    for (int i = 0; i < FLARE_CIRCLES; i++) {
+        float f = rd_f(FLARE_TABLE + FLARE_STRIDE * i + 0x10);
+        cx[i] = sx + (FLARE_MIDDLE_X - sx) * f;
+        cy[i] = sy + (FLARE_MIDDLE_Y - sy) * f;
+    }
+    // The game's edge: truncated, then at 0 at least, in quarter pixels.
+    auto edge = [](float v) { return std::max(0, int(v)) * 4; };
+    // The last G_SETPRIMCOLOR, whose alpha the game sets to the flare's brightness before each circle.
+    uint32_t prim = 0;
+    for (uint32_t addr = start; addr + 24 <= end; addr += 8) {
+        if ((rd_w(addr) >> 24) == G_SETPRIMCOLOR) {
+            prim = addr;
+            continue;
+        }
+        if ((rd_w(addr) >> 24) != G_TEXRECT || (rd_w(addr + 8) >> 24) != G_RDPHALF_1 ||
+            (rd_w(addr + 16) >> 24) != G_RDPHALF_2) {
+            continue;
+        }
+        uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), d = rd_w(addr + 20);
+        int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF);
+        int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
+        int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF);
+        addr += 16;
+        if (dsdx <= 0 || dsdx != dtdy) {
+            continue;
+        }
+        for (int i = 0; i < FLARE_CIRCLES; i++) {
+            int half = 0x10000 / dsdx;
+            // 0x10000 / half is dsdx for a half or two about 0x10000 / dsdx.
+            for (int h = std::max(1, half - 1); h <= std::min(FLARE_MAX_HALF, half + 1); h++) {
+                if (0x10000 / h != dsdx || ulx != edge(cx[i] - h) || lrx != edge(cx[i] + h) || uly != edge(cy[i] - h) ||
+                    lry != edge(cy[i] + h)) {
+                    continue;
+                }
+                if (prim != 0) {
+                    uint32_t color = rd_w(prim + 4);
+                    wr_w(prim + 4, (color & ~0xFFu) | uint32_t(std::lround((color & 0xFF) * fade)));
+                }
+                i = FLARE_CIRCLES;
+                break;
+            }
+        }
+    }
+}
+
 void widen_all(uint32_t start, uint32_t end) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
@@ -420,6 +520,7 @@ extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     g_open = false;
     g_rdram = rdram;
     uint32_t end = rd_w(head);
+    fade_flare(g_start, end);
     nudge_all(g_start, end);
     widen_all(g_start, end);
 }

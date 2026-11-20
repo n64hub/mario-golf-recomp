@@ -14,6 +14,8 @@ namespace mg {
 
     // The settings (config.cpp): RecompFrontend's tabs.
     void init_config();
+    // Whether the General tab's Enhancements option is On (config.cpp).
+    bool enhancements();
 
     // The TLB's window (tlb.cpp): hands the runtime its osVirtualToPhysical and RSP-task callbacks, before the game runs.
     void init_tlb(uint8_t* rdram);

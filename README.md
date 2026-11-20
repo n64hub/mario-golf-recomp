@@ -20,7 +20,9 @@ four players each play a controller of their own. Not played yet: the courses pa
 a saved tournament continued after a restart, and several pads at once. On a window wider than 4:3 the course reaches
 its edges and the HUD its sides, with the menus in the middle 4:3. The Game Boy Color link through the Transfer Pak is
 not there, but the General tab's Game Boy Golfers option puts Kid, Sherry, Azalea and Joe at character select, with
-the clubs the game has for them or, by Game Boy Golfers' Stats, its test values (Kid drives 500 yards).
+the clubs the game has for them or, by Game Boy Golfers' Stats, its test values (Kid drives 500 yards). Its
+Enhancements option, On by default, makes changes to how the game looks that a console doesn't, such as the sun's lens
+flare fading out near the screen's edge. Original draws it all as a console does.
 
 It plays in a browser too, at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/) (`docs/web.md`), and the
 desktop builds for Windows and Linux are on the [Releases](https://github.com/n64hub/mario-golf-recomp/releases) page.
