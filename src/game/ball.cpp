@@ -487,8 +487,17 @@ extern "C" void mg_ball_begin(uint8_t* rdram, uint32_t head) {
     g_have_x = false;
 }
 
+// What func_80065650 dropped of the last x it truncated, whoever called it: src/game/aim.cpp moves the aim's marks by
+// it, as mg_ball_end moves the ball's sprites.
+static float g_last_dx;
+
+float mg_last_projected_dx() {
+    return g_last_dx;
+}
+
 // value: the point's x or y on the screen before func_80065650 truncates it and adds the screen's middle. y follows x.
 extern "C" void mg_ball_project_x(uint8_t* rdram, float value) {
+    g_last_dx = std::isfinite(value) ? value - std::trunc(value) : 0.0f;
     if (!g_open) {
         return;
     }
