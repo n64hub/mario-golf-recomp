@@ -10,3 +10,9 @@ that submodule's highest, with a line here.
 - `N64ModernRuntime-2-tlb-callbacks.patch`: ultramodern's `TlbCallbacks`, which the game sets (`src/game/tlb.cpp`):
   osVirtualToPhysical asks it for a KUSEG address the game has mapped, and each RSP task first lets it write the
   pages mapped there back to RDRAM, where the RSP reads them.
+- `rt64-1-shade-across-the-screen.patch`: RT64's 3D draws blend a vertex's shade across a triangle linearly on the
+  screen (`noperspective`), as the RDP does, which corrects only texture coordinates for perspective. The sky is three
+  triangles from overhead (shade 255, 231, 144) to the horizon (192, 64, 0), which come out deep blue overhead and
+  pale at the horizon, and blended with perspective the deep blue reached down to the far hills, where a console's sky
+  is pale: as the camera looked low (Luigi's Garden's Mini-Golf flyover), the gaps between the
+  hills along the picture's top showed dark blue, and the sky over a tee was deep blue all over.
