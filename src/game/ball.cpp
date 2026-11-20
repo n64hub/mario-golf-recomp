@@ -8,8 +8,8 @@
 // of each piece of its trail, scaled with the distance (only its printed logo is 3D, quads around the ball's centre).
 // The stars that ring the cup as the ball nears it are texture rectangles too, and so is each of the eight circles of
 // the sun's lens flare, which the game draws over the course while the sun is in the 4:3 frame, on the line from the
-// sun through the screen's middle across, 96 pixels down (a table at 0x800C6920 gives each its place on that line, its size and its colour),
-// so that as the sun nears a side some of them lie past the other one. A rectangle can't start left of the screen, so
+// sun through the screen's middle across, 96 pixels down (a table at 0x800C6920 gives each its place on that line,
+// its size and its colour), so that as the sun nears a side some of them lie past the other one. A rectangle can't start left of the screen, so
 // where one would, the game starts it at 0 and its texture as far in as it cut (and one wholly past the left side at 0
 // too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0 and 8, and on the right what lies
 // past 312. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that
@@ -62,7 +62,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
-#include <cstdio>
 
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
@@ -400,9 +399,6 @@ void place_flare(uint32_t start, uint32_t end) {
         return;
     }
     float sx = rd_f(SUN_X), sy = rd_f(SUN_Y);
-    static int dbg_n = 0;
-    dbg_n++;
-    fprintf(stderr, "FL %d sun %.4f %.4f k %.3f z %04x fl %d en %d\n", dbg_n, sx, sy, rd_f(0x800C691C), (rd_w(0x800C6914) >> 16) & 0xFFFF, rd_w(0x800C6918), int(mg::enhancements()));
     float inside = std::min(std::min(sx, SCREEN_WIDTH / 4 - sx), std::min(sy, SCREEN_HEIGHT / 4 - sy)) - FLARE_EDGE;
     if (!(inside > 0.0f)) {
         return;
@@ -435,7 +431,6 @@ void place_flare(uint32_t start, uint32_t end) {
         if (dsdx <= 0 || dsdx != dtdy) {
             continue;
         }
-        bool dbg_hit = false;
         for (int i = 0; i < FLARE_CIRCLES; i++) {
             int half = 0x10000 / dsdx;
             // 0x10000 / half is dsdx for a half or two about 0x10000 / dsdx.
@@ -456,14 +451,9 @@ void place_flare(uint32_t start, uint32_t end) {
                     uint32_t color = rd_w(prim + 4);
                     wr_w(prim + 4, (color & ~0xFFu) | uint32_t(std::lround((color & 0xFF) * fade)));
                 }
-                dbg_hit = true;
-                fprintf(stderr, "FL %d c%d h%d ul %d %d fx %.3f fy %.3f s %d t %d st %08x\n", dbg_n, i, h, ulx, uly, fx, fy, s, t, st);
                 i = FLARE_CIRCLES;
                 break;
             }
-        }
-        if (!dbg_hit) {
-            fprintf(stderr, "FL %d miss ul %d %d lr %d %d dsdx %d st %08x\n", dbg_n, ulx, uly, lrx, lry, dsdx, st);
         }
     }
 }
