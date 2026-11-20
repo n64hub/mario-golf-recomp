@@ -1,5 +1,11 @@
-// The big rainbow words a hole or a shot ends on (HOLE-IN-ONE!, BIRDIE, PAR, NICE SHOT!, OB! and the rest) in the
-// frames RT64 draws between the game's: each letter blended from where it was to where it goes, whole.
+// The big rainbow words a hole or a shot ends on in the frames RT64 draws between the game's: each letter blended from
+// where it was to where it goes, whole.
+//
+// The game has 17 such words, in a table the hole's overlay starts one from (func_ovl0_8020E7B4, its index): NICE
+// SHOT!, NICE ON!, NICE APPROACH, NICE TOUCH, CHIP-IN!, PIN SHOT!, FLAG SHOT!, EXCELLENT!, GREAT!, FINISH, COMPLETE,
+// HOLE-IN-ONE!, ALBATROSS, EAGLE, BIRDIE, PAR and BOGEY, from 0, and from 0x11 a big "+1" to "+18" that zooms in.
+// With debug flag 0x6D on (bit 0x04 of the byte at 0x80105305), a hole's D-pad Right and Left step an index at
+// 0x802243B0 and Down shows its word (func_ovl0_8020EEF8), which is how a test shows each without the shot.
 //
 // The game draws such a word a letter at a time, each letter a textured quad: the four vertices at 0x80224130, the same
 // for every letter, under a modelview matrix loaded for the word and one multiplied onto it that places, sizes and
