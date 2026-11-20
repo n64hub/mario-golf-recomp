@@ -374,8 +374,10 @@ void place_flare(uint32_t start, uint32_t end) {
     }
     float sx = rd_f(SUN_X), sy = rd_f(SUN_Y);
     float inside = std::min(std::min(sx, SCREEN_WIDTH / 4 - sx), std::min(sy, SCREEN_HEIGHT / 4 - sy)) - flare_edge();
-    if (std::getenv("MG_FLARE_LOG") != nullptr) { // WIP: temporary, the sun's place each frame
-        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f\n", sx, sy, inside);
+    bool log = std::getenv("MG_FLARE_LOG") != nullptr; // WIP: temporary, the sun's place each frame
+    int drawn = 0;
+    if (log && !(inside > 0.0f)) {
+        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f drawn=-1\n", sx, sy, inside);
     }
     if (!(inside > 0.0f)) {
         return;
@@ -427,10 +429,14 @@ void place_flare(uint32_t start, uint32_t end) {
                     wr_w(addr - 16, (w0 & 0xFF000000) | (uint32_t(x + w) << 12) | uint32_t(y + t));
                     wr_w(addr - 12, (w1 & 0xFF000000) | (uint32_t(x) << 12) | uint32_t(y));
                 }
+                drawn++;
                 i = FLARE_CIRCLES;
                 break;
             }
         }
+    }
+    if (log) {
+        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f drawn=%d\n", sx, sy, inside, drawn);
     }
 }
 
