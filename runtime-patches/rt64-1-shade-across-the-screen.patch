@@ -1,0 +1,39 @@
+diff --git a/src/shaders/PostBlendDitherNoisePS.hlsl b/src/shaders/PostBlendDitherNoisePS.hlsl
+index a90aeb0..ee20087 100644
+--- a/src/shaders/PostBlendDitherNoisePS.hlsl
++++ b/src/shaders/PostBlendDitherNoisePS.hlsl
+@@ -13,7 +13,7 @@
+ void PSMain(
+       in float4 vertexPosition : SV_POSITION
+     , in float2 vertexUV : TEXCOORD
+-    , in float4 vertexSmoothColor : COLOR0
++    , noperspective in float4 vertexSmoothColor : COLOR0
+     , nointerpolation in float4 vertexFlatColor : COLOR1
+ #ifdef RT64_RENDER_INDEX_BY_INSTANCE
+     , nointerpolation in uint vertexRenderIndex : RENDERINDEX
+diff --git a/src/shaders/RasterPS.hlsl b/src/shaders/RasterPS.hlsl
+index 1e76c38..499d2d3 100644
+--- a/src/shaders/RasterPS.hlsl
++++ b/src/shaders/RasterPS.hlsl
+@@ -412,7 +412,7 @@ RenderParams getRenderParams() {
+ void PSMain(
+       in float4 vertexPosition : SV_POSITION
+     , in float2 vertexUV : TEXCOORD
+-    , in float4 vertexSmoothColor : COLOR0
++    , noperspective in float4 vertexSmoothColor : COLOR0
+ #if defined(DYNAMIC_RENDER_PARAMS) || defined(VERTEX_FLAT_COLOR)
+     , nointerpolation in float4 vertexFlatColor : COLOR1
+ #endif
+diff --git a/src/shaders/RasterVS.hlsl b/src/shaders/RasterVS.hlsl
+index 7edc05d..846daa1 100644
+--- a/src/shaders/RasterVS.hlsl
++++ b/src/shaders/RasterVS.hlsl
+@@ -59,7 +59,7 @@ void VSMain(
+ #endif
+     , out float4 oPosition : SV_POSITION
+     , out float2 oUV : TEXCOORD
+-    , out float4 oSmoothColor : COLOR0
++    , noperspective out float4 oSmoothColor : COLOR0
+ #if defined(DYNAMIC_RENDER_PARAMS) || defined(VERTEX_FLAT_COLOR)
+ #ifdef WEBGPU
+     // WebGPU requires a vertex output's interpolation to match the fragment input's, which RasterPS declares flat.

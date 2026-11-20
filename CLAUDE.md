@@ -144,6 +144,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   puts each letter of the big words a hole or a shot ends on (HOLE-IN-ONE!, NICE SHOT!, one quad shared by every
   letter) in a matrix group of its own, keyed by its texture, or between the game's frames letters went missing or
   stood doubled as the word squashed and bounced.
+  RT64 blends a vertex's shade across a triangle linearly on the screen, as the RDP does, not with perspective
+  (`runtime-patches/rt64-1-shade-across-the-screen.patch`): the sky's three triangles run from overhead to the
+  horizon, and with perspective their deep-blue overhead shade reached down to the far hills, where a console's sky is
+  pale.
 - **Testing.** `--boot` starts the game from the launcher's first frame once the ROM is stored, `--window <w>x<h>`
   sizes the window, and `--input <file>` plays port 1 from a script of timed button states (`main.cpp` says the
   format), for unattended runs. A swing is three presses of A: start, power, impact. `tools/frame_plan.txt` walks
