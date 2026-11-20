@@ -25,11 +25,7 @@
 // mirrored copy 64 pixels right of the sun, as a second sun. It is drawn as RT64's extended texture rectangle stretched
 // to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's own scissor, the 3D's,
 // clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the screen's middle by as
-// much, so the light keeps its shape. The light is drawn so in every frame, within the scissor too: RT64 pairs each
-// frame's rectangles with the last frame's, and where the sun crossed the scissor's side, between the game's own
-// rectangle and the stretched one, it paired the two as one rectangle changing size and drew the display's frames
-// between them with the light jumped aside and its far edge cut, a flash as the camera panned the sun across the
-// screen (Yoshi's Island's flyovers). A scissor of its own, widened past 4:3 in the 4:3 frame's coordinates, doesn't
+// much, so the light keeps its shape. A scissor of its own, widened past 4:3 in the 4:3 frame's coordinates, doesn't
 // hold it: the light reaches the black border past the 3D, which nothing clears. Those commands go to a buffer of this
 // file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a
 // branch back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through mg_sun_bound_x, a us.toml hook that
@@ -194,10 +190,9 @@ struct Tile {
 };
 
 // The rectangle at addr (its three commands) drawn past the scissor where it reaches past it, put back past the left
-// side where the game cut it there, in a buffer that branches back after it. The sun's light (light) is drawn so
-// within the scissor too, so that each frame's is the same kind of rectangle. False if another stays within the
-// scissor, or it didn't fit.
-bool widen(uint32_t addr, const Tile& tile, float scale, bool light) {
+// side where the game cut it there, in a buffer that branches back after it. False if it stays within the scissor, or
+// didn't fit.
+bool widen(uint32_t addr, const Tile& tile, float scale) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
@@ -223,7 +218,7 @@ bool widen(uint32_t addr, const Tile& tile, float scale, bool light) {
             new_lrx = new_ulx + (lry - uly) + (t - start_t) * 128 / dtdy;
         }
     }
-    if (!light && new_ulx >= SCISSOR_LEFT * 4 && new_lrx <= SCISSOR_RIGHT * 4) {
+    if (new_ulx >= SCISSOR_LEFT * 4 && new_lrx <= SCISSOR_RIGHT * 4) {
         return false;
     }
 
@@ -334,15 +329,15 @@ float rd_f(uint32_t addr) {
 // func_8008FF20 drew around the truncated place of one of its views' suns, its texture started earlier by what the
 // truncation dropped, each way, so the light is drawn that much further right and down in the rectangle the game put
 // on whole pixels. The rectangle stays as the game's, so RT64 still pairs it with the last frame's, and slides the
-// texture's step between them as it does a scroll. True if it is the light.
-bool place_sun(uint32_t addr) {
+// texture's step between them as it does a scroll.
+void place_sun(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
     int s = int16_t(st >> 16), t = int16_t(st & 0xFFFF);     // s10.5
     int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF); // s5.10
     if (dsdx <= 0 || dtdy <= 0) {
-        return false;
+        return;
     }
     for (int view = 0; view < SUN_VIEWS; view++) {
         float x = rd_f(SUN_X + 4 * view), y = rd_f(SUN_Y + 4 * view);
@@ -361,29 +356,22 @@ bool place_sun(uint32_t addr) {
         int ds = int(std::lround((x - float(tx)) * float(dsdx) / 32.0f));
         int dt = int(std::lround((y - float(ty)) * float(dtdy) / 32.0f));
         int new_s = s - ds, new_t = t - dt;
-        if (new_s >= INT16_MIN && new_s <= INT16_MAX && new_t >= INT16_MIN && new_t <= INT16_MAX) {
-            wr_w(addr + 12, (uint32_t(new_s & 0xFFFF) << 16) | uint32_t(new_t & 0xFFFF));
+        if (new_s < INT16_MIN || new_s > INT16_MAX || new_t < INT16_MIN || new_t > INT16_MAX) {
+            return;
         }
-        return true;
+        wr_w(addr + 12, (uint32_t(new_s & 0xFFFF) << 16) | uint32_t(new_t & 0xFFFF));
+        return;
     }
-    return false;
 }
 
-// The light's rectangles place_suns found in this call, by address, which widen_all widens within the scissor too.
-uint32_t g_lights[MAX_RECTS];
-int g_light_count = 0;
-
 void place_suns(uint32_t start, uint32_t end) {
-    g_light_count = 0;
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
     for (uint32_t addr = start; addr + 24 <= end; addr += 8) {
         if ((rd_w(addr) >> 24) == G_TEXRECT && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
             (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-            if (place_sun(addr) && g_light_count < MAX_RECTS) {
-                g_lights[g_light_count++] = addr;
-            }
+            place_sun(addr);
             addr += 16;
         }
     }
@@ -418,8 +406,7 @@ void widen_all(uint32_t start, uint32_t end) {
             case G_TEXRECT:
                 if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
                     const Tile& tile = tiles[(w1 >> 24) & 7];
-                    bool light = std::find(g_lights, g_lights + g_light_count, addr) != g_lights + g_light_count;
-                    if (!stretch_strip(addr, tile, scale) && done < MAX_RECTS && widen(addr, tile, scale, light)) {
+                    if (!stretch_strip(addr, tile, scale) && done < MAX_RECTS && widen(addr, tile, scale)) {
                         done++;
                     }
                     addr += 16;
