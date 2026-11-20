@@ -31,8 +31,8 @@
 // slides a rectangle between two game frames only from one drawn the same way, and the flag drawn the one way and then
 // the other slid tens of pixels the wrong way for a game frame as it came in past the 4:3 frame's side. RT64 pairs a
 // rectangle with the last game frame's only if it moved less than its longer side, and the flag moves 22 to 26 pixels
-// a game frame as the view turns fast: runtime-patches/rt64-2-pair-a-lone-look-farther.patch pairs it up to four times
-// that far, as no other rectangle looks like it, or it held still between game frames and stepped against the course.
+// a game frame as the view turns fast: RT64 (N64Recomp-browser's rt64.patch) pairs it up to four times that far, as no
+// other rectangle looks like it, or it held still between game frames and stepped against the course.
 
 #include <cmath>
 #include <cstdint>

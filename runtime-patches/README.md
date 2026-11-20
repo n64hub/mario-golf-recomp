@@ -16,9 +16,3 @@ that submodule's highest, with a line here.
   pale at the horizon, and blended with perspective the deep blue reached down to the far hills, where a console's sky
   is pale: as the camera looked low (Luigi's Garden's Mini-Golf flyover), the gaps between the
   hills along the picture's top showed dark blue, and the sky over a tee was deep blue all over.
-- `rt64-2-pair-a-lone-look-farther.patch`: RT64_INTERPOLATE_RECT_SCROLLS pairs a texture rectangle with one of the
-  game frame before that moved less than its longer side, so a glyph of a font is never paired with the same letter
-  elsewhere; a rectangle whose look no other rectangle of either frame shares now pairs with its one look-alike up to
-  four times that far. The red pin flag in the sky (`src/game/aim.cpp`), 8 by 16 pixels, moves 22 to 26 pixels a game
-  frame as the view turns fast, and unpaired it held still between the game's frames and stepped once each against the
-  course turning smoothly behind it (issue 181).
