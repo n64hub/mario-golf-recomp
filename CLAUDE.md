@@ -113,7 +113,8 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   table at ROM 0x14F994). So time spent in the launcher reaches nothing a player sees.
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, which `src/game/border.cpp`
-  draws through the game's own 8-pixel border to the window's edges (on a hole and in the opening), `patches/cull.c` culls the
+  draws through the game's own 8-pixel border to the window's edges (on a hole and in the opening), with the depth the
+  game holds of the course while the view is still, or the pond drew over the tee's grass there, `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
   wide picture's sides, the hole's waving sign in a matrix group whose vertices RT64 moves between the game's frames, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
   sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, puts them where the sun is between whole pixels, by moving their texture, rather than on the game's whole one, puts the sky in a matrix group whose clouds RT64 slides
@@ -125,7 +126,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   on the game's own frames, and with Enhancements On draws the flare on to the screen's edge, where the game drops it 16
   pixels in (hooks in func_8008D3F4, `us.toml`), its circles fading out before it, `src/game/aim.cpp` puts the red pin flag in the sky and the landing point's label where their points are
   across, to a quarter pixel, not the whole one the game truncates them to, or they slid in whole console pixels a game
-  frame as the view turned, and `src/game/screen.cpp` scales the title and the menus, 2D screens
+  frame as the view turned, and draws them on into the wide picture's sides as `ball.cpp` draws its sprites, where the
+  3D's scissor cut them 8 pixels inside the 4:3 frame (RT64_INTERPOLATE_RECT_SCROLLS pairs
+  the flag between game frames up to four times its size away, as no other rectangle looks like it, or it stepped as
+  the view turned fast), and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
@@ -137,7 +141,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   or it stands away from the hole and its marker, and draws them between game frames only with
   `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. Ring Shot's rings sample a
   32x32 map the game rebuilds each frame from strips of the picture, often fewer than its 32 rows, which RT64 draws from
-  what RAM holds only with `RT64_TILE_COPY_TMEM_FALLBACK`, or they draw solid black now and then. The course's terrain is
+  what RAM holds only with `RT64_TILE_COPY_TMEM_FALLBACK`, or they draw solid black now and then. Metal Mario's shine
+  is such a map too, 8x1 strips of the frame before far apart, which his body samples bilinearly: RT64 blends a
+  framebuffer no wider than 64 by its own texels (`runtime-patches/rt64-2-small-framebuffers-filtered-by-their-texels.patch`),
+  or at a high resolution each texel was a hard-edged square. The course's terrain is
   never drawn at its coarsest level of detail (`us.toml`): its edges left cracks beside finer blocks at a high
   resolution. Its players take turns on one view, never a split screen. `src/game/golfer.cpp` puts each golfer's
   joints in a matrix group of its own, each joint's matrix blended whole between the game's frames and its position
