@@ -25,8 +25,9 @@
 # light drawn stretched (src/game/screen.cpp, src/game/backdrop.cpp), then 1 a Chrome play missed in the credits' course
 # box, then 3 Chrome and Firefox plays missed in section 0 at the tile wipe between the title and the main menu, once
 # src/game/screen.cpp scaled it, then 3 they missed there once the far hills were drawn at their own width
-# (src/game/backdrop.cpp): what a section draws turns with where the ball goes and how many play, so a play's
-# misses are added to its section (play_page.mjs prints them).
+# (src/game/backdrop.cpp), then 8 Chrome and Firefox plays missed at the first shot's aim once the pin flag and the
+# landing point's label were always drawn stretched in a wide window (src/game/aim.cpp): what a section draws turns
+# with where the ball goes and how many play, so a play's misses are added to its section (play_page.mjs prints them).
 00504240 00802cff fcffb3ff ff64fe7f 04cb540b
 00504240 00802cff fcffb3ff ff65feff 04cb540b
 00504240 0080acff fcffb3ff ff64fe7f 04cb540b
@@ -156,6 +157,14 @@ c8113078 00182c0f fc563280 1ffcfff8 09128808
 00000001 00a0acff fcffffff fffcf87c 099b100b
 00000001 00a0acef fcffffff fffcf87c 099b100b
 00000001 00a0accf fcffffff fffcf87c 099b100b
+00504a55 0000ac3f fc119623 ff2fffff 0ccb540b
+00504a55 00002c3f fc119623 ff2fffff 0ccb540b
+00504245 00002c3f fc119623 ff2fffff 0ccb540b
+0f0a700d 0000ac3f fcffffff fffcf279 0ccb540b
+00504a55 0080ac3f fc119623 ff2fffff 0ccb540b
+00504a55 00802c3f fc119623 ff2fffff 0ccb540b
+00504245 00802c3f fc119623 ff2fffff 0ccb540b
+0f0a700d 0080ac3f fcffffff fffcf279 0ccb540b
 section toad_highlands
 0f0a4000 00000cff fcffffff fffcf87c 04cb540b
 00000001 00a0accf fcffffff fffcf87c 019b100b
