@@ -128,6 +128,9 @@ constexpr uint32_t G_SETPRIMCOLOR = 0xFA;
 // How far inside each side of the screen the sun must be for the game to draw the flare: its own 16 pixels, or with
 // Enhancements On none, so that the circles fade out to the side rather than going 16 pixels before it.
 float flare_edge() {
+    if (std::getenv("MG_FLARE_OLD") != nullptr) { // WIP: temporary, the last release's rule for comparison
+        return FLARE_EDGE;
+    }
     return mg::enhancements() ? 0.0f : FLARE_EDGE;
 }
 
@@ -382,7 +385,7 @@ void place_flare(uint32_t start, uint32_t end) {
     if (!(inside > 0.0f)) {
         return;
     }
-    float fade = std::min(1.0f, inside / FLARE_FADE);
+    float fade = std::min(1.0f, inside / (std::getenv("MG_FLARE_OLD") != nullptr ? 32.0f : FLARE_FADE));
     bool fading = mg::enhancements() && fade < 1.0f;
     float cx[FLARE_CIRCLES], cy[FLARE_CIRCLES];
     for (int i = 0; i < FLARE_CIRCLES; i++) {
@@ -436,7 +439,7 @@ void place_flare(uint32_t start, uint32_t end) {
         }
     }
     if (log) {
-        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f drawn=%d\n", sx, sy, inside, drawn);
+        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f drawn=%d fade=%.2f\n", sx, sy, inside, drawn, fading ? fade : 1.0f);
     }
 }
 
