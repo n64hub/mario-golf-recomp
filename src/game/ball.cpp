@@ -1,7 +1,8 @@
 // The ball, the stars around the cup and the sun's lens flare past the 4:3 frame's sides (RT64's Aspect Ratio Expand):
 // the ball, its shadow, its trail, the ring of stars around the cup and the flare's circles go on into the wide
 // picture's sides with the course, rather than being cut along a vertical line at the 4:3 frame's side. And the ball's
-// sprites where the ball is, to a quarter of a pixel, not the whole pixel the game rounds it to (the last paragraph).
+// sprites and the flare's circles where the game works them out, to a quarter of a pixel, not the whole pixel it
+// truncates them to (the last two paragraphs).
 //
 // Up close (the view of the cup the game cuts to as a putt reaches it, with no HUD) the ball is not a model: it is
 // texture rectangles drawn where the game works out the ball is on the screen, a sprite of the ball, of its shadow and
@@ -33,13 +34,13 @@
 // branch back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no
 // wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
 //
-// With the General tab's Enhancements On (src/game/config.cpp), the flare's circles also fade out over the last 32
-// pixels before the line where the game stops drawing them, 16 pixels inside each side of the screen, rather than all
-// going in one frame (fade_flare() says how).
+// The flare's circles are put where the game works them out, to a quarter of a pixel, so they move with the sun's
+// light rather than in whole pixels against it, and with the General tab's Enhancements On (src/game/config.cpp) they
+// also fade out over the last 32 pixels before the line where the game stops drawing them, 16 pixels inside each side
+// of the screen, rather than all going in one frame (place_flare() says how).
 //
-// The ball's sprites are also put where the ball is on the screen, across to a quarter of a pixel and down to the
-// nearest whole one (its far dot of colour, which samples no texture, down to the quarter too), rather than on the
-// pixel the game truncates it to. The game works out where on the screen the ball
+// The ball's sprites are also put where the ball is on the screen, to a quarter of a pixel, rather than on the pixel
+// the game truncates it to. The game works out where on the screen the ball
 // is, and its shadow, with func_80065650, which truncates x and y to whole pixels (its out[0] and out[1]), and
 // func_ovl0_801FE370 draws each rectangle around that pixel: the ball's sprite near or its dots far, its shadow, and
 // the coloured marker over it (overlay 7, the intro's, draws its ball with its own two of the same kind). Every console
@@ -47,9 +48,9 @@
 // smoothly, so the sprites stepped over the grass a whole console pixel at a time as the camera drifted, and wiggled at
 // a high display rate. us.toml hooks func_80065650 where it truncates x and y, and while the ball is drawn
 // (mg_ball_begin to mg_ball_end) mg_ball_project_x and _y note each point and what was dropped; mg_ball_end then moves
-// a rectangle whose middle across is a noted point's x by that fraction (find_move() says why down is to a whole
-// pixel), and a sprite the game draws in two halves, one over the other (the intro's ball), moves whole, its other half
-// with the one the point is in (nudge_all() says why). It keeps the game's size, so RT64
+// a rectangle whose middle across is a noted point's x by that fraction (find_move() says which rectangle), and a
+// sprite the game draws in two halves, one over the other (the intro's ball), moves whole, its other half with the one
+// the point is in (nudge_all() says why). It keeps the game's size, so RT64
 // (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with the last frame's rectangle and slides it between
 // the two frames at the display's rate. This happens whatever the window's shape, and before a rectangle at a side is
 // widened. The game still rounds a sprite's size to whole pixels, so a frame in which the ball's sprite grows or
@@ -71,7 +72,7 @@ namespace {
 
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
-constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2, G_SETCOMBINE = 0xFC;
+constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2;
 constexpr uint32_t G_DL_NOPUSH = 1, G_TX_MIRROR = 1;
 
 // The display list's head, which the game's drawing functions advance (the decomp's data at 0x801B93DC).
@@ -236,7 +237,6 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
 // A texture rectangle in the ball's list: where it is (quarter pixels), and the move nudge() gives it.
 struct Rect {
     uint32_t addr;
-    bool textured;
     int ulx, uly, lrx, lry;
     bool found = false;
     int dx = 0, dy = 0;
@@ -244,13 +244,12 @@ struct Rect {
 
 // The move for a rectangle drawn around a noted point: its middle across on the point's x, and the point's y within it,
 // the nearest to its middle down if more than one (the ball is as tall as it is wide, its shadow flatter). To the
-// quarter pixel, but down to the whole pixel nearest for one that samples a texture. RT64 draws a texture rectangle
-// from the whole pixel its top rounds up to, and one whose top isn't on a whole pixel with its texture a row further
-// on, so a top moved by a fraction moved the sprite a whole pixel down and lost its picture's top row (the ball looked
-// shaved off at the top), and with t moved back by that row, a sprite whose texture's rows are finer than the screen's
-// lost its bottom in the frames between the game's instead. One that samples none (the far ball's dot of colour) RT64
-// draws at the corners it is given. False if it is no such rectangle, or is at or past a side of the screen (left for
-// widen()).
+// quarter pixel: RT64 draws a texture rectangle at the corners it is given, its texture from its top, with
+// RT64_SUBPIXEL_TEXRECTS (CMakeLists.txt), and one that samples none (the far ball's dot of colour) with
+// RT64_INTERPOLATE_RECT_SCROLLS. Without the first, it drew a texture rectangle from the whole pixel its top rounds up
+// to, with its texture a row further on, so a top moved by a fraction moved the sprite a whole pixel down and lost its
+// picture's top row (the ball looked shaved off at the top). False if it is no such rectangle, or is at or past a side
+// of the screen (left for widen()).
 bool find_move(Rect& r) {
     if (r.ulx <= 0 || r.lrx >= SCREEN_WIDTH || r.lrx <= r.ulx || r.uly <= 0 || r.lry >= SCREEN_HEIGHT ||
         ((r.ulx + r.lrx) & 1) != 0) {
@@ -271,34 +270,8 @@ bool find_move(Rect& r) {
         return false;
     }
     r.dx = int(std::lround(best->dx * 4));
-    r.dy = r.textured ? int(std::lround(best->dy)) * 4 : int(std::lround(best->dy * 4));
+    r.dy = int(std::lround(best->dy * 4));
     return true;
-}
-
-// Whether the combiner G_SETCOMBINE's words set reads a texel, in either cycle: TEXEL0 or TEXEL1 (1 or 2) in any of its
-// inputs, or their alpha (8 or 9) as the colour's multiplier (the decomp's include/PR/gbi.h).
-bool combine_textured(uint32_t w0, uint32_t w1) {
-    const int color_ab[] = { int((w0 >> 20) & 0xF), int((w1 >> 28) & 0xF), int((w0 >> 5) & 0xF), int((w1 >> 24) & 0xF) };
-    const int color_c[] = { int((w0 >> 15) & 0x1F), int(w0 & 0x1F) };
-    const int seven[] = { int((w1 >> 15) & 7), int((w1 >> 6) & 7),                           // the colour's d
-                          int((w0 >> 12) & 7), int((w1 >> 12) & 7), int((w0 >> 9) & 7), int((w1 >> 9) & 7), // alpha
-                          int((w1 >> 21) & 7), int((w1 >> 3) & 7), int((w1 >> 18) & 7), int(w1 & 7) };
-    for (int v : color_ab) {
-        if (v == 1 || v == 2) {
-            return true;
-        }
-    }
-    for (int v : color_c) {
-        if (v == 1 || v == 2 || v == 8 || v == 9) {
-            return true;
-        }
-    }
-    for (int v : seven) {
-        if (v == 1 || v == 2) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // Whether a and b are the two halves of one sprite, the game's way of drawing a texture too tall to load at once: as
@@ -330,17 +303,13 @@ void nudge_all(uint32_t start, uint32_t end) {
     }
     static Rect rects[MAX_NUDGED];
     int count = 0;
-    // Whether the combiner the list last set reads a texel; one that sets none is taken to.
-    bool textured = true;
     for (uint32_t addr = start; addr + 8 <= end && count < MAX_NUDGED; addr += 8) {
         uint32_t w0 = rd_w(addr), op = w0 >> 24;
-        if (op == G_SETCOMBINE) {
-            textured = combine_textured(w0, rd_w(addr + 4));
-        } else if (op == G_TEXRECT && addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
+        if (op == G_TEXRECT && addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
                    (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
             uint32_t w1 = rd_w(addr + 4);
             Rect& r = rects[count++];
-            r = Rect{ addr, textured, int((w1 >> 12) & 0xFFF), int(w1 & 0xFFF), int((w0 >> 12) & 0xFFF), int(w0 & 0xFFF) };
+            r = Rect{ addr, int((w1 >> 12) & 0xFFF), int(w1 & 0xFFF), int((w0 >> 12) & 0xFFF), int(w0 & 0xFFF) };
             r.found = find_move(r);
             addr += 16;
         }
@@ -373,17 +342,22 @@ float rd_f(uint32_t addr) {
     return f;
 }
 
-// With Enhancements On, the flare's circles fade out as the sun nears the line where the game stops drawing them,
-// FLARE_EDGE pixels inside each side of the screen, over the last FLARE_FADE pixels before it, rather than all going
-// in one frame. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the table's float, as
-// floats, and draws it as a square from that less its half size to that plus it, each truncated and at 0 at least,
-// over a texture stepped 0x10000 / half (s5.10), after a G_SETPRIMCOLOR whose alpha is the flare's brightness. A
-// rectangle in the list that is just that square for one of the circles has the alpha of the G_SETPRIMCOLOR before it
-// scaled by how far the sun is into the fade; nothing else in the list is touched. The circles are left where the game
-// puts them, on whole pixels: RT64 pairs each with the last frame's and draws it between there and here in the frames
-// between, which moves them evenly, where moving their texture within them by the fraction of a pixel the game drops
-// made them lag in those frames and catch up on the game's own.
-void fade_flare(uint32_t start, uint32_t end) {
+// The flare's circles go where the game works them out, to a quarter of a pixel, rather than on the whole pixels it
+// truncates them to, and with Enhancements On they fade out as the sun nears the line where the game stops drawing
+// them, FLARE_EDGE pixels inside each side of the screen, over the last FLARE_FADE pixels before it, rather than all
+// going in one frame. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the table's
+// float, as floats, and draws it as a square from that less its half size to that plus it, each truncated and at 0 at
+// least, over a texture stepped 0x10000 / half (s5.10), after a G_SETPRIMCOLOR whose alpha is the flare's brightness.
+// A rectangle in the list that is just that square for one of the circles is moved to the square's place as floats,
+// its size kept, unless it is cut at a side or the move would take it to one (left for widen()), and the alpha of the
+// G_SETPRIMCOLOR before it is scaled by how far the sun is into the fade; nothing else in the list is touched. The sun's
+// light moves by fractions of a pixel (src/game/backdrop.cpp), and on whole pixels the circles stepped unevenly against
+// it on the game's own frames (4, 4, 3 and 3 pixels a frame as the camera tilted), which RT64's slide between them
+// (RT64_INTERPOLATE_RECT_SCROLLS, which still pairs each with the last frame's, being the same size) kept. RT64 draws
+// them at those quarter pixels with RT64_SUBPIXEL_TEXRECTS (CMakeLists.txt); without it, at the whole pixels they
+// round up to. Moving their texture within them instead made them lag in the frames between and catch up on the
+// game's own.
+void place_flare(uint32_t start, uint32_t end) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
@@ -393,9 +367,7 @@ void fade_flare(uint32_t start, uint32_t end) {
         return;
     }
     float fade = std::min(1.0f, inside / FLARE_FADE);
-    if (!mg::enhancements() || !(fade < 1.0f)) {
-        return;
-    }
+    bool fading = mg::enhancements() && fade < 1.0f;
     float cx[FLARE_CIRCLES], cy[FLARE_CIRCLES];
     for (int i = 0; i < FLARE_CIRCLES; i++) {
         float f = rd_f(FLARE_TABLE + FLARE_STRIDE * i + 0x10);
@@ -431,9 +403,15 @@ void fade_flare(uint32_t start, uint32_t end) {
                     lry != edge(cy[i] + h)) {
                     continue;
                 }
-                if (prim != 0) {
+                if (fading && prim != 0) {
                     uint32_t color = rd_w(prim + 4);
                     wr_w(prim + 4, (color & ~0xFFu) | uint32_t(std::lround((color & 0xFF) * fade)));
+                }
+                int x = int(std::lround((cx[i] - h) * 4)), y = int(std::lround((cy[i] - h) * 4));
+                int w = lrx - ulx, t = lry - uly;
+                if (ulx > 0 && uly > 0 && x > 0 && y > 0 && x + w < SCREEN_WIDTH && y + t < SCREEN_HEIGHT) {
+                    wr_w(addr - 16, (w0 & 0xFF000000) | (uint32_t(x + w) << 12) | uint32_t(y + t));
+                    wr_w(addr - 12, (w1 & 0xFF000000) | (uint32_t(x) << 12) | uint32_t(y));
                 }
                 i = FLARE_CIRCLES;
                 break;
@@ -520,7 +498,7 @@ extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     g_open = false;
     g_rdram = rdram;
     uint32_t end = rd_w(head);
-    fade_flare(g_start, end);
+    place_flare(g_start, end);
     nudge_all(g_start, end);
     widen_all(g_start, end);
 }
