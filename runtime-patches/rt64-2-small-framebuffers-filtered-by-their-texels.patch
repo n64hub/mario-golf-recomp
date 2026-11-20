@@ -1,0 +1,97 @@
+diff --git a/src/render/rt64_framebuffer_renderer.cpp b/src/render/rt64_framebuffer_renderer.cpp
+index 1e97012..d98f688 100644
+--- a/src/render/rt64_framebuffer_renderer.cpp
++++ b/src/render/rt64_framebuffer_renderer.cpp
+@@ -277,6 +277,12 @@ namespace RT64 {
+                     gpuTile.flags.fromCopy = true;
+                     gpuTile.flags.rawTMEM = false;
+                     gpuTile.flags.hasMipmaps = false;
++
++                    // A framebuffer no wider than 64 is a small texture the game draws for itself (a reflection map),
++                    // not a picture: a filtered sample of it blends its own texels, as the RDP does, rather than the
++                    // pixels the copy has at the output's resolution (TextureSampler.hlsli, sampleTextureLevel()).
++                    const auto fbIt = fbManager->framebuffers.find(tileCopy.address);
++                    gpuTile.flags.nativeTexels = (fbIt != fbManager->framebuffers.end()) && (fbIt->second.width <= 64);
+                 }
+             }
+             else {
+@@ -299,6 +305,7 @@ namespace RT64 {
+                 gpuTile.flags.rawTMEM = !textureReplaced && callTile.rawTMEM;
+                 gpuTile.flags.hasMipmaps = hasMipmaps;
+                 gpuTile.flags.shiftedByHalf = shiftedByHalf;
++                gpuTile.flags.nativeTexels = false;
+             }
+         }
+     }
+diff --git a/src/shaders/TextureSampler.hlsli b/src/shaders/TextureSampler.hlsli
+index 39b86ec..173ca26 100644
+--- a/src/shaders/TextureSampler.hlsli
++++ b/src/shaders/TextureSampler.hlsli
+@@ -307,6 +307,32 @@ float4 sampleTextureLevel(const RDPTile rdpTile, const GPUTile gpuTile, bool fil
+     float4 samples[4];
+     const uint nativeSampler = rdpTile.nativeSampler;
+     bool gpuTileUsesTMEM = canDecodeTMEM && gpuTileFlagRawTMEM(gpuTile.flags);
++    float2 fracPart = uvCoord - texelBaseInt;
++    if (filtering && gpuTileFlagNativeTexels(gpuTile.flags)) {
++        // A filtered sample of a copy of a small framebuffer (FramebufferRenderer::createGPUTiles()) blends the
++        // framebuffer's own texels, each read at its centre in the copy, which holds tcScale of the copy's pixels for
++        // each of them: a map the game draws for itself, which it may make of pieces from far apart (Mario Golf's
++        // reflection map, 8x1 strips of the screen 76 pixels and 7 rows apart), is blended across a whole texel as on
++        // the console, not across one pixel at its edges, which drew each texel as a hard-edged square.
++        const float2 nativeUV = uvCoord / tcScale;
++        const float2 nativeBase = floor(nativeUV);
++        int2 nativeTaps[4];
++        [unroll]
++        for (int i = 0; i < 4; i++) {
++            nativeTaps[i] = clampWrapMirrorTexel(rdpTile, gpuTile, tcScale, int2(floor((nativeBase + float2(i >> 1, i & 1) + 0.5f) * tcScale)));
++        }
++
++#if defined(WEBGPU) && defined(PER_DRAW_TEXTURES) && !USE_FOR_LOOPS
++        loadTileTexels(gpuTile, nativeTaps, mipLevel, true, samples);
++#else
++        [unroll]
++        for (int j = 0; j < 4; j++) {
++            samples[j] = loadTileTexture(gpuTile, int3(nativeTaps[j], mipLevel));
++        }
++#endif
++        fracPart = nativeUV - nativeBase;
++    }
++    else {
+ #if defined(WEBGPU) && defined(PER_DRAW_TEXTURES) && !USE_FOR_LOOPS
+     // Every tap's texel is found first, by the native sampler's address mode or by the tile's clamp, wrap and mirror,
+     // and the taps are then loaded in one switch over the draw's texture slots (loadTileTexels()). A switch for each
+@@ -376,10 +402,10 @@ float4 sampleTextureLevel(const RDPTile rdpTile, const GPUTile gpuTile, bool fil
+ #endif
+     }
+ #endif
++    }
+     
+     float4 sample00 = samples[0];
+     if (filtering) {
+-        float2 fracPart = uvCoord - texelBaseInt;
+         float4 sample01 = samples[1];
+         float4 sample10 = samples[2];
+         float4 sample11 = samples[3];
+diff --git a/src/shared/rt64_gpu_tile.h b/src/shared/rt64_gpu_tile.h
+index 11ffa56..6771e54 100644
+--- a/src/shared/rt64_gpu_tile.h
++++ b/src/shared/rt64_gpu_tile.h
+@@ -18,6 +18,7 @@ namespace interop {
+             uint rawTMEM : 1;
+             uint hasMipmaps : 1;
+             uint shiftedByHalf : 1;
++            uint nativeTexels : 1;
+         };
+ 
+         uint value;
+@@ -49,6 +50,10 @@ namespace interop {
+     bool gpuTileFlagShiftedByHalf(GPUTileFlags flags) {
+         return flags & 0x20;
+     }
++
++    bool gpuTileFlagNativeTexels(GPUTileFlags flags) {
++        return flags & 0x40;
++    }
+ #endif
+     struct GPUTile {
+         float2 ulScale;
