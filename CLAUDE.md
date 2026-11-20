@@ -123,7 +123,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   where the game works them out, to a quarter of a pixel, rather than on the whole pixels it truncates them to, which
   RT64 draws there only with `RT64_SUBPIXEL_TEXRECTS` (`CMakeLists.txt`), or the circles stepped against the sun's light
   on the game's own frames, and with Enhancements On fades the flare's circles out near the edge where the game drops
-  them, and `src/game/screen.cpp` scales the title and the menus, 2D screens
+  them, `src/game/aim.cpp` puts the red pin flag in the sky and the landing point's label where their points are
+  across, to a quarter pixel, not the whole one the game truncates them to, or they slid in whole console pixels a game
+  frame as the view turned, and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its

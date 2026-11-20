@@ -217,6 +217,29 @@ func = "func_80065650"
 before_vram = 0x8006578C
 text = "{ void mg_ball_project_y(uint8_t*, float); mg_ball_project_y(rdram, ctx->f2.fl); }"
 
+# The aim's marks where their points are, not the whole pixel func_80065650 cuts them to (src/game/aim.cpp): in
+# func_ovl0_8021C6B4, just after it works out the landing point (its label) and the pin (the flag in the sky), and where
+# each one's drawing ends, the texture rectangles drawn between are moved across by what was dropped of the point's x.
+[[patches.hook]]
+func = "func_ovl0_8021C6B4"
+before_vram = 0x8021C838
+text = "{ void mg_aim_begin(uint8_t*); mg_aim_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_ovl0_8021C6B4"
+before_vram = 0x8021D68C
+text = "{ void mg_aim_end(uint8_t*); mg_aim_end(rdram); }"
+
+[[patches.hook]]
+func = "func_ovl0_8021C6B4"
+before_vram = 0x8021D74C
+text = "{ void mg_aim_begin(uint8_t*); mg_aim_begin(rdram); }"
+
+[[patches.hook]]
+func = "func_ovl0_8021C6B4"
+before_vram = 0x8021DDC4
+text = "{ void mg_aim_end(uint8_t*); mg_aim_end(rdram); }"
+
 # The course's trees and Bomb-ombs paired between the game's frames only with billboards of their own size
 # (src/game/billboard.cpp): in each display list the game sends, each billboard is put in a matrix group of its scale's,
 # and each letter of the big words a hole or a shot ends on (HOLE-IN-ONE!, NICE SHOT!) in one of its own

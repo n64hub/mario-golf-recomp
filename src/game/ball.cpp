@@ -54,7 +54,8 @@
 // (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with the last frame's rectangle and slides it between
 // the two frames at the display's rate. This happens whatever the window's shape, and before a rectangle at a side is
 // widened. The game still rounds a sprite's size to whole pixels, so a frame in which the ball's sprite grows or
-// shrinks by one isn't slid.
+// shrinks by one isn't slid. mg_ball_project_x also keeps what was dropped of the last x, whoever asked for it, for
+// src/game/aim.cpp, which moves the aim's marks by it the same way.
 
 #include <algorithm>
 #include <cmath>
@@ -465,8 +466,17 @@ extern "C" void mg_ball_begin(uint8_t* rdram, uint32_t head) {
     g_have_x = false;
 }
 
+// What func_80065650 dropped of the last x it truncated, whoever called it: src/game/aim.cpp moves the aim's marks by
+// it, as mg_ball_end moves the ball's sprites.
+static float g_last_dx;
+
+float mg_last_projected_dx() {
+    return g_last_dx;
+}
+
 // value: the point's x or y on the screen before func_80065650 truncates it and adds the screen's middle. y follows x.
 extern "C" void mg_ball_project_x(uint8_t* rdram, float value) {
+    g_last_dx = std::isfinite(value) ? value - std::trunc(value) : 0.0f;
     if (!g_open) {
         return;
     }
