@@ -164,8 +164,10 @@
 131.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 133.5 shot 27_ring_shot_main_menu
 
-# Mini-Golf on Luigi's Garden (overlay 2): its course select, hole 1's flyover and a putt that drops, the view of
-# the cup with its stars and the score card, then hole 2's camera swooping in behind the tee and its aim turned right,
+# Mini-Golf on Luigi's Garden (overlay 2): its course select, hole 1's flyover and a putt that drops, the
+# HOLE-IN-ONE! that slides in and squashes over it (issue 154: its letters went missing or doubled between the game's
+# frames, and every big word a shot or a hole ends on is drawn the same way), the view of the cup with its stars and
+# the score card, then hole 2's camera swooping in behind the tee and its aim turned right,
 # pressed until the sun's x on the screen (a float at 0x800C5F24) is 256 to 288, then on a tap at a time as the sun's
 # lens flare crosses the 4:3 frame's right side (issue 92: its circles were cut along a vertical line there); then
 # turned back left until the sun's x is -64 to -96, where the game cuts its light (a square 128 across here) off the
