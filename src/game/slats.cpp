@@ -16,9 +16,12 @@
 // toward the middle and their texture stepped faster by as much, as ball.cpp's are). A half's edge goes from the
 // picture's side (open) to the middle (shut) where the game's goes from 8 to 160, at the same pace, so the halves meet
 // as the game's do, and Mario's picture comes to rest where the game puts it. Past the picture's outer side, a half goes
-// on in plain planks, one rectangle as wide as the picture's side lies past the border when shut: the picture's outer
-// 64 columns (FILL), which are plank in every row, mirrored at its side, then at FILL's, and so on (a tile of their
-// own, mirrored at that mask), so the grain runs on and the planks' ends meet as the picture's do. Each rectangle moves
+// on in plain planks, one rectangle as wide as the picture's side lies past the border when shut: the picture's 64
+// columns (FILL) at its other side, which are plank in every row, running on from its side as if the picture repeated,
+// then mirrored at FILL, and so on (a tile of their own, mirrored at that mask). The picture's planks run on across its
+// sides, its first columns the light side of a seam where its last are the dark one, so a seam past the picture's side
+// is dark then light as the one in the middle is: mirrored at the side, the left's was two light sides together and
+// the right's two dark ones, a wide pale band and a wide dark one. Each rectangle moves
 // whole with its half, at its size and with its texture, its part past the picture cut by the scissor, so that RT64
 // slides it whole in the frames between the game's (half_pieces() says why). The top two rows are drawn
 // again above line 8, and the last two below line 232, mirrored the same way at the line: each row's lines are in the
@@ -95,8 +98,9 @@ struct Writer {
 };
 
 // The tiles the plain planks are drawn with, over the row's lines in texture memory as the game's tile 0 is: tile 1
-// the picture's first FILL columns, tile 2 its last, each mirrored every FILL columns (the RDP's mirror at a mask of
-// FILL), so that one rectangle of either runs on in planks however wide it is, their ends meeting as the picture's do.
+// the picture's first FILL columns, which run on past its right side, tile 2 its last, which run on past its left,
+// each mirrored every FILL columns (the RDP's mirror at a mask of FILL), so that one rectangle of either runs on in
+// planks however wide it is.
 constexpr int FILL_TILE_LEFT = 1, FILL_TILE_RIGHT = 2;
 constexpr uint32_t FILL_MASK = 6; // FILL's 64 columns
 constexpr uint32_t G_TX_MIRROR = 1;
@@ -132,14 +136,14 @@ int half_pieces(bool left, float edge, float scale, Piece* out) {
         float start = lead - HALF; // the picture's column 0
         out[n++] = { start, lead, 0.0f, 0 };
         if (start > outer) {
-            out[n++] = { start - fill, start, -fill, FILL_TILE_LEFT }; // pixel start - 1 samples column 0
+            out[n++] = { start - fill, start, FILL - fill, FILL_TILE_RIGHT }; // pixel start - 1 samples the last column
         }
     } else {
         float right_lead = 2.0f * MIDDLE - lead;
         float end = right_lead + HALF; // past the picture's last column
         out[n++] = { right_lead, end, HALF, 0 };
         if (end < 2.0f * MIDDLE - outer) {
-            out[n++] = { end, end + fill, FILL, FILL_TILE_RIGHT }; // pixel end samples the last column
+            out[n++] = { end, end + fill, 0.0f, FILL_TILE_LEFT }; // pixel end samples column 0
         }
     }
     return n;
