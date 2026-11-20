@@ -41,16 +41,19 @@ namespace {
 // Where func_8006C918 keeps the list's head while it draws: sp + 0x28.
 constexpr uint32_t HEAD_ON_STACK = 0x28;
 // F3DEX2's commands this reads and writes (the decomp's include/PR/gbi.h).
-constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1, G_SETCOMBINE = 0xFC;
-constexpr uint32_t G_DL_NOPUSH = 1;
-// G_SETCOMBINE's colour adder (D) in each cycle, and its value for 0.
-constexpr uint32_t COMBINE_D0_SHIFT = 15, COMBINE_D1_SHIFT = 6, COMBINE_ZERO = 7;
-// The picture's strips, at most, and the columns of its texture whose alpha the sides take: the outermost the iris
-// clears (func_8006C484 stops at 75 words, two pixels each, either side of word 76).
+constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
+constexpr uint32_t G_SETCOMBINE = 0xFC;
+constexpr uint32_t G_DL_PUSH = 0, G_DL_NOPUSH = 1;
+// G_SETCOMBINE's for black, opaque: colour 0 and alpha 1 in both cycles.
+constexpr uint32_t BLACK_W0 = 0xFCFFFFFF, BLACK_W1 = 0xFFFFFDFE;
+// The picture's strips, at most.
 constexpr uint32_t MAX_STRIPS = 38;
-constexpr int LEFT_COLUMN = 2, RIGHT_COLUMN = 303;
+// func_8006C484's iris: its phase (0 closing in, then held; 1 held past its time; 2 opening; 3 done) and its counter,
+// and the row of its circle's middle in the texture (across, its middle is the picture's, OPAQUE_CENTRE_X).
+constexpr uint32_t IRIS_PHASE = 0x800C4014, IRIS_COUNTER = 0x800C4018;
+constexpr float IRIS_Y = 113.0f;
 
-constexpr float SCREEN_WIDTH = 320.0f, SCREEN_HEIGHT = 240.0f, CENTRE_X = 160.0f, CENTRE_Y = 120.0f;
+constexpr float SCREEN_WIDTH = 320.0f, CENTRE_X = 160.0f;
 // The picture's first two rows and columns are never opaque (the iris reaches neither, so the course shows through
 // them, under the border on a console): its opaque part, its rows 2 to 223 and columns 2 to 303, is scaled to fill the
 // 224 lines inside the border by OPAQUE, its middle column (161 on the screen) to the screen's, before screen.cpp
@@ -65,9 +68,15 @@ constexpr uint32_t BUFFER_BASE = 0x80781000;
 constexpr uint32_t BUFFER_SIZE = 0x80;
 constexpr uint32_t BUFFER_COUNT = 224;
 
+// Free RDRAM after border.cpp's buffers: five of 12 KB, used in turn, a frame's sides each.
+constexpr uint32_t SIDES_BASE = 0x807B1000;
+constexpr uint32_t SIDES_SIZE = 0x3000;
+constexpr uint32_t SIDES_COUNT = 5;
+
 uint8_t* g_rdram;
 uint32_t g_from = 0;
 uint32_t g_next_buffer = 0;
+uint32_t g_next_sides = 0;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + (addr & 0x7FFFFF));
@@ -101,34 +110,6 @@ struct Writer {
     }
 };
 
-// The first whole pixel at or past v, inside 0 to limit: screen.cpp's edge, so a side's rows are its strip's.
-int edge(float v, float limit) {
-    return int(std::ceil(std::fmin(std::fmax(v, 0.0f), limit) - 0.001f));
-}
-
-// A side of the strip at rect: from x0 to x1 (quarter pixels, stretched across the window), its rows those screen.cpp
-// scales the strip's to, each reading the texel of column at the row the strip draws there. False if it has no rows.
-bool put_side(Writer& out, uint32_t rect, uint32_t x0, uint32_t x1) {
-    uint32_t w0 = rd_w(rect), w1 = rd_w(rect + 4), st = rd_w(rect + 12), d = rd_w(rect + 20);
-    float uly = (w1 & 0xFFF) / 4.0f, lry = (w0 & 0xFFF) / 4.0f;
-    float t = int16_t(st & 0xFFFF) / 32.0f, dtdy = int16_t(d & 0xFFFF) / 1024.0f;
-    float b0 = CENTRE_Y + (uly - CENTRE_Y) * FILL, b1 = CENTRE_Y + (lry - CENTRE_Y) * FILL;
-    int lo = edge(b0, SCREEN_HEIGHT), hi = edge(b1, SCREEN_HEIGHT);
-    if (hi <= lo || x1 <= x0) {
-        return false;
-    }
-    float step = dtdy / FILL;
-    float t0 = t + (std::fmax(b0, 0.0f) - b0) * step;
-    float t1 = t + (std::fmin(b1, SCREEN_HEIGHT) - b0) * step;
-    int start = int(std::ceil(t0 * 32.0f - 0.001f));
-    int t_step = int(std::trunc((t1 - start / 32.0f) / float(hi - lo) * 1024.0f));
-    int column = x0 == 0 ? LEFT_COLUMN : RIGHT_COLUMN;
-    out.put((G_TEXRECT << 24) | (x1 << 12) | uint32_t(hi * 4), (w1 & 0x07000000) | (x0 << 12) | uint32_t(lo * 4));
-    out.put(G_RDPHALF_1 << 24, (uint32_t(column * 32) << 16) | (uint32_t(start) & 0xFFFF));
-    out.put(G_RDPHALF_2 << 24, uint32_t(t_step) & 0xFFFF);
-    return true;
-}
-
 // A coordinate of the game's picture (quarter pixels, a rectangle's) moved by OPAQUE about from, which goes to to.
 uint32_t refit(uint32_t quarters, float to, float from) {
     float v = to + (quarters / 4.0f - from) * OPAQUE;
@@ -153,9 +134,8 @@ void refit_strip(uint32_t rect) {
     wr_w(rect + 20, (uint32_t(int(std::trunc(s_step))) << 16) | (uint32_t(int(std::trunc(t_step))) & 0xFFFF));
 }
 
-// The strip at rect moved to a buffer: the strip, scaled by screen.cpp, then in a window wider than 4:3 the black
-// sides at its outer columns' alpha (combine the game's with its colour 0), and back to the list after the strip.
-void move_strip(uint32_t rect, uint32_t combine_w0, uint32_t combine_w1, float wide) {
+// The strip at rect moved to a buffer, scaled there by screen.cpp, and back to the list after it.
+void move_strip(uint32_t rect) {
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
     Writer out{ buffer, buffer + BUFFER_SIZE };
@@ -164,22 +144,6 @@ void move_strip(uint32_t rect, uint32_t combine_w0, uint32_t combine_w1, float w
     }
     out.pos += 24;
     refit_strip(buffer);
-    if (wide > 1.0f && combine_w0 != 0) {
-        // The 4:3 frame's sides, stretched across the window: a quarter pixel into the frame, so no column of the
-        // course shows between them and the picture.
-        uint32_t left = uint32_t(std::ceil((CENTRE_X - CENTRE_X / wide) * 4.0f));
-        uint32_t right = uint32_t(std::floor((CENTRE_X + CENTRE_X / wide) * 4.0f));
-        uint32_t black_w1 = combine_w1 | (COMBINE_ZERO << COMBINE_D0_SHIFT) | (COMBINE_ZERO << COMBINE_D1_SHIFT);
-        GfxCommand c[1];
-        out.put(combine_w0, black_w1);
-        gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
-        out.put(c, 1);
-        put_side(out, buffer, 0, left);
-        put_side(out, buffer, right, uint32_t(SCREEN_WIDTH * 4));
-        gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
-        out.put(c, 1);
-        out.put(combine_w0, combine_w1);
-    }
     out.put((G_DL << 24) | (G_DL_NOPUSH << 16), (rect + 24) & 0x1FFFFFFF);
     if (!out.ok) {
         return;
@@ -187,6 +151,78 @@ void move_strip(uint32_t rect, uint32_t combine_w0, uint32_t combine_w1, float w
     mg_screen_fill_range(g_rdram, buffer, buffer + 24);
     wr_w(rect, (G_DL << 24) | (G_DL_NOPUSH << 16));
     wr_w(rect + 4, buffer & 0x1FFFFFFF);
+}
+
+// A black rectangle from x0 to x1 and y0 to y1 (quarter pixels).
+void put_black(Writer& out, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1) {
+    out.put((G_TEXRECT << 24) | (x1 << 12) | y1, (x0 << 12) | y0);
+    out.put(G_RDPHALF_1 << 24, 0);
+    out.put(G_RDPHALF_2 << 24, 0);
+}
+
+// The radius (in the iris's units: a word of two pixels across, a row down) inside which the picture is clear this
+// frame, after func_8006C484 has drawn its rings: negative where none of it is, a lot where all of it is.
+float clear_radius() {
+    int32_t phase = int32_t(rd_w(IRIS_PHASE)), counter = int32_t(rd_w(IRIS_COUNTER));
+    switch (phase) {
+        // Closing: it has made the rings from 0x90 down to counter + 1 opaque (and the counter falls on below 0 as
+        // the picture is held).
+        case 0: return float(counter);
+        // Opening: it has made the rings up to counter - 1 clear, once its counter has climbed back from below 0.
+        case 2: return counter > 0 ? float(counter - 1) : -1.0f;
+        case 1: return -1.0f;
+        default: return 1.0e6f;
+    }
+}
+
+// In a window wider than 4:3, the picture's sides from the window's edges to the 4:3 frame's (G_EX_ASPECT_STRETCH):
+// black where the iris's circle, carried on past the picture's sides, has the picture opaque, row by row of the
+// texture as the strips draw them. Then the game's combine back. False if nothing needs drawing.
+bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1) {
+    constexpr float S = FILL * OPAQUE;
+    float radius = clear_radius();
+    if (radius >= 1.0e5f) {
+        return false;
+    }
+    // The 4:3 frame's left side, stretched across the window: a quarter pixel into the frame, so no column of the
+    // course shows between it and the picture.
+    float left = std::ceil((CENTRE_X - CENTRE_X / wide) * 4.0f) / 4.0f;
+    GfxCommand c[1];
+    out.put(BLACK_W0, BLACK_W1);
+    gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
+    out.put(c, 1);
+    bool any = false;
+    uint32_t run_from = 0, run_x = 0;
+    for (int row = int(OPAQUE_FROM); row <= 224; row++) {
+        uint32_t y = uint32_t(std::lround((row - OPAQUE_FROM) * S * 4.0f));
+        uint32_t x = 0;
+        if (row < 224) {
+            float dy = row + 0.5f - IRIS_Y;
+            float black_to = left;
+            if (radius >= 0.0f && radius * radius > dy * dy) {
+                // Where the clear words end across (each two pixels, measured to its middle), on the screen, then as
+                // a stretched side's x.
+                float half = 2.0f * std::sqrt(radius * radius - dy * dy) + 1.0f;
+                float screen_x = CENTRE_X - half * S;
+                black_to = std::fmin(left, CENTRE_X + (screen_x - CENTRE_X) / wide);
+            }
+            x = uint32_t(std::lround(std::fmax(black_to, 0.0f) * 4.0f));
+        }
+        if (row == int(OPAQUE_FROM) || x != run_x || row == 224) {
+            if (row != int(OPAQUE_FROM) && run_x > 0 && y > run_from) {
+                put_black(out, 0, run_from, run_x, y);
+                put_black(out, uint32_t(SCREEN_WIDTH * 4) - run_x, run_from, uint32_t(SCREEN_WIDTH * 4), y);
+                any = true;
+            }
+            run_from = y;
+            run_x = x;
+        }
+    }
+    gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
+    out.put(c, 1);
+    out.put(combine_w0, combine_w1);
+    out.put(G_ENDDL << 24, 0);
+    return any && out.ok;
 }
 
 } // namespace
@@ -202,7 +238,6 @@ extern "C" void mg_half_turn_end(uint8_t* rdram, uint32_t sp) {
         return;
     }
     uint32_t end = rd_w(sp + HEAD_ON_STACK);
-    float wide = mg_wide_scale();
     uint32_t combine_w0 = 0, combine_w1 = 0, strips = 0;
     for (uint32_t addr = g_from; addr < end && strips < MAX_STRIPS; addr += 8) {
         uint32_t w0 = rd_w(addr);
@@ -211,9 +246,21 @@ extern "C" void mg_half_turn_end(uint8_t* rdram, uint32_t sp) {
             combine_w1 = rd_w(addr + 4);
         }
         else if (addr + 24 <= end && is_rect(addr)) {
-            move_strip(addr, combine_w0, combine_w1, wide);
+            move_strip(addr);
             strips++;
             addr += 16;
+        }
+    }
+    // The sides, called from the list after the strips.
+    float wide = mg_wide_scale();
+    if (strips > 0 && wide > 1.0f && combine_w0 != 0) {
+        uint32_t buffer = SIDES_BASE + SIDES_SIZE * g_next_sides;
+        Writer out{ buffer, buffer + SIDES_SIZE };
+        if (put_sides(out, wide, combine_w0, combine_w1)) {
+            g_next_sides = (g_next_sides + 1) % SIDES_COUNT;
+            wr_w(end, (G_DL << 24) | (G_DL_PUSH << 16));
+            wr_w(end + 4, buffer & 0x1FFFFFFF);
+            wr_w(sp + HEAD_ON_STACK, end + 8);
         }
     }
     g_from = 0;
