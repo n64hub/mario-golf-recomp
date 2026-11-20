@@ -1,5 +1,5 @@
-// The iris wipe at its own shape in a wide window (RT64's Aspect Ratio Expand), and with Enhancements On its black
-// surround solid.
+// The iris wipe at its own shape in a wide window (RT64's Aspect Ratio Expand), over the border's sides in any window,
+// and with Enhancements On its black surround solid.
 //
 // Between screens (Course Select into a hole, a hole's end) the game closes and opens an iris in the shape of a
 // character's head over the picture: one texture rectangle from x 8 to 312 and y 0 to 272, a small mask texture drawn
@@ -17,23 +17,26 @@
 // The rectangle runs from the screen's left edge to its right one (0 to 320), past the game's scissor (8 to 312), which
 // cuts it where it cuts the course: RT64 places the left edge of a rectangle it stretches a pixel or two right of the
 // stretched scissor's, and one from 8 to 312 left a column of the course showing at each side (hud.cpp's
-// spanning_rect_from_left, the same for Lakitu Mode's letterbox bars).
+// spanning_rect_from_left, the same for Lakitu Mode's letterbox bars). A window no wider than 4:3 gets the same
+// rectangle, unstretched (scale 1): on a hole border.cpp makes the game's scissor the screen's, and one from 8 to 312
+// left the course showing in the border's 8 pixels at each side through the wipe.
 //
 // The mask is a 64x64 I4 texture, clamped in s and t, so past its edges each row and column repeats its last texel.
 // Where the shape's rim reaches an edge, that texel isn't the surround's black: Koopa Park's shell, at its widest
 // rows (36 to 39), ends in 0xE at each side, one step short of black, so a band of the picture behind showed through
 // the black at a fifteenth of its brightness, from the shell to the screen's sides, a console's 4:3 frame included.
-// With the General tab's Enhancements On (src/game/config.cpp) the buffer draws the rectangle in up to five: the pixels
-// that sample inside the texture (the tile's size, from the list's last G_SETTILESIZE for its tile) as the game maps
-// them, and round them the surround, each of its pixels sampling the texture's first texel, a corner, which every mask
-// has black. Original draws the band as a console does.
+// With the General tab's Enhancements On (src/game/config.cpp) the buffer draws over the rectangle up to four more
+// round the texture's pixels (the tile's size, from the list's last G_SETTILESIZE for its tile), each of their pixels
+// sampling the texture's first texel, a corner, which every mask has black. The rectangle stays whole under them: drawn
+// as the pixels inside the texture and four round them, RT64's frames between the game's at the display's rate now and
+// then left a gap between the pieces, the course showing in a ring round the shape. Original draws the band as a
+// console does.
 //
 // The rectangle keeps the game's coordinates and scissor. A scissor of its own reaching past the frame's sides (an
 // extended one, as this file once drew the mask under) changes how RT64 reads the whole frame: RT64 takes the widest
 // scissor a frame draws under as the screen, and keeps at 4:3 only what covers that screen's width, so on each frame
 // of the wipe everything else (the course, the hole's title over it, the HUD) was drawn stretched to the window, and
-// snapped back as the wipe ended. The buffers are this file's in RDRAM, above the 4 MB the game uses. With Aspect Ratio
-// Original, or a window no wider than 4:3, and Enhancements Original, nothing changes.
+// snapped back as the wipe ended. The buffers are this file's in RDRAM, above the 4 MB the game uses.
 
 #include <algorithm>
 #include <cmath>
@@ -127,11 +130,11 @@ float pixel_at(float c, float p0, float p1, float c0, float d) {
 }
 
 // The rectangle at addr (its three commands) replaced by a branch to a buffer that draws it and branches back after it.
-// In a wide window (scale over 1) it is drawn from the screen's left edge to its right one, stretched across the window
-// with scale times as many texels a pixel across. A pixel x of the rectangle lands, stretched, at 160 + (x - 160) *
+// It is drawn from the screen's left edge to its right one, stretched across the window with scale (1 in a window no
+// wider than 4:3) times as many texels a pixel across. A pixel x of the rectangle lands, stretched, at 160 + (x - 160) *
 // scale in the 4:3 frame's pixels, which should show the texel the game puts at that place: s + (160 + (x - 160) *
 // scale - 8) * dsdx. So dsdx grows by scale, and s at the rectangle's new left edge (x 0) is the game's moved back by
-// 160 * (scale - 1) + 8 pixels' worth. With Enhancements On and the tile's size known, it is drawn in pieces (the
+// 160 * (scale - 1) + 8 pixels' worth. With Enhancements On and the tile's size known, the surround goes over it (the
 // header's paragraph on the mask's texture).
 void draw(uint32_t addr, float scale, const Extent* s_extent, const Extent* t_extent) {
     uint32_t tile = (rd_w(addr + 4) >> 24) & 7;
@@ -149,7 +152,7 @@ void draw(uint32_t addr, float scale, const Extent* s_extent, const Extent* t_ex
     float back = float(SCREEN_MIDDLE) * (scale - 1.0f) + float(MASK_LEFT) / 4.0f;
     s = std::max(std::round((s - back * dsdx) * 32.0f), float(INT16_MIN)) / 32.0f;
     dsdx = wide_dsdx / 1024.0f;
-    bool split = s_extent != nullptr && dsdx > 0.0f && dtdy > 0.0f && mg::enhancements();
+    bool surround = s_extent != nullptr && dsdx > 0.0f && dtdy > 0.0f && mg::enhancements();
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
@@ -160,7 +163,7 @@ void draw(uint32_t addr, float scale, const Extent* s_extent, const Extent* t_ex
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
     put_rect(out, tile, x0, x1, y0, y1, s, t, dsdx, dtdy);
-    if (split) {
+    if (surround) {
         // Over it, the surround on the texture's corner texel, from whole pixels inside the texture's edges out.
         float left = std::ceil(pixel_at(s_extent->first, x0, x1, s, dsdx));
         float right = std::max(left, std::floor(pixel_at(s_extent->end, x0, x1, s, dsdx)));
