@@ -35,8 +35,9 @@
 # the golfer's practice swing and the caddie's walk are at another point in each window (up to 1.3 s unlike), timed by
 # neither the wind nor the seed. So each hole with a swing is left out of the middle check (`unchecked middle`) from its
 # tee, as its flyover ends, to its pause (to the next hole's flyover in Mini-Golf, from Lakitu's count-in in Speed Golf,
-# which the plan's presses of A meet at another point in each window), and Get Character's from its opening, its flyover
-# 0.9 s unlike. The putt holes out in every window and run all the same.
+# which the plan's presses of A meet at another point in each window), Get Character's from its opening, its flyover
+# 0.9 s unlike, and Training's Yoshi's Island hole from the course's change to its pause, its doors and flyover 1.0 s
+# unlike. The putt holes out in every window and run all the same.
 
 # The logos and the intro: the golfers one by one, Luigi's swing and its crossfade to the overhead shot.
 3 shot 00_logos
@@ -293,6 +294,7 @@
 225.3 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
 226.8 shot 53_training_select
 227.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
+228.3 unchecked middle
 228.3 poke 0x801B6094 3
 228.3 poke 0x801B6098 13
 229.3 shot 54_training_hole
@@ -308,6 +310,7 @@
 232.8 poke 0x800FBD30 1
 233.3 shot 57_training_tee
 234.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+235.8 checked middle
 235.8 shot 58_training_pause
 235.8 until 0x80224924 0x000000FF 0x00000008 15 W
 236.3 shot 59_training_quit
