@@ -1,0 +1,1 @@
+- **A picture behind the launcher's menu:** the launcher draws a sunny golf course behind its title and menu, in place of its plain dark blue, filling the window at any shape. It is drawn for the project from plain shapes, with nothing from the game ([#180](https://github.com/n64hub/mario-golf-recomp/issues/180)).
