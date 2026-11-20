@@ -159,20 +159,18 @@ void draw(uint32_t addr, float scale, const Extent* s_extent, const Extent* t_ex
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
+    put_rect(out, tile, x0, x1, y0, y1, s, t, dsdx, dtdy);
     if (split) {
-        // The pixels that sample inside the texture, to whole ones, and the surround on the texture's corner texel.
+        // Over it, the surround on the texture's corner texel, from whole pixels inside the texture's edges out.
         float left = std::ceil(pixel_at(s_extent->first, x0, x1, s, dsdx));
         float right = std::max(left, std::floor(pixel_at(s_extent->end, x0, x1, s, dsdx)));
         float top = std::ceil(pixel_at(t_extent->first, y0, y1, t, dtdy));
         float bottom = std::max(top, std::floor(pixel_at(t_extent->end, y0, y1, t, dtdy)));
         float s_corner = s_extent->first, t_corner = t_extent->first;
-        put_rect(out, tile, left, right, top, bottom, s + (left - x0) * dsdx, t + (top - y0) * dtdy, dsdx, dtdy);
         put_rect(out, tile, x0, left, y0, y1, s_corner, t_corner, 0.0f, 0.0f);
         put_rect(out, tile, right, x1, y0, y1, s_corner, t_corner, 0.0f, 0.0f);
         put_rect(out, tile, left, right, y0, top, s_corner, t_corner, 0.0f, 0.0f);
         put_rect(out, tile, left, right, bottom, y1, s_corner, t_corner, 0.0f, 0.0f);
-    } else {
-        put_rect(out, tile, x0, x1, y0, y1, s, t, dsdx, dtdy);
     }
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
