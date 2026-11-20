@@ -1,5 +1,5 @@
 diff --git a/src/hle/rt64_state.cpp b/src/hle/rt64_state.cpp
-index 2668411..ad0d846 100644
+index 2668411..711b097 100644
 --- a/src/hle/rt64_state.cpp
 +++ b/src/hle/rt64_state.cpp
 @@ -4,6 +4,10 @@
@@ -13,7 +13,7 @@ index 2668411..ad0d846 100644
  #include <cassert>
  #include <cinttypes>
  
-@@ -438,6 +442,31 @@ namespace RT64 {
+@@ -438,6 +442,30 @@ namespace RT64 {
                          }
                      }
  
@@ -34,8 +34,7 @@ index 2668411..ad0d846 100644
 +                                    unsigned(tile.uls), unsigned(tile.ult), unsigned(tile.lrs), unsigned(tile.lrt), unsigned(tile.masks), unsigned(tile.maskt),
 +                                    unsigned(tile.cms), unsigned(tile.cmt), unsigned(tile.shifts), unsigned(tile.shiftt));
 +                                if (seen.insert(line).second && (seen.size() < 2000)) {
-+                                    fprintf(stderr, "%s
-+", line);
++                                    fprintf(stderr, "%s\n", line);
 +                                    fflush(stderr);
 +                                }
 +                            }
