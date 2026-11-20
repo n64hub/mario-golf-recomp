@@ -367,13 +367,14 @@ void whole_rows(uint32_t addr) {
     // A 16-bit row of 320 texels is 80 of TMEM's 64-bit words.
     constexpr uint32_t LINE = 320 * 2 / 8;
     uint32_t rows = ((g_load1 & 0xFFF) - (g_load0 & 0xFFF)) / 4 + 1;
-    for (uint32_t t : { tile, load_tile }) {
+    const uint32_t tiles[2] = { tile, load_tile };
+    for (uint32_t t : tiles) {
         uint32_t w0 = rd_w(g_tile_addr[t]);
         if ((w0 & 0x1FF) + rows * LINE > 4096 / 8) {
             return;
         }
     }
-    for (uint32_t t : { tile, load_tile }) {
+    for (uint32_t t : tiles) {
         uint32_t w0 = rd_w(g_tile_addr[t]);
         wr_w(g_tile_addr[t], (w0 & ~(0x1FFu << 9)) | (LINE << 9));
     }
