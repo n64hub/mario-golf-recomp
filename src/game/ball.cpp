@@ -35,9 +35,11 @@
 // wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
 //
 // The flare's circles are put where the game works them out, to a quarter of a pixel, so they move with the sun's
-// light rather than in whole pixels against it, and with the General tab's Enhancements On (src/game/config.cpp) they
-// also fade out over the last 32 pixels before the line where the game stops drawing them, 16 pixels inside each side
-// of the screen, rather than all going in one frame (place_flare() says how).
+// light rather than in whole pixels against it. The game draws them only while the sun is more than 16 pixels inside
+// each side of the 4:3 frame, and takes them all away in one frame as it crosses that line, the sun still in sight past
+// it: with the General tab's Enhancements On (src/game/config.cpp) the game draws them until the sun reaches the
+// frame's side (mg_flare_edge(), which us.toml's hooks in func_8008D3F4 give the game's test), and they fade out over
+// the last 64 pixels before it (place_flare() says how).
 //
 // The ball's sprites are also put where the ball is on the screen, to a quarter of a pixel, rather than on the pixel
 // the game truncates it to. The game works out where on the screen the ball
@@ -59,6 +61,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
@@ -105,7 +108,7 @@ constexpr int MAX_NUDGED = 1024;
 
 // The sun's place on the screen, as floats (func_8008FF20 works them out; src/game/backdrop.cpp), which the flare reads.
 // The flare's eight circles (its table at 0x800C6920, 0x14 bytes each, the float at 0x10 where on the line from the sun
-// to the point it runs through each lies), drawn only while the sun is more than 16 pixels inside the screen. That
+// to the point it runs through each lies), drawn only while the sun is more than flare_edge() pixels inside the screen. That
 // point is the screen's middle across and 96 pixels down, not 120 (func_8008D3F4's constants).
 constexpr uint32_t SUN_X = 0x800C5F24;
 constexpr uint32_t SUN_Y = 0x800C5F2C;
@@ -116,10 +119,17 @@ constexpr int FLARE_MAX_HALF = 255;
 constexpr float FLARE_MIDDLE_X = 160.0f;
 constexpr float FLARE_MIDDLE_Y = 96.0f;
 // The game draws the flare while the sun is more than FLARE_EDGE pixels inside each side of the screen. With
-// Enhancements On its circles fade out over the last FLARE_FADE pixels before that, rather than going at once.
+// Enhancements On it draws it to the side (flare_edge()), and its circles fade out over the last FLARE_FADE pixels
+// before it, rather than going at once.
 constexpr float FLARE_EDGE = 16.0f;
-constexpr float FLARE_FADE = 32.0f;
+constexpr float FLARE_FADE = 64.0f;
 constexpr uint32_t G_SETPRIMCOLOR = 0xFA;
+
+// How far inside each side of the screen the sun must be for the game to draw the flare: its own 16 pixels, or with
+// Enhancements On none, so that the circles fade out to the side rather than going 16 pixels before it.
+float flare_edge() {
+    return mg::enhancements() ? 0.0f : FLARE_EDGE;
+}
 
 uint8_t* g_rdram;
 uint32_t g_start;
@@ -344,9 +354,9 @@ float rd_f(uint32_t addr) {
 }
 
 // The flare's circles go where the game works them out, to a quarter of a pixel, rather than on the whole pixels it
-// truncates them to, and with Enhancements On they fade out as the sun nears the line where the game stops drawing
-// them, FLARE_EDGE pixels inside each side of the screen, over the last FLARE_FADE pixels before it, rather than all
-// going in one frame. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the table's
+// truncates them to, and with Enhancements On they fade out as the sun nears the side of the screen, where the game
+// then stops drawing them (flare_edge()), over the last FLARE_FADE pixels before it, rather than all going in one
+// frame. func_8008D3F4 puts circle i at the sun's place plus (FLARE_MIDDLE less it) times the table's
 // float, as floats, and draws it as a square from that less its half size to that plus it, each truncated and at 0 at
 // least, over a texture stepped 0x10000 / half (s5.10), after a G_SETPRIMCOLOR whose alpha is the flare's brightness.
 // A rectangle in the list that is just that square for one of the circles is moved to the square's place as floats,
@@ -363,7 +373,10 @@ void place_flare(uint32_t start, uint32_t end) {
         return;
     }
     float sx = rd_f(SUN_X), sy = rd_f(SUN_Y);
-    float inside = std::min(std::min(sx, SCREEN_WIDTH / 4 - sx), std::min(sy, SCREEN_HEIGHT / 4 - sy)) - FLARE_EDGE;
+    float inside = std::min(std::min(sx, SCREEN_WIDTH / 4 - sx), std::min(sy, SCREEN_HEIGHT / 4 - sy)) - flare_edge();
+    if (std::getenv("MG_FLARE_LOG") != nullptr) { // WIP: temporary, the sun's place each frame
+        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f\n", sx, sy, inside);
+    }
     if (!(inside > 0.0f)) {
         return;
     }
@@ -456,6 +469,12 @@ void widen_all(uint32_t start, uint32_t end) {
 }
 
 } // namespace
+
+// The edge the game's test of whether the sun is far enough inside the screen for its flare reads (us.toml's hooks in
+// func_8008D3F4): flare_edge().
+extern "C" float mg_flare_edge() {
+    return flare_edge();
+}
 
 // head: the word the caller keeps the display list's head in, MG_GFX_HEAD or a copy of it (as mg_ball_end's).
 extern "C" void mg_ball_begin(uint8_t* rdram, uint32_t head) {
