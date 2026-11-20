@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice">
 <!-- The launcher's backdrop (src/main/main.cpp): a golf course on a sunny day, drawn for the project from plain shapes,
      as the icon is. A pale glow behind the launcher's blue title (a quarter of the way down) and a soft dark patch behind
-     its white menu (below the middle) keep the text legible; 16:9, cropped to the window's shape (slice). -->
+     its white menu (below the middle) keep the text legible; 16:9, which the launcher crops to the window's shape. -->
 <defs>
 <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
 <stop offset="0" stop-color="#5fb2ee"/><stop offset="0.4" stop-color="#9fd8f7"/><stop offset="0.65" stop-color="#def4fd"/>
@@ -50,5 +50,5 @@
 <ellipse cx="700" cy="1006" rx="26" ry="7" fill="#000" opacity="0.2"/>
 <circle cx="696" cy="990" r="17" fill="#ffffff"/>
 <ellipse cx="960" cy="268" rx="760" ry="150" fill="url(#lift)"/>
-<ellipse cx="960" cy="665" rx="720" ry="270" fill="url(#shade)"/>
+<ellipse cx="960" cy="630" rx="720" ry="280" fill="url(#shade)"/>
 </svg>
