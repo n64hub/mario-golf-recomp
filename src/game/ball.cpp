@@ -52,7 +52,7 @@
 // with the one the point is in (nudge_all() says why). It keeps the game's size, so RT64
 // (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) still pairs it with the last frame's rectangle and slides it between
 // the two frames at the display's rate, a texture rectangle across at the quarter pixel it is given
-// (runtime-patches/rt64-1-textured-rects-across-to-a-quarter-pixel.patch). This happens whatever the window's shape, and before a rectangle at a side is
+// (rt64 30bd8bc). This happens whatever the window's shape, and before a rectangle at a side is
 // widened. The game still rounds a sprite's size to whole pixels, so a frame in which the ball's sprite grows or
 // shrinks by one isn't slid. mg_ball_project_x also keeps what was dropped of the last x, whoever asked for it, for
 // src/game/aim.cpp, which moves the aim's marks by it the same way.

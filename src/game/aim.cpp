@@ -17,8 +17,8 @@
 // that fraction, to the quarter pixel. It keeps the game's size, so RT64 still pairs it with the last frame's and
 // slides it between the two. RT64 itself puts a texture rectangle's edges on whole pixels, which slid from the quarter
 // pixel one game frame had to the whole one the next has, so each began off where the last ended and the flag hopped
-// as much as before: runtime-patches/rt64-1-textured-rects-across-to-a-quarter-pixel.patch draws one across at the
-// quarter pixel it is given. y stays on the game's whole pixel: RT64 draws a texture rectangle from the whole pixel its
+// as much as before: with RT64_INTERPOLATE_RECT_SCROLLS it draws one across at the quarter pixel it is given (rt64
+// 30bd8bc, CMakeLists.txt). y stays on the game's whole pixel: RT64 draws a texture rectangle from the whole pixel its
 // top rounds up to, and a top moved by a fraction moved a sprite a whole pixel down (ball.cpp's find_move() says how).
 // A rectangle the game cut at a side of the screen is left as it is. Whatever the window's shape.
 

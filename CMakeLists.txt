@@ -99,6 +99,9 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # of scale (rt64 84d36bd), or it stepped off the wheel's pace; and the opening fades one shot into the next from
 # strips of the old shot copied out of the picture, which RT64 pairs by what each copy holds (rt64 1d1a0ee, 53ce431),
 # or a frame between drew the old shot's top half slid down over the new one.
+# The ball's sprites and the pin flag in the sky, which the game puts on whole pixels and src/game/ball.cpp and
+# src/game/aim.cpp move to the quarter pixel their points are at, it draws across at that quarter pixel (rt64 30bd8bc),
+# or each game frame slid them from the last one's quarter pixel to a whole one, and the flag hopped as the view turned.
 set(RT64_SKIP_CAMERA_CUTS ON)
 set(RT64_SKIP_PLACE_SWAPS ON)
 set(RT64_INTERPOLATE_RECT_SCROLLS ON)
