@@ -9,12 +9,12 @@
 // The stars that ring the cup as the ball nears it are texture rectangles too, and so is each of the eight circles of
 // the sun's lens flare, which the game draws over the course while the sun is in the 4:3 frame, on the line from the
 // sun through the screen's middle across, 96 pixels down (a table at 0x800C6920 gives each its place on that line,
-// its size and its colour), so that as the sun nears a side some of them lie past the other one. A rectangle can't start left of the screen, so
-// where one would, the game starts it at 0 and its texture as far in as it cut (and one wholly past the left side at 0
-// too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0 and 8, and on the right what lies
-// past 312. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in the 4:3 frame, under that
-// scissor in the 4:3 frame too, so in a wider window the ball, the stars and the flare were cut along a vertical line 8
-// pixels inside the 4:3 frame's side, the course drawn on past it.
+// its size and its colour), so that as the sun nears a side some of them lie past the other one. A rectangle can't
+// start left of the screen, so where one would, the game starts it at 0 and its texture as far in as it cut (and one
+// wholly past the left side at 0 too, 0 wide); the RDP's scissor, the 3D's (8 to 312), then cuts what lies between 0
+// and 8, and on the right what lies past 312. RT64 widens the 3D to the picture but draws a rectangle where the game
+// puts it, in the 4:3 frame, under that scissor in the 4:3 frame too, so in a wider window the ball, the stars and the
+// flare were cut along a vertical line 8 pixels inside the 4:3 frame's side, the course drawn on past it.
 //
 // func_ovl0_801FE370 draws the ball's; func_8002DC10, the frame's drawing, calls it from two places (one per kind of
 // frame it draws), each only while the ball is shown, func_ovl0_80217164, which draws the stars, from one, and
