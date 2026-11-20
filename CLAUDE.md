@@ -130,7 +130,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/halfturn.cpp`
   Tournament's HALF TURN picture after the 9th hole the same way, black past its sides as its iris closes over its
-  edges, where it ran across the window with its sides smeared, `src/game/iris.cpp` draws the iris wipe between screens at its
+  edges, where it stood off its place to the right, the course in bands round it, `src/game/iris.cpp` draws the iris wipe between screens at its
   own shape across the wide picture, with Enhancements On its black solid past the mask's edges, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it and to its top and bottom, both where
   RT64 stretched them, and `src/game/slats.cpp` closes Ring Shot's stage-select slats over the whole picture, plain
   planks past its 4:3 picture of Mario, where they covered only the 4:3 frame inside the border (their headers say

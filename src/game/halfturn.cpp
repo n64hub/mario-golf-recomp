@@ -8,18 +8,23 @@
 // and goes out as an iris through its own pixels: func_8006C484 clears (and later sets) their alpha bits along an
 // ellipse about its middle, so it closes over the course from the picture's edges in and opens from its middle out.
 // Drawn as the game draws it, each strip is as wide as the 3D, so border.cpp ran it on to the screen's sides (its
-// texture's start moved back, the clamp repeating its first and last columns) and RT64 stretched it across the window:
-// a picture as wide as the window, its sides smeared.
+// texture's start moved back, the clamp repeating its first and last columns) and RT64 stretched it with the course,
+// at the 4:3 frame's height: in a 16:9 window it stood right of and below its place, off the window's right edge, the
+// course in bands at its left, top and bottom.
 //
 // So us.toml hooks the function where the strips begin (0x8006CB44, the list's head in its stack frame at sp + 0x28,
 // the iris already drawn into the texture) and where it puts the head back (0x8006CD20). At the end each strip is
 // moved into a buffer of this file's, whose first commands, the strip itself, go through screen.cpp
 // (mg_screen_fill_range), which scales it to the picture's full height and keeps it at its shape
-// (gEXSetRectAspect(G_EX_ASPECT_ADJUST)); in a window wider than 4:3 the buffer then draws, from the 4:3 frame's sides
+// (gEXSetRectAspect(G_EX_ASPECT_ADJUST)). The picture's first two rows and columns are never opaque (the iris never
+// reaches them, so the course shows through there, under the border on a console), so the strip is first scaled about
+// the picture's opaque part (refit_strip) for that to fill the height, or the course showed in a band across the
+// window's top. In a window wider than 4:3 the buffer then draws, from the 4:3 frame's sides
 // out to the window's (G_EX_ASPECT_STRETCH), black at the alpha of the strip's outer columns (2 and 303, the outermost
 // the iris reaches), the strip's own texture read one column across, row by row as the strip is drawn. So the sides go
 // black row by row as the iris closes over the picture's edges, and back to the course as it opens, as the console's
-// picture covers its screen. With Aspect Ratio Original nothing changes.
+// picture covers its screen (the iris's edge is ragged there, as the game draws it, so a few rows of a side can stay
+// black a frame longer than those round them). With Aspect Ratio Original nothing changes.
 
 #include <cmath>
 #include <cstdint>
