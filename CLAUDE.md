@@ -123,7 +123,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/iris.cpp` draws the iris wipe between screens at its
   own shape across the wide picture, and `src/game/card.cpp` draws the old shot a transition fades out or opens on across it and to its top and bottom, both where
-  RT64 stretched them (their headers say how). The pin's flagstick is drawn from screen positions the game works out
+  RT64 stretched them, and `src/game/slats.cpp` closes Ring Shot's stage-select slats over the whole picture, plain
+  planks past its 4:3 picture of Mario, where they covered only the 4:3 frame inside the border (their headers say
+  how). The pin's flagstick is drawn from screen positions the game works out
   itself (G_MODIFYVTX), which RT64 widens with the course only with `RT64_EXPAND_SCREEN_VERTICES` (`CMakeLists.txt`),
   or it stands away from the hole and its marker, and draws them between game frames only with
   `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. Ring Shot's rings sample a
