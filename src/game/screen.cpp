@@ -15,7 +15,7 @@
 // on the title (overlay 8 loaded) or in its menus (overlay 3), from the main menu to Course Select. In the list's own
 // commands (the frame's, which the game writes anew each frame; the lists it calls are its data and are left alone):
 // - each texture rectangle is scaled, its edges on whole pixels (scale_rect says why), and clipped to the 4:3 frame,
-//   its texture start moved to match, and drawn through a buffer that keeps it at its shape
+//   its texels fitted to the pixels it covers (scale_side), and drawn through a buffer that keeps it at its shape
 //   (gEXSetRectAspect(G_EX_ASPECT_ADJUST)): RT64 stretches a rectangle as wide as its scissor across the window, and a
 //   scaled strip of the backdrop is as wide as the frame. They are point sampled: the game filters them bilinearly,
 //   which at 1:1 reads each texel as it is, but scaled it blurs each strip's rows into each other and stops at its
