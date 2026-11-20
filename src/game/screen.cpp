@@ -138,11 +138,42 @@ int edge(float v, float limit) {
     return int(std::ceil(std::fmin(std::fmax(v, 0.0f), limit) - 0.001f));
 }
 
+// One side of a scaled rectangle, across (x) or down (y): from the game's edges a0 to a1 (screen pixels) and its
+// texture's start there and step a pixel (texels), the first and past-the-last whole pixel it is drawn over, inside the
+// frame, and the start and step (in the command's fixed point: 1/32 and 1/1024 of a texel) that read the same texels
+// across them. Its texels are those the scaled edges cover, cut where the frame clips it, fitted to the whole pixels
+// exactly, so the last pixel ends at the last texel and reads no further. Kept at the game's step, with its edges
+// rounded out to whole pixels, a rectangle read up to most of a texel past its own, which the game's picture never
+// shows, but RT64 draws the rectangle at the window's resolution and so that part of its last pixel too: a line of the
+// next row or column of the texture, which in a font is the glyph beside it, round Character Select's text.
+struct Side {
+    int lo, hi;
+    int start, step;
+};
+
+bool scale_side(bool across, float a0, float a1, float tex, float per_pixel, Side& out) {
+    float limit = across ? SCREEN_WIDTH : SCREEN_HEIGHT;
+    float b0 = across ? scale_x(a0) : scale_y(a0);
+    float b1 = across ? scale_x(a1) : scale_y(a1);
+    out.lo = edge(b0, limit);
+    out.hi = edge(b1, limit);
+    if (out.hi <= out.lo) {
+        return false;
+    }
+    // The texel at a point of the scaled side, and the texels of the part inside the frame.
+    float step = per_pixel / g_fill;
+    float t0 = tex + (std::fmax(b0, 0.0f) - b0) * step;
+    float t1 = tex + (std::fmin(b1, limit) - b0) * step;
+    // Rounded towards the inside, so neither end reaches a texel past the range.
+    out.start = int(step >= 0.0f ? std::ceil(t0 * 32.0f - 0.001f) : std::floor(t0 * 32.0f + 0.001f));
+    out.step = int(std::trunc((t1 - out.start / 32.0f) / float(out.hi - out.lo) * 1024.0f));
+    return true;
+}
+
 // The rectangle at addr (its three commands) scaled and clipped to the 4:3 frame, its commands written at out, false
-// if nothing of it is left. A rectangle's texture starts at the first whole pixel it covers, so one starting between
-// two would draw its rows up to a line off: each edge is the first whole pixel at or past it, the same for two
-// rectangles that meet there, so they still meet, and every pixel one covers reads its own rows of the texture. In
-// copy mode its lower right corner is the last pixel it covers, not the one past it.
+// if nothing of it is left. Each edge is the first whole pixel at or past it, the same for two rectangles that meet
+// there, so they still meet, and its texture is fitted to the pixels it covers (scale_side). In copy mode its lower
+// right corner is the last pixel it covers, not the one past it, and its s step is four times its texels a pixel.
 bool scale_rect(uint32_t addr, uint32_t out, bool copy) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     float ulx = ((w1 >> 12) & 0xFFF) / 4.0f, uly = (w1 & 0xFFF) / 4.0f;
@@ -153,28 +184,24 @@ bool scale_rect(uint32_t addr, uint32_t out, bool copy) {
     }
     float s = int16_t(st >> 16) / 32.0f, t = int16_t(st & 0xFFFF) / 32.0f;
     float dsdx = int16_t(d >> 16) / 1024.0f, dtdy = int16_t(d & 0xFFFF) / 1024.0f;
+    float s_per_pixel = copy ? dsdx / 4.0f : dsdx;
 
-    float x0 = scale_x(ulx), y0 = scale_y(uly);
-    int new_ulx = edge(x0, SCREEN_WIDTH), new_uly = edge(y0, SCREEN_HEIGHT);
-    int new_lrx = edge(scale_x(lrx), SCREEN_WIDTH), new_lry = edge(scale_y(lry), SCREEN_HEIGHT);
-    if (new_lrx <= new_ulx || new_lry <= new_uly) {
+    Side x, y;
+    if (!scale_side(true, ulx, lrx, s, s_per_pixel, x) || !scale_side(false, uly, lry, t, dtdy, y)) {
         return false;
     }
-    float new_dsdx = dsdx / g_fill, new_dtdy = dtdy / g_fill;
-    float new_s = s + (new_ulx - x0) * new_dsdx;
-    float new_t = t + (new_uly - y0) * new_dtdy;
+    int new_dsdx = copy ? x.step * 4 : x.step;
     if (copy) {
-        new_lrx -= 1;
-        new_lry -= 1;
+        x.hi -= 1;
+        y.hi -= 1;
     }
 
-    wr_w(out, (w0 & 0xFF000000) | (uint32_t(new_lrx * 4) << 12) | uint32_t(new_lry * 4));
-    wr_w(out + 4, (w1 & 0xFF000000) | (uint32_t(new_ulx * 4) << 12) | uint32_t(new_uly * 4));
+    wr_w(out, (w0 & 0xFF000000) | (uint32_t(x.hi * 4) << 12) | uint32_t(y.hi * 4));
+    wr_w(out + 4, (w1 & 0xFF000000) | (uint32_t(x.lo * 4) << 12) | uint32_t(y.lo * 4));
     wr_w(out + 8, rd_w(addr + 8));
-    wr_w(out + 12, (uint32_t(int(std::lround(new_s * 32))) << 16) | (uint32_t(int(std::lround(new_t * 32))) & 0xFFFF));
+    wr_w(out + 12, (uint32_t(x.start) << 16) | (uint32_t(y.start) & 0xFFFF));
     wr_w(out + 16, rd_w(addr + 16));
-    wr_w(out + 20, (uint32_t(int(std::lround(new_dsdx * 1024))) << 16) |
-                       (uint32_t(int(std::lround(new_dtdy * 1024))) & 0xFFFF));
+    wr_w(out + 20, (uint32_t(new_dsdx) << 16) | (uint32_t(y.step) & 0xFFFF));
     return true;
 }
 
