@@ -193,6 +193,30 @@ func = "func_ovl7_801FA4EC"
 before_vram = 0x801FA800
 text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, (uint32_t)ctx->r16); }"
 
+# The sun's lens flare up to the screen's sides with Enhancements On (src/game/ball.cpp): func_8008D3F4 draws it only
+# while the sun (x at 0x800C5F24, y at 0x800C5F2C) is more than 16 pixels inside each side, x against 16.0 in $f8 and
+# 304.0 in $f0, y against $f8 and 224.0 in $f0, and then adds $f8's 16 to the flare's brightness. Each test is given
+# mg_flare_edge() in its place (16 in Original, as the game has it), and $f8 its 16 again before the brightness.
+[[patches.hook]]
+func = "func_8008D3F4"
+before_vram = 0x8008D4C8
+text = "{ float mg_flare_edge(void); ctx->f8.fl = mg_flare_edge(); }"
+
+[[patches.hook]]
+func = "func_8008D3F4"
+before_vram = 0x8008D4E4
+text = "{ float mg_flare_edge(void); ctx->f0.fl = 320.0f - mg_flare_edge(); }"
+
+[[patches.hook]]
+func = "func_8008D3F4"
+before_vram = 0x8008D518
+text = "{ float mg_flare_edge(void); ctx->f0.fl = 240.0f - mg_flare_edge(); }"
+
+[[patches.hook]]
+func = "func_8008D3F4"
+before_vram = 0x8008D610
+text = "{ ctx->f8.fl = 16.0f; }"
+
 # The ball's sprites at the ball's own place on the screen, not the whole pixel the game cuts it to (src/game/ball.cpp):
 # func_80065650, which works out where a point lies on the screen, truncates its x and y to whole pixels. While the
 # ball is drawn each is noted as it is truncated, for mg_ball_end to move the rectangles drawn around that point by what

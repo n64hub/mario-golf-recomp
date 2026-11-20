@@ -141,7 +141,8 @@ void mg::init_config() {
         enhancements_id,
         "Enhancements",
         "Changes to how the game looks that a console doesn't make, none of them to how it plays: the sun's lens flare "
-        "fades out as the sun nears an edge of the screen, where the game takes it away at once, and the black round the "
+        "fades out as the sun nears an edge of the screen and is gone at the edge, where the game takes it away at once "
+        "while the sun is still in sight, and the black round the "
         "iris between screens is solid, where a faint line of the picture showed through it beside Koopa Park's shell. "
         "<recomp-color primary>Original</recomp-color> draws it all as a console does.",
         {{Enhancements::Original, "Original"}, {Enhancements::On, "On"}},

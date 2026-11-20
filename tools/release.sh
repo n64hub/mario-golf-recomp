@@ -15,8 +15,8 @@
 # v<version_string>. Both builds and the publish run on that PR's merge commit, checked out with a clean tree: each
 # build moves the submodules onto their pins (unpatch, below), refuses a tree with changes and records the commit it was
 # built from (out/<archive>.commit), and publish refuses archives from another one or that haven't booted (boot), a tree
-# with changes, a commit not on origin/main or still holding releases/next.md, or a tag that exists. A change merged
-# meanwhile goes in the next release and doesn't stop this one.
+# with changes, a commit not on origin/main or still holding releases/next.md, notes that name another version's
+# archives, or a tag that exists. A change merged meanwhile goes in the next release and doesn't stop this one.
 #
 # Windows: Release (CMakeLists.txt makes that a windowed program, with no console), the DLLs beside the exe as the
 # build leaves them (SDL2, dxcompiler, dxil). It needs the Visual C++ 2015-2022 redistributable (x64). clang-cl, CMake
@@ -155,6 +155,10 @@ boot)
 publish)
     notes="releases/$tag.md"
     [ -s "$notes" ] || { echo "no $notes: write the release notes for players first" >&2; exit 1; }
+    # Notes start as a copy of the last release's, whose install line names its own archives.
+    other=$({ grep -o 'MarioGolfRecompiled-v[0-9][0-9.]*[0-9]-' "$notes" || true; } |
+        { grep -v -x -F "$name-" || true; } | sort -u | xargs)
+    [ -z "$other" ] || { echo "$notes names another release's archives ($other): name $name's" >&2; exit 1; }
     clean
     git fetch -q origin main
     git merge-base --is-ancestor "$commit" origin/main || { echo "HEAD is not on origin/main" >&2; exit 1; }
