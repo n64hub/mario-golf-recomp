@@ -42,6 +42,15 @@
 // across the wide picture's left that shrank into one as it came back in, and as its width changed each game frame
 // RT64 paired it with nothing and it stepped (issue 190). mg_aim_end hands ball.cpp the frame's 8 texels for the
 // flag, which it puts the rectangle back to instead.
+//
+// The game draws the flag (and the label) with the bilinear filter on, which on a console at the whole pixel it puts
+// the flag on samples each texel at its own place, so the flag comes out crisp. RT64 samples it at every pixel of a
+// larger picture, between texels, and blended in what lies beside them in the tile: the transparent texels' colour,
+// pure blue, a column down the pole's left and bits under the cloth, and right of the cup the next frame's first
+// column, its cup's lip and black base, a dark line on three of the four frames (issue 190). mg_aim_end turns the
+// flag's own command that sets the palette's type (G_SETOTHERMODE_H, G_MDSFT_TEXTLUT, just before its rectangle) into
+// one that sets the filter to point too, which samples each texel as the console does; the game sets bilinear again
+// before anything else is drawn.
 
 #include <cmath>
 #include <cstdint>
@@ -53,6 +62,9 @@ namespace {
 
 // F3DEX2's commands this reads (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
+// G_SETOTHERMODE_H with its shift and length: the palette's type alone (G_MDSFT_TEXTLUT, 14, 2 bits), and the filter
+// and the palette's type together (G_MDSFT_TEXTFILT, 12, 4 bits), the filter's value 0 point.
+constexpr uint32_t SET_TEXTLUT = 0xE3001001, SET_TEXTFILT_TEXTLUT = 0xE3001003;
 
 // The display list's head, which the game's drawing functions advance (the decomp's data at 0x801B93DC).
 constexpr uint32_t MG_GFX_HEAD = 0x801B93DC;
@@ -112,6 +124,21 @@ extern "C" void mg_aim_end(uint8_t* rdram, int flag) {
             wr_w(addr + 4, (w1 & 0xFF000FFF) | (uint32_t(ulx + g_dx) << 12));
         }
         addr += 16;
+    }
+    // The flag sampled as on a console (above): its last palette type command before its rectangle sets point too.
+    if (flag) {
+        uint32_t lut = 0;
+        for (uint32_t addr = g_start; addr + 8 <= end; addr += 8) {
+            uint32_t w0 = rd_w(addr);
+            if (w0 == SET_TEXTLUT) {
+                lut = addr;
+            }
+            else if ((w0 >> 24) == G_TEXRECT && lut != 0) {
+                wr_w(lut, SET_TEXTFILT_TEXTLUT);
+                wr_w(lut + 4, rd_w(lut + 4) & 0xC000);
+                lut = 0;
+            }
+        }
     }
     int frame = flag ? int(rd_w(FLAG_COUNTER) & 0xF) / 4 : 0;
     mg_widen_rects(rdram, g_start, end, g_dx, frame * FLAG_FRAME_TEXELS, flag ? FLAG_FRAME_TEXELS : 0);
