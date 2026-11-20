@@ -125,7 +125,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   on the game's own frames, and with Enhancements On draws the flare on to the screen's edge, where the game drops it 16
   pixels in (hooks in func_8008D3F4, `us.toml`), its circles fading out before it, `src/game/aim.cpp` puts the red pin flag in the sky and the landing point's label where their points are
   across, to a quarter pixel, not the whole one the game truncates them to, or they slid in whole console pixels a game
-  frame as the view turned, and `src/game/screen.cpp` scales the title and the menus, 2D screens
+  frame as the view turned, and draws them on into the wide picture's sides as `ball.cpp` draws its sprites, where the
+  3D's scissor cut them 8 pixels inside the 4:3 frame (RT64_INTERPOLATE_RECT_SCROLLS pairs
+  the flag between game frames up to four times its size away, as no other rectangle looks like it, or it stepped as
+  the view turned fast), and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/halfturn.cpp`

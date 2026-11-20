@@ -181,9 +181,9 @@ struct Tile {
 };
 
 // The rectangle at addr (its three commands) put back past the side of the screen it was cut at and drawn into the
-// wide picture's sides, in a buffer that branches back after it. False if it lies well inside the 4:3 frame, or didn't
-// fit.
-bool widen(uint32_t addr, const Tile& tile, float scale) {
+// wide picture's sides, in a buffer that branches back after it, and if the game cut it at a side, moved across by
+// cut_dx quarter pixels. False if it lies well inside the 4:3 frame (unless always), or didn't fit.
+bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
@@ -209,8 +209,12 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
             new_lrx = lrx + (end - s_right) * 128 / dsdx;
         }
     }
-    if (new_lrx <= new_ulx || (new_ulx >= SCISSOR_LEFT && new_lrx <= SCISSOR_RIGHT)) {
+    if (new_lrx <= new_ulx || (!always && new_ulx >= SCISSOR_LEFT && new_lrx <= SCISSOR_RIGHT)) {
         return false;
+    }
+    if (ulx == 0 || lrx >= SCREEN_WIDTH) {
+        new_ulx += cut_dx;
+        new_lrx += cut_dx;
     }
 
     // Drawn stretched to the picture, as RT64 draws a rectangle across the whole screen: the game's own scissor (the
@@ -430,7 +434,7 @@ void place_flare(uint32_t start, uint32_t end) {
     }
 }
 
-void widen_all(uint32_t start, uint32_t end) {
+void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
@@ -454,7 +458,7 @@ void widen_all(uint32_t start, uint32_t end) {
             }
             case G_TEXRECT:
                 if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-                    if (widen(addr, tiles[(w1 >> 24) & 7], scale)) {
+                    if (widen(addr, tiles[(w1 >> 24) & 7], scale, cut_dx, always)) {
                         done++;
                     }
                     addr += 16;
@@ -465,6 +469,17 @@ void widen_all(uint32_t start, uint32_t end) {
 }
 
 } // namespace
+
+// The texture rectangles the game added to the display list between start and end drawn on into the wide picture's
+// sides as the ball's are: src/game/aim.cpp's marks. One the game cut at a side is moved across by cut_dx quarter
+// pixels, as aim.cpp moves the others. Each is drawn so wherever it is, not only near a side: RT64 pairs a rectangle
+// with the last game frame's by where each was drawn, and one drawn stretched and one drawn in the 4:3 frame are placed
+// in two ways, so the flag drawn the one way in one game frame and the other in the next slid between the two for a
+// game frame, the wrong way and by tens of pixels, as it came in past the 4:3 frame's side.
+void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx) {
+    g_rdram = rdram;
+    widen_all(start, end, cut_dx, true);
+}
 
 // The edge the game's test of whether the sun is far enough inside the screen for its flare reads (us.toml's hooks in
 // func_8008D3F4): flare_edge().
@@ -525,5 +540,5 @@ extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     uint32_t end = rd_w(head);
     place_flare(g_start, end);
     nudge_all(g_start, end);
-    widen_all(g_start, end);
+    widen_all(g_start, end, 0, false);
 }
