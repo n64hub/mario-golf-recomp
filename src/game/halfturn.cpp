@@ -70,8 +70,8 @@ constexpr uint32_t BUFFER_COUNT = 224;
 
 // Free RDRAM after border.cpp's buffers: five of 12 KB, used in turn, a frame's sides each.
 constexpr uint32_t SIDES_BASE = 0x807B1000;
-constexpr uint32_t SIDES_SIZE = 0x3000;
-constexpr uint32_t SIDES_COUNT = 5;
+constexpr uint32_t SIDES_SIZE = 0x7800;
+constexpr uint32_t SIDES_COUNT = 2;
 
 uint8_t* g_rdram;
 uint32_t g_from = 0;
