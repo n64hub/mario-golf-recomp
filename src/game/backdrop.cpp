@@ -25,17 +25,21 @@
 // mirrored copy 64 pixels right of the sun, as a second sun. It is drawn as RT64's extended texture rectangle stretched
 // to the picture (G_EX_ASPECT_STRETCH), as RT64 draws one across the whole screen, so the game's own scissor, the 3D's,
 // clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the screen's middle by as
-// much, so the light keeps its shape. A scissor of its own, widened past 4:3 in the 4:3 frame's coordinates, doesn't
-// hold it: the light reaches the black border past the 3D, which nothing clears. Those commands go to a buffer of this
-// file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a
-// branch back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through mg_sun_bound_x, a us.toml hook that
-// moves the x they compare toward the screen's middle by as much as the wide picture reaches past 4:3, so the light is
-// drawn until the last of it leaves the picture. With Aspect Ratio Original, or a window no wider than 4:3, nothing
-// changes. Nor does it where the 3D doesn't fill the screen (the end credits' character preview, a window that shrinks
-// to the screen's right part over black, and the small view of where the ball lands), under a scissor of its own: in
-// the credits the light widened there, and drawn for a sun the game would have left out, showed as an orange block on
-// the black beside the window. So both read the scissor the game last set before the sky, and leave the light as the
-// game draws it unless that is the 3D's whole one.
+// much, so the light keeps its shape. The light (the rectangle place_sun finds) is drawn so in every frame of a wide
+// window, within the scissor too: drawn as the game's rectangle while within it and stretched once past it, the frame
+// it crossed a side RT64 paired the one with the other as the same rectangle, and drew that game frame's frames between
+// from the squeezed place, so the light's edge jumped tens of pixels for a frame and slid back, a flicker each time the
+// camera panned it across a side of the 4:3 frame (issue 151). A scissor of its own, widened past 4:3 in the 4:3
+// frame's coordinates, doesn't hold it: the light reaches the black border past the 3D, which nothing clears. Those
+// commands go to a buffer of this file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced
+// by a branch to it, and its end a branch back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through
+// mg_sun_bound_x, a us.toml hook that moves the x they compare toward the screen's middle by as much as the wide
+// picture reaches past 4:3, so the light is drawn until the last of it leaves the picture. With Aspect Ratio Original,
+// or a window no wider than 4:3, nothing changes. Nor does it where the 3D doesn't fill the screen (the end credits'
+// character preview, a window that shrinks to the screen's right part over black, and the small view of where the ball
+// lands), under a scissor of its own: in the credits the light widened there, and drawn for a sun the game would have
+// left out, showed as an orange block on the black beside the window. So both read the scissor the game last set before
+// the sky, and leave the light as the game draws it unless that is the 3D's whole one.
 //
 // The sky's clouds slide on every frame drawn as the camera turns, with the course in front of them, rather than a step
 // a game frame. The sky is the first thing func_80091110 draws: three triangles, under a modelview matrix of their
@@ -155,6 +159,10 @@ bool g_open = false;
 bool g_full = true;
 uint32_t g_next_buffer = 0;
 uint32_t g_next_strip = 0;
+// The sun's light rectangles place_suns() found in this call, which widen() draws stretched whether or not they reach
+// past the scissor.
+uint32_t g_sun_rects[MAX_RECTS];
+int g_sun_count = 0;
 
 uint32_t rd_w(uint32_t addr) {
     return *reinterpret_cast<uint32_t*>(g_rdram + ((addr & 0x7FFFFF) & ~3u));
@@ -190,9 +198,10 @@ struct Tile {
 };
 
 // The rectangle at addr (its three commands) drawn past the scissor where it reaches past it, put back past the left
-// side where the game cut it there, in a buffer that branches back after it. False if it stays within the scissor, or
-// didn't fit.
-bool widen(uint32_t addr, const Tile& tile, float scale) {
+// side where the game cut it there, in a buffer that branches back after it. The sun's light (always) is drawn so
+// even where it stays within the scissor, so it is drawn the same way in every frame. False if it stays within the
+// scissor and isn't always drawn so, or didn't fit.
+bool widen(uint32_t addr, const Tile& tile, float scale, bool always) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
@@ -218,7 +227,7 @@ bool widen(uint32_t addr, const Tile& tile, float scale) {
             new_lrx = new_ulx + (lry - uly) + (t - start_t) * 128 / dtdy;
         }
     }
-    if (new_ulx >= SCISSOR_LEFT * 4 && new_lrx <= SCISSOR_RIGHT * 4) {
+    if (!always && new_ulx >= SCISSOR_LEFT * 4 && new_lrx <= SCISSOR_RIGHT * 4) {
         return false;
     }
 
@@ -329,15 +338,15 @@ float rd_f(uint32_t addr) {
 // func_8008FF20 drew around the truncated place of one of its views' suns, its texture started earlier by what the
 // truncation dropped, each way, so the light is drawn that much further right and down in the rectangle the game put
 // on whole pixels. The rectangle stays as the game's, so RT64 still pairs it with the last frame's, and slides the
-// texture's step between them as it does a scroll.
-void place_sun(uint32_t addr) {
+// texture's step between them as it does a scroll. True if it is the light.
+bool place_sun(uint32_t addr) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
     int s = int16_t(st >> 16), t = int16_t(st & 0xFFFF);     // s10.5
     int dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF); // s5.10
     if (dsdx <= 0 || dtdy <= 0) {
-        return;
+        return false;
     }
     for (int view = 0; view < SUN_VIEWS; view++) {
         float x = rd_f(SUN_X + 4 * view), y = rd_f(SUN_Y + 4 * view);
@@ -356,25 +365,32 @@ void place_sun(uint32_t addr) {
         int ds = int(std::lround((x - float(tx)) * float(dsdx) / 32.0f));
         int dt = int(std::lround((y - float(ty)) * float(dtdy) / 32.0f));
         int new_s = s - ds, new_t = t - dt;
-        if (new_s < INT16_MIN || new_s > INT16_MAX || new_t < INT16_MIN || new_t > INT16_MAX) {
-            return;
+        if (new_s >= INT16_MIN && new_s <= INT16_MAX && new_t >= INT16_MIN && new_t <= INT16_MAX) {
+            wr_w(addr + 12, (uint32_t(new_s & 0xFFFF) << 16) | uint32_t(new_t & 0xFFFF));
         }
-        wr_w(addr + 12, (uint32_t(new_s & 0xFFFF) << 16) | uint32_t(new_t & 0xFFFF));
-        return;
+        return true;
     }
+    return false;
 }
 
 void place_suns(uint32_t start, uint32_t end) {
+    g_sun_count = 0;
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
     for (uint32_t addr = start; addr + 24 <= end; addr += 8) {
         if ((rd_w(addr) >> 24) == G_TEXRECT && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 &&
             (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
-            place_sun(addr);
+            if (place_sun(addr) && g_sun_count < MAX_RECTS) {
+                g_sun_rects[g_sun_count++] = addr;
+            }
             addr += 16;
         }
     }
+}
+
+bool is_sun(uint32_t addr) {
+    return std::find(g_sun_rects, g_sun_rects + g_sun_count, addr) != g_sun_rects + g_sun_count;
 }
 
 void widen_all(uint32_t start, uint32_t end) {
@@ -406,7 +422,8 @@ void widen_all(uint32_t start, uint32_t end) {
             case G_TEXRECT:
                 if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
                     const Tile& tile = tiles[(w1 >> 24) & 7];
-                    if (!stretch_strip(addr, tile, scale) && done < MAX_RECTS && widen(addr, tile, scale)) {
+                    if (!stretch_strip(addr, tile, scale) && done < MAX_RECTS &&
+                        widen(addr, tile, scale, is_sun(addr))) {
                         done++;
                     }
                     addr += 16;
