@@ -55,6 +55,7 @@
 // hills after it, which backdrop.cpp also draws from buffers of its own, were left at the 4:3 frame's sides.
 
 #include <cstdint>
+#include <cstdio>
 
 bool mg_aspect_expand();
 
@@ -476,7 +477,17 @@ void rect(uint32_t addr) {
         int32_t s = int16_t(half1 >> 16);
         int32_t dsdx = int16_t(rd_w(addr + 20) >> 16);
         s -= int32_t(ulx) * dsdx / (copy ? 512 : 128);
-        if (copy && is_screen(g_texture)) {
+        if (game_copy) {
+            static int logged = 0;
+            if (logged < 12) {
+                logged++;
+                fprintf(stderr, "mg174 rect w0=%08X w1=%08X st=%08X steps=%08X timg0=%08X tex=%08X load=%08X %08X "
+                        "size=%08X %08X tile=%08X cycle=%08X\n", w0, w1, rd_w(addr + 12), rd_w(addr + 20), g_timg0,
+                        g_texture, g_load0, g_load1, g_size0[(w1 >> 24) & 7], g_size1[(w1 >> 24) & 7],
+                        g_tile_addr[(w1 >> 24) & 7] ? rd_w(g_tile_addr[(w1 >> 24) & 7] + 0) : 0, g_cycle);
+            }
+        }
+        if ((copy && is_screen(g_texture)) || game_copy) {
             whole_rows(addr);
         }
         wr_w(addr + 4, rd_w(addr + 4) & ~(0xFFFu << 12));
