@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice">
+<!-- The launcher's backdrop (src/main/main.cpp): a golf course at dusk, drawn for the project from plain shapes, as the
+     icon is. Dark where the launcher's text sits (the title a quarter of the way down, the menu below the middle), so the
+     theme's white and blue stay legible; 16:9, cut to the window's shape (slice). -->
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#020712"/><stop offset="0.38" stop-color="#0a1a3c"/><stop offset="0.54" stop-color="#1c3f6e"/>
+<stop offset="0.62" stop-color="#5a5a7a"/><stop offset="0.68" stop-color="#b8735a"/>
+</linearGradient>
+<linearGradient id="far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d3a52"/><stop offset="1" stop-color="#11253a"/></linearGradient>
+<linearGradient id="mid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c4a35"/><stop offset="1" stop-color="#0f2a20"/></linearGradient>
+<linearGradient id="fairway" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#25633a"/><stop offset="1" stop-color="#0b2416"/></linearGradient>
+<linearGradient id="green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f9a4e"/><stop offset="1" stop-color="#2a7a3c"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="1" r="0.6"><stop offset="0" stop-color="#ffb070" stop-opacity="0.45"/><stop offset="1" stop-color="#ffb070" stop-opacity="0"/></radialGradient>
+<radialGradient id="vignette" cx="0.5" cy="0.5" r="0.75"><stop offset="0.55" stop-color="#020712" stop-opacity="0"/><stop offset="1" stop-color="#020712" stop-opacity="0.7"/></radialGradient>
+</defs>
+<rect width="1920" height="1080" fill="url(#sky)"/>
+<ellipse cx="1340" cy="730" rx="760" ry="260" fill="url(#glow)"/>
+<g fill="#dfe8ff">
+<circle cx="140" cy="90" r="2.2" opacity="0.7"/><circle cx="320" cy="210" r="1.6" opacity="0.5"/><circle cx="520" cy="60" r="1.8" opacity="0.6"/>
+<circle cx="700" cy="160" r="1.4" opacity="0.4"/><circle cx="1180" cy="110" r="2" opacity="0.6"/><circle cx="1400" cy="40" r="1.6" opacity="0.5"/>
+<circle cx="1560" cy="190" r="2.2" opacity="0.7"/><circle cx="1760" cy="80" r="1.8" opacity="0.6"/><circle cx="1860" cy="260" r="1.4" opacity="0.4"/>
+<circle cx="60" cy="300" r="1.4" opacity="0.4"/><circle cx="900" cy="40" r="1.6" opacity="0.5"/><circle cx="1000" cy="230" r="1.2" opacity="0.35"/>
+</g>
+<path d="M1560 120 a70 70 0 1 0 60 106 a56 56 0 1 1 -60 -106 z" fill="#f2ead2" opacity="0.85"/>
+<path d="M0 700 C220 610 420 650 620 680 C820 710 980 600 1200 620 C1420 640 1600 590 1920 650 L1920 1080 L0 1080 Z" fill="url(#far)"/>
+<path d="M0 790 C260 720 520 760 760 780 C1000 800 1240 720 1480 740 C1680 756 1820 720 1920 735 L1920 1080 L0 1080 Z" fill="url(#mid)"/>
+<g fill="#0c1f18">
+<rect x="236" y="660" width="14" height="80"/><circle cx="243" cy="640" r="46"/><circle cx="210" cy="672" r="34"/><circle cx="278" cy="670" r="36"/>
+<rect x="1706" y="660" width="12" height="70"/><circle cx="1712" cy="642" r="40"/><circle cx="1684" cy="668" r="30"/><circle cx="1742" cy="666" r="32"/>
+<rect x="360" y="700" width="10" height="56"/><circle cx="365" cy="686" r="30"/>
+</g>
+<path d="M0 900 C300 830 640 850 960 870 C1280 890 1600 820 1920 840 L1920 1080 L0 1080 Z" fill="url(#fairway)"/>
+<path d="M0 960 C360 900 720 930 1080 950 C1400 968 1680 920 1920 930" fill="none" stroke="#2f7444" stroke-width="22" opacity="0.35"/>
+<path d="M0 1020 C380 970 760 1000 1140 1015 C1460 1028 1720 990 1920 1000" fill="none" stroke="#2f7444" stroke-width="22" opacity="0.3"/>
+<ellipse cx="1500" cy="880" rx="250" ry="56" fill="url(#green)"/>
+<ellipse cx="1500" cy="872" rx="200" ry="38" fill="#4fae5c" opacity="0.4"/>
+<ellipse cx="1210" cy="928" rx="120" ry="26" fill="#b9985e"/>
+<ellipse cx="1205" cy="922" rx="96" ry="17" fill="#d1b277" opacity="0.6"/>
+<ellipse cx="1546" cy="884" rx="16" ry="6" fill="#0a1d10"/>
+<rect x="1543" y="664" width="7" height="220" rx="3" fill="#d8dde6"/>
+<path d="M1550 668 L1640 698 L1550 730 Z" fill="#d23c3c"/>
+<ellipse cx="560" cy="1006" rx="26" ry="7" fill="#000" opacity="0.3"/>
+<circle cx="556" cy="990" r="17" fill="#eef1f4"/>
+<rect width="1920" height="1080" fill="url(#vignette)"/>
+</svg>
