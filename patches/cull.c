@@ -8,8 +8,14 @@
 // but not the game's test, so in a window wider than 4:3 the terrain past the 4:3 frame's sides came and went with the
 // camera, and a hole's flyover showed water where the course goes on.
 //
+// The top and bottom are the 224 lines inside the game's own border (D_800E173C, 112), where the console's picture
+// ends, but with Expand src/game/border.cpp draws the course on through the border to the screen's 240: terrain there
+// was left out, and where the view held still on Toad Highlands hole 4's tee, the pond's flat plane under the course
+// showed through in the window's last 8 lines, the tee's grass ending in a straight edge above it (issue 182).
+//
 // This is the game's function as it is, with the sides' half-width widened by mg_cull_width_scale (src/game/cull.cpp):
-// the window's aspect ratio over 4:3 with Aspect Ratio Expand, 1 with Original, so Original culls as the console does.
+// the window's aspect ratio over 4:3 with Aspect Ratio Expand, 1 with Original, so Original culls as the console does;
+// and the half-height by mg_cull_height_scale, 240 over 224 with Expand, 1 with Original.
 // Its return, as the game's: 0 behind the camera, 1 past a side, 2 past the top or bottom, else the depth (negative).
 
 #include "patches.h"
@@ -22,6 +28,7 @@ extern s32 D_800E1738;
 extern s32 D_800E173C;
 
 f32 mg_cull_width_scale(void);
+f32 mg_cull_height_scale(void);
 
 RECOMP_PATCH s32 func_800653CC(f32 x, f32 y, f32 z, f32 radius) {
     f32 depth = D_800E16F0[0][2] * x + D_800E16F0[1][2] * y + D_800E16F0[2][2] * z + D_800E16F0[3][2] - radius;
@@ -46,7 +53,7 @@ RECOMP_PATCH s32 func_800653CC(f32 x, f32 y, f32 z, f32 radius) {
         return 1;
     }
 
-    half_height = (f32)D_800E173C;
+    half_height = (f32)D_800E173C * mg_cull_height_scale();
     view = D_800E16F0[0][1] * x + D_800E16F0[1][1] * y + D_800E16F0[2][1] * z + D_800E16F0[3][1];
     if (0.0f < view) {
         if (D_800E1734 * (view - radius) * inverse < -half_height) {
