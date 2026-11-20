@@ -1,0 +1,47 @@
+diff --git a/src/hle/rt64_state.cpp b/src/hle/rt64_state.cpp
+index 2668411..ad0d846 100644
+--- a/src/hle/rt64_state.cpp
++++ b/src/hle/rt64_state.cpp
+@@ -4,6 +4,10 @@
+ 
+ #include "rt64_state.h"
+ 
++#include <unordered_set>
++#include <string>
++#include <cstdio>
++
+ #include <cassert>
+ #include <cinttypes>
+ 
+@@ -438,6 +442,31 @@ namespace RT64 {
+                         }
+                     }
+ 
++                    // TEMPORARY (Metal Mario's reflection): what each tile of a texgen draw or a draw into a narrow
++                    // color image samples, once per distinct state.
++                    {
++                        static const bool mgLog = (getenv("MG_TEXLOG") != nullptr);
++                        if (mgLog) {
++                            const bool texGen = (drawCall.geometryMode & 0x00040000) != 0;
++                            if (texGen || (rdp->colorImage.width <= 64)) {
++                                static std::unordered_set<std::string> seen;
++                                char line[512];
++                                snprintf(line, sizeof(line), "MGTEX ci=%08X/%u texgen=%d t=%u fmt=%u siz=%u filt=%u cyc=%u tlut=%u copy=%d cw=%u ch=%u sw=%u sh=%u lw=%u tmem=%u uls=%u ult=%u lrs=%u lrt=%u mask=%u/%u cm=%u/%u shift=%u/%u",
++                                    rdp->colorImage.address, rdp->colorImage.width, texGen, tileIndex, tile.fmt, tile.siz,
++                                    unsigned(rdp->otherMode.textFilt() >> 12), unsigned(rdp->otherMode.cycleType() >> 20), unsigned(rdp->otherMode.textLUT() >> 14),
++                                    int(dstCallTile.tileCopyUsed), unsigned(dstCallTile.tileCopyUsed ? dstCallTile.tileCopyWidth : 0), unsigned(dstCallTile.tileCopyUsed ? dstCallTile.tileCopyHeight : 0),
++                                    unsigned(dstCallTile.sampleWidth), unsigned(dstCallTile.sampleHeight), unsigned(dstCallTile.lineWidth), unsigned(tile.tmem),
++                                    unsigned(tile.uls), unsigned(tile.ult), unsigned(tile.lrs), unsigned(tile.lrt), unsigned(tile.masks), unsigned(tile.maskt),
++                                    unsigned(tile.cms), unsigned(tile.cmt), unsigned(tile.shifts), unsigned(tile.shiftt));
++                                if (seen.insert(line).second && (seen.size() < 2000)) {
++                                    fprintf(stderr, "%s
++", line);
++                                    fflush(stderr);
++                                }
++                            }
++                        }
++                    }
++
+                     if (nativeSamplerSupported) {
+                         auto nativeSamplerFromAddressing = [](uint8_t cms, uint8_t cmt) {
+                             switch (cms) {
