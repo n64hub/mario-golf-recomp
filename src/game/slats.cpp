@@ -16,12 +16,13 @@
 // toward the middle and their texture stepped faster by as much, as ball.cpp's are). A half's edge goes from the
 // picture's side (open) to the middle (shut) where the game's goes from 8 to 160, at the same pace, so the halves meet
 // as the game's do, and Mario's picture comes to rest where the game puts it. Past the picture's outer side, a half goes
-// on in plain planks, one rectangle as wide as the picture's side lies past the border when shut: the picture's 64
-// columns (FILL) at its other side, which are plank in every row, running on from its side as if the picture repeated,
-// then mirrored at FILL, and so on (a tile of their own, mirrored at that mask). The picture's planks run on across its
-// sides, its first columns the light side of a seam where its last are the dark one, so a seam past the picture's side
-// is dark then light as the one in the middle is: mirrored at the side, the left's was two light sides together and
-// the right's two dark ones, a wide pale band and a wide dark one. Each rectangle moves
+// on in plain planks, as far as the picture's side lies past the border when shut: the picture's 64 columns (FILL) at
+// its other side, which are plank in every row, running on from its side as if the picture repeated, and past those
+// (in a picture wider than 16:9) 32 of them mirrored again and again, plank with no seam's side in them. The picture's
+// planks run on across its sides, its first columns the light side of a seam where its last are the dark one, so a seam
+// past the picture's side is dark then light as the one in the middle is: mirrored at the side, the left's was two
+// light sides together and the right's two dark ones, a wide pale band and a wide dark one, and mirrored every 64
+// columns past it, the same again 128 columns out. Each rectangle moves
 // whole with its half, at its size and with its texture, its part past the picture cut by the scissor, so that RT64
 // slides it whole in the frames between the game's (half_pieces() says why). The top two rows are drawn
 // again above line 8, and the last two below line 232, mirrored the same way at the line: each row's lines are in the
@@ -48,12 +49,11 @@ constexpr uint32_t G_DL = 0xDE, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_
 constexpr uint32_t G_DL_NOPUSH = 1;
 
 // The game's slats, in quarter pixels: the rows' first line and height, the left half's left side and the right
-// half's right side, and the picture's width (in texels) and the middle the halves meet at (in pixels).
+// half's right side, and a half's width and the middle the halves meet at (in pixels).
 constexpr int ROW_TOP = 8 * 4, ROW_HEIGHT = 6 * 4, ROWS = 38;
 constexpr int LEFT_SIDE = 8 * 4, RIGHT_SIDE = 312 * 4;
 constexpr int SCREEN_WIDTH = 320 * 4, SCREEN_HEIGHT = 240 * 4;
 constexpr float HALF = 152.0f, MIDDLE = 160.0f, SIDE = 8.0f;
-constexpr float PICTURE_WIDTH = 304.0f;
 // The picture's outer columns on each side that are plank in every row, which fill the wide picture past it.
 constexpr float FILL = 64.0f;
 
@@ -98,11 +98,18 @@ struct Writer {
 };
 
 // The tiles the plain planks are drawn with, over the row's lines in texture memory as the game's tile 0 is: tile 1
-// the picture's first FILL columns, which run on past its right side, tile 2 its last, which run on past its left,
-// each mirrored every FILL columns (the RDP's mirror at a mask of FILL), so that one rectangle of either runs on in
-// planks however wide it is.
-constexpr int FILL_TILE_LEFT = 1, FILL_TILE_RIGHT = 2;
-constexpr uint32_t FILL_MASK = 6; // FILL's 64 columns
+// the picture's first FILL columns, which run on past its right side, tile 2 its last, which run on past its left, and
+// past those, tiles 3 and 4: the 32 columns of tile 1's and of tile 2's that lie away from the picture's sides, each
+// mirrored every 32 columns (the RDP's mirror at a mask of 32), so that one rectangle of either runs on in planks
+// however wide it is, with no seam.
+struct FillTile {
+    int tile;
+    uint32_t column, mask; // the picture's first column in it, and its width as a power of two
+};
+constexpr int FILL_TILE_LEFT = 1, FILL_TILE_RIGHT = 2, MIRROR_TILE_LEFT = 3, MIRROR_TILE_RIGHT = 4;
+constexpr FillTile FILL_TILES[] = { { FILL_TILE_LEFT, 0, 6 }, { FILL_TILE_RIGHT, 240, 6 }, { MIRROR_TILE_LEFT, 32, 5 },
+                                    { MIRROR_TILE_RIGHT, 240, 5 } };
+constexpr float MIRROR = 32.0f;
 constexpr uint32_t G_TX_MIRROR = 1;
 constexpr uint32_t G_SETTILE = 0xF5, G_SETTILESIZE = 0xF2, G_RDPPIPESYNC = 0xE7;
 
@@ -132,18 +139,28 @@ int half_pieces(bool left, float edge, float scale, Piece* out) {
     if (lead <= outer) {
         return 0;
     }
+    float first = std::min(fill, FILL); // the first piece past the side, up to FILL
     if (left) {
         float start = lead - HALF; // the picture's column 0
         out[n++] = { start, lead, 0.0f, 0 };
         if (start > outer) {
-            out[n++] = { start - fill, start, FILL - fill, FILL_TILE_RIGHT }; // pixel start - 1 samples the last column
+            out[n++] = { start - first, start, FILL - first, FILL_TILE_RIGHT }; // pixel start - 1 samples the last column
+        }
+        if (fill > FILL && start - FILL > outer) {
+            // Pixel start - FILL - 1 samples column 240, as the piece before ends, and on out mirrored at it.
+            out[n++] = { start - fill, start - FILL, FILL - fill, MIRROR_TILE_RIGHT };
         }
     } else {
         float right_lead = 2.0f * MIDDLE - lead;
         float end = right_lead + HALF; // past the picture's last column
+        float inner = 2.0f * MIDDLE - outer; // the picture's right side
         out[n++] = { right_lead, end, HALF, 0 };
-        if (end < 2.0f * MIDDLE - outer) {
-            out[n++] = { end, end + fill, 0.0f, FILL_TILE_LEFT }; // pixel end samples column 0
+        if (end < inner) {
+            out[n++] = { end, end + first, 0.0f, FILL_TILE_LEFT }; // pixel end samples column 0
+        }
+        if (fill > FILL && end + FILL < inner) {
+            // Pixel end + FILL samples column 63, as the piece before ends, and on out mirrored at it.
+            out[n++] = { end + FILL, end + fill, MIRROR, MIRROR_TILE_LEFT };
         }
     }
     return n;
@@ -179,7 +196,7 @@ bool rewrite(uint32_t addr, bool left, float edge, int row, float scale, const T
         bands[band_count++] = { 232 * 4, 234 * 4, 1 << 5, -(1 << 10) };
     }
 
-    Piece pieces[2];
+    Piece pieces[3];
     int piece_count = half_pieces(left, edge, scale, pieces);
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
@@ -188,14 +205,15 @@ bool rewrite(uint32_t addr, bool left, float edge, int row, float scale, const T
     GfxCommand c[3];
     gEXEnable(c);
     out.put(c, 1);
-    // The plank tiles: tile 0's format, line and lines, at the picture's first or last FILL columns, mirrored.
+    // The plank tiles: tile 0's format, line and lines, at their columns, mirrored at their width.
     out.put(G_RDPPIPESYNC << 24, 0);
-    for (int fill_tile : { FILL_TILE_LEFT, FILL_TILE_RIGHT }) {
-        uint32_t tmem = fill_tile == FILL_TILE_LEFT ? 0 : uint32_t(PICTURE_WIDTH - FILL) / 8; // 8-bit texels, 8 a word
+    for (const FillTile& fill_tile : FILL_TILES) {
+        uint32_t tmem = fill_tile.column / 8; // 8-bit texels, 8 a word
+        uint32_t tile = uint32_t(fill_tile.tile);
         out.put((tile0.set0 & ~0x1FFu) | (((tile0.set0 & 0x1FF) + tmem) & 0x1FF),
-                (uint32_t(fill_tile) << 24) | (G_TX_MIRROR << 8) | (FILL_MASK << 4));
+                (tile << 24) | (G_TX_MIRROR << 8) | (fill_tile.mask << 4));
         out.put((G_SETTILESIZE << 24) | (tile0.size0 & 0xFFF),
-                (uint32_t(fill_tile) << 24) | ((uint32_t(FILL) * 4 - 4) << 12) | (tile0.size1 & 0xFFF));
+                (tile << 24) | (((4u << fill_tile.mask) - 4) << 12) | (tile0.size1 & 0xFFF));
     }
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
