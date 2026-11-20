@@ -19,12 +19,15 @@
 // (gEXSetRectAspect(G_EX_ASPECT_ADJUST)). The picture's first two rows and columns are never opaque (the iris never
 // reaches them, so the course shows through there, under the border on a console), so the strip is first scaled about
 // the picture's opaque part (refit_strip) for that to fill the height, or the course showed in a band across the
-// window's top. In a window wider than 4:3 the buffer then draws, from the 4:3 frame's sides
-// out to the window's (G_EX_ASPECT_STRETCH), black at the alpha of the strip's outer columns (2 and 303, the outermost
-// the iris reaches), the strip's own texture read one column across, row by row as the strip is drawn. So the sides go
-// black row by row as the iris closes over the picture's edges, and back to the course as it opens, as the console's
-// picture covers its screen (the iris's edge is ragged there, as the game draws it, so a few rows of a side can stay
-// black a frame longer than those round them). With Aspect Ratio Original nothing changes.
+// window's top. In a window wider than 4:3 the function's list then calls one more buffer, after the strips, that draws
+// black from the 4:3 frame's sides out to the window's (G_EX_ASPECT_STRETCH) wherever the iris's circle, carried on
+// past the picture's sides, has the picture opaque, row by row of the texture (put_sides): the circle is one of
+// func_8006C484's, a word of two pixels across to a row down about word 76 and row 112, the radius inside which the
+// picture is clear read off its phase and counter (clear_radius). So the black closes in over the course with the
+// picture's own edge and opens again with it, at its shape, where black at the alpha of the picture's outer columns
+// went black and clear a whole row at a time (the game clamps its circle to the picture, so as it closes those columns
+// go opaque with its first rings), in blocks and lines across the course. Its rows are drawn under a primitive colour of their
+// own each game frame, so RT64 pairs none of them between game frames (put_sides says why). With Aspect Ratio Original nothing changes.
 
 #include <cmath>
 #include <cstdint>
