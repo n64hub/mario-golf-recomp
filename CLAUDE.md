@@ -142,7 +142,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   or it stands away from the hole and its marker, and draws them between game frames only with
   `RT64_INTERPOLATE_SCREEN_VERTICES`, or it shakes at its foot at a display rate above 30. Ring Shot's rings sample a
   32x32 map the game rebuilds each frame from strips of the picture, often fewer than its 32 rows, which RT64 draws from
-  what RAM holds only with `RT64_TILE_COPY_TMEM_FALLBACK`, or they draw solid black now and then. The course's terrain is
+  what RAM holds only with `RT64_TILE_COPY_TMEM_FALLBACK`, or they draw solid black now and then. Metal Mario's shine
+  is such a map too, 8x1 strips of the frame before far apart, which his body samples bilinearly: RT64 blends a
+  framebuffer no wider than 64 by its own texels (`runtime-patches/rt64-2-small-framebuffers-filtered-by-their-texels.patch`),
+  or at a high resolution each texel was a hard-edged square. The course's terrain is
   never drawn at its coarsest level of detail (`us.toml`): its edges left cracks beside finer blocks at a high
   resolution. Its players take turns on one view, never a split screen. `src/game/golfer.cpp` puts each golfer's
   joints in a matrix group of its own, each joint's matrix blended whole between the game's frames and its position
