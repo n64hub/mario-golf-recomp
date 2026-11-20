@@ -1,6 +1,7 @@
 // Mario Golf: Recompiled on RecompFrontend: its launcher (Load ROM, Start Game), settings menus, input and RT64
 // render context. The natives the patches call are recomp_api.cpp, the settings config.cpp.
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <cassert>
@@ -461,7 +462,30 @@ static bool get_n64_input(int player_index, uint16_t* buttons_out, float* x_out,
 // needs nobody at the window. Needs the ROM already stored.
 static bool autoboot = false;
 
-void on_launcher_update(recompui::LauncherMenu*) {
+// The backdrop behind the launcher's menu (assets/launcher_background.svg, drawn for the project from plain shapes).
+// RmlUi draws an SVG stretched to its element's box, whatever its preserveAspectRatio says, and the launcher sizes it
+// by the window's width alone, leaving bands of solid colour above and below it in a window taller than 16:9. So
+// whenever the window's shape changes it is sized to cover the window at its own 16:9, centred, and the window crops it.
+static recompui::Svg* backdrop = nullptr;
+
+static void fit_backdrop(recompui::LauncherMenu* menu) {
+    static float fitted_aspect = 0.0f;
+    float width = menu->get_background_container()->get_client_width();
+    float height = menu->get_background_container()->get_client_height();
+    if (backdrop == nullptr || width <= 0.0f || height <= 0.0f || width / height == fitted_aspect) {
+        return;
+    }
+    fitted_aspect = width / height;
+    float scale = std::max(width / 16.0f, height / 9.0f);
+    backdrop->set_left(50.0f, recompui::Unit::Percent);
+    backdrop->set_top(50.0f, recompui::Unit::Percent);
+    backdrop->set_width(16.0f * scale / width * 100.0f, recompui::Unit::Percent);
+    backdrop->set_height(9.0f * scale / height * 100.0f, recompui::Unit::Percent);
+    backdrop->set_translate_2D(-50.0f, -50.0f, recompui::Unit::Percent);
+}
+
+void on_launcher_update(recompui::LauncherMenu* menu) {
+    fit_backdrop(menu);
     static bool done = false;
     if (!autoboot || done) {
         return;
@@ -480,6 +504,7 @@ void on_launcher_init(recompui::LauncherMenu* menu) {
     const recomp::GameEntry& game = supported_games[0];
     auto game_options_menu = menu->init_game_options_menu(game.game_id, game.mod_game_id, game.display_name, game.thumbnail_bytes);
     game_options_menu->add_default_options();
+    backdrop = menu->set_launcher_background_svg("launcher_background.svg");
 }
 
 void enable_texture_pack(recomp::mods::ModContext& context, const recomp::mods::ModHandle& mod) {
