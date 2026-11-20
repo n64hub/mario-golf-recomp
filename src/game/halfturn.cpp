@@ -214,6 +214,15 @@ bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1
             float screen_x = CENTRE_X - half * S;
             black_to = std::fmin(left, CENTRE_X + (screen_x - CENTRE_X) / wide);
         }
+        if (radius >= 0.0f && radius * radius > dy * dy) { // DEBUG outline
+            float half = 2.0f * std::sqrt(radius * radius - dy * dy) + 1.0f;
+            float u = CENTRE_X + (-half * S) / wide;
+            if (u > 0.5f && u < CENTRE_X) {
+                uint32_t q = uint32_t(std::lround(u * 4.0f));
+                put_black(out, q - 1, y0, q + 1, y1, t, dsdx);
+                put_black(out, 1280 - q - 1, y0, 1280 - q + 1, y1, t, dsdx);
+            }
+        }
         uint32_t x = uint32_t(std::lround(std::fmax(black_to, 0.0f) * 4.0f));
         if (x > 0 && y1 > y0) {
             put_black(out, 0, y0, x, y1, t, dsdx);
