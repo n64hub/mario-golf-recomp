@@ -42,7 +42,7 @@ namespace {
 constexpr uint32_t HEAD_ON_STACK = 0x28;
 // F3DEX2's commands this reads and writes (the decomp's include/PR/gbi.h).
 constexpr uint32_t G_DL = 0xDE, G_ENDDL = 0xDF, G_TEXRECT = 0xE4, G_RDPHALF_1 = 0xE1, G_RDPHALF_2 = 0xF1;
-constexpr uint32_t G_SETCOMBINE = 0xFC;
+constexpr uint32_t G_SETCOMBINE = 0xFC, G_SETPRIMCOLOR = 0xFA;
 constexpr uint32_t G_DL_PUSH = 0, G_DL_NOPUSH = 1;
 // G_SETCOMBINE's for black, opaque: colour 0 and alpha 1 in both cycles.
 constexpr uint32_t BLACK_W0 = 0xFCFFFFFF, BLACK_W1 = 0xFFFFFDFE;
@@ -70,8 +70,8 @@ constexpr uint32_t BUFFER_COUNT = 224;
 
 // Free RDRAM after border.cpp's buffers: five of 12 KB, used in turn, a frame's sides each.
 constexpr uint32_t SIDES_BASE = 0x807B1000;
-constexpr uint32_t SIDES_SIZE = 0x7800;
-constexpr uint32_t SIDES_COUNT = 2;
+constexpr uint32_t SIDES_SIZE = 0x3000;
+constexpr uint32_t SIDES_COUNT = 5;
 
 uint8_t* g_rdram;
 uint32_t g_from = 0;
@@ -154,12 +154,11 @@ void move_strip(uint32_t rect) {
     wr_w(rect + 4, buffer & 0x1FFFFFFF);
 }
 
-// A black rectangle from x0 to x1 and y0 to y1 (quarter pixels), its texture (which the combine never reads) at t and
-// stepped by dsdx (s10.5 and s5.10).
-void put_black(Writer& out, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t t, uint32_t dsdx) {
+// A black rectangle from x0 to x1 and y0 to y1 (quarter pixels).
+void put_black(Writer& out, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1) {
     out.put((G_TEXRECT << 24) | (x1 << 12) | y1, (x0 << 12) | y0);
-    out.put(G_RDPHALF_1 << 24, t & 0xFFFF);
-    out.put(G_RDPHALF_2 << 24, dsdx << 16);
+    out.put(G_RDPHALF_1 << 24, 0);
+    out.put(G_RDPHALF_2 << 24, 0);
 }
 
 // The radius (in the iris's units: a word of two pixels across, a row down) inside which the picture is clear this
@@ -193,14 +192,16 @@ bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1
     out.put(BLACK_W0, BLACK_W1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    // One rectangle a side for each of the texture's rows, each a game frame at a texture scale and place the frame
-    // before's weren't: RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) pairs a rectangle with one of the frame
-    // before at its place or of its size nearby (or four times its size away) with the same scale, or of another scale
-    // with the same texels at its corners, and draws it between the two in the frames between the game's, so rows
-    // were drawn between other rows' places, in bars and wedges across the course. Unpaired, the sides step a game
-    // frame at a time, as the iris in the picture does.
+    // One rectangle a side for each of the texture's rows, under a primitive colour (which the combine never reads)
+    // that is another each game frame: RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) pairs a rectangle that
+    // samples no texture with one of the frame before drawn with the same combine, modes and colours, at its place or
+    // of its size up to 16 pixels away, and draws it between the two in the frames between the game's, so rows were
+    // drawn at other rows' widths, in bars and steps across the course. Unpaired, the sides step a game frame at a
+    // time, as the iris in the picture does.
     g_odd_frame = !g_odd_frame;
-    uint32_t t = g_odd_frame ? 64 * 32 : 0, dsdx = g_odd_frame ? 1 : 0;
+    gEXPushPrimColor(c);
+    out.put(c, 1);
+    out.put(G_SETPRIMCOLOR << 24, g_odd_frame ? 0x000001FF : 0x000000FF);
     bool any = false;
     for (int row = int(OPAQUE_FROM); row < 224; row++) {
         uint32_t y0 = uint32_t(std::lround((row - OPAQUE_FROM) * S * 4.0f));
@@ -214,22 +215,15 @@ bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1
             float screen_x = CENTRE_X - half * S;
             black_to = std::fmin(left, CENTRE_X + (screen_x - CENTRE_X) / wide);
         }
-        if (radius >= 0.0f && radius * radius > dy * dy) { // DEBUG outline
-            float half = 2.0f * std::sqrt(radius * radius - dy * dy) + 1.0f;
-            float u = CENTRE_X + (-half * S) / wide;
-            if (u > 0.5f && u < CENTRE_X) {
-                uint32_t q = uint32_t(std::lround(u * 4.0f));
-                put_black(out, q - 1, y0, q + 1, y1, t, dsdx);
-                put_black(out, 1280 - q - 1, y0, 1280 - q + 1, y1, t, dsdx);
-            }
-        }
         uint32_t x = uint32_t(std::lround(std::fmax(black_to, 0.0f) * 4.0f));
         if (x > 0 && y1 > y0) {
-            put_black(out, 0, y0, x, y1, t, dsdx);
-            put_black(out, uint32_t(SCREEN_WIDTH * 4) - x, y0, uint32_t(SCREEN_WIDTH * 4), y1, t, dsdx);
+            put_black(out, 0, y0, x, y1);
+            put_black(out, uint32_t(SCREEN_WIDTH * 4) - x, y0, uint32_t(SCREEN_WIDTH * 4), y1);
             any = true;
         }
     }
+    gEXPopPrimColor(c);
+    out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
     out.put(combine_w0, combine_w1);
