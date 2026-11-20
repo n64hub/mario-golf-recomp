@@ -252,7 +252,7 @@ text = "{ void mg_aim_begin(uint8_t*); mg_aim_begin(rdram); }"
 [[patches.hook]]
 func = "func_ovl0_8021C6B4"
 before_vram = 0x8021D68C
-text = "{ void mg_aim_end(uint8_t*); mg_aim_end(rdram); }"
+text = "{ void mg_aim_end(uint8_t*, int); mg_aim_end(rdram, 0); }"
 
 [[patches.hook]]
 func = "func_ovl0_8021C6B4"
@@ -262,7 +262,7 @@ text = "{ void mg_aim_begin(uint8_t*); mg_aim_begin(rdram); }"
 [[patches.hook]]
 func = "func_ovl0_8021C6B4"
 before_vram = 0x8021DDC4
-text = "{ void mg_aim_end(uint8_t*); mg_aim_end(rdram); }"
+text = "{ void mg_aim_end(uint8_t*, int); mg_aim_end(rdram, 1); }"
 
 # The course's trees and Bomb-ombs paired between the game's frames only with billboards of their own size
 # (src/game/billboard.cpp): in each display list the game sends, each billboard is put in a matrix group of its scale's,
