@@ -18,13 +18,27 @@
 // slides it between the two. RT64 itself puts a texture rectangle's edges on whole pixels, which slid from the quarter
 // pixel one game frame had to the whole one the next has, so each began off where the last ended and the flag hopped
 // as much as before: with RT64_SUBPIXEL_TEXRECTS (CMakeLists.txt) it draws one at the quarter pixel it is given. Only
-// x is moved, as a turn of the view moves the marks across; y stays on the game's whole pixel. A rectangle the game
-// cut at a side of the screen is left as it is. Whatever the window's shape.
+// x is moved, as a turn of the view moves the marks across; y stays on the game's whole pixel. Whatever the window's
+// shape.
+//
+// In a window wider than 4:3 (RT64's Aspect Ratio Expand) the marks also go on into the wide picture's sides with the
+// course. The game draws a mark wherever its point is, but the RDP's scissor, the 3D's (8 to 312), cut it there, and
+// RT64 draws a texture rectangle in the 4:3 frame, so the flag went out at a vertical line 8 pixels inside the 4:3
+// frame's side as the view turned it toward the window's edge, with a quarter of the window still to go (issue 181).
+// mg_aim_end hands each mark's rectangles to src/game/ball.cpp, which draws them as the ball's sprites are drawn into
+// the sides (mg_widen_rects, its header says how), one the game cut at a side moved across by the same fraction there,
+// as it is never moved here. It draws them that way wherever they are in a wide window, not only near a side: RT64
+// slides a rectangle between two game frames only from one drawn the same way, and the flag drawn the one way and then
+// the other slid tens of pixels the wrong way for a game frame as it came in past the 4:3 frame's side. RT64 pairs a
+// rectangle with the last game frame's only if it moved less than its longer side, and the flag moves 22 to 26 pixels
+// a game frame as the view turns fast: RT64 (N64Recomp-browser's rt64.patch) pairs it up to four times that far, as no
+// other rectangle looks like it, or it held still between game frames and stepped against the course.
 
 #include <cmath>
 #include <cstdint>
 
 float mg_last_projected_dx();
+void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx);
 
 namespace {
 
@@ -69,10 +83,10 @@ extern "C" void mg_aim_end(uint8_t* rdram) {
     g_open = false;
     g_rdram = rdram;
     uint32_t end = rd_w(MG_GFX_HEAD);
-    if (g_dx == 0 || end <= g_start || (end - g_start) / 8 > MAX_COMMANDS || (g_start & 7) != 0) {
+    if (end <= g_start || (end - g_start) / 8 > MAX_COMMANDS || (g_start & 7) != 0) {
         return;
     }
-    for (uint32_t addr = g_start; addr + 24 <= end; addr += 8) {
+    for (uint32_t addr = g_start; g_dx != 0 && addr + 24 <= end; addr += 8) {
         uint32_t w0 = rd_w(addr);
         if ((w0 >> 24) != G_TEXRECT || (rd_w(addr + 8) >> 24) != G_RDPHALF_1 || (rd_w(addr + 16) >> 24) != G_RDPHALF_2) {
             continue;
@@ -85,4 +99,5 @@ extern "C" void mg_aim_end(uint8_t* rdram) {
         }
         addr += 16;
     }
+    mg_widen_rects(rdram, g_start, end, g_dx);
 }
