@@ -139,35 +139,26 @@ void draw(uint32_t addr, float scale, const Extent* s_extent, const Extent* t_ex
     // s and t are s10.5 texels, dsdx and dtdy s5.10 texels a pixel.
     float s = float(int16_t(st >> 16)) / 32.0f, t = float(int16_t(st & 0xFFFF)) / 32.0f;
     float dsdx = float(int16_t(d >> 16)) / 1024.0f, dtdy = float(int16_t(d & 0xFFFF)) / 1024.0f;
-    float x0 = float(MASK_LEFT) / 4.0f, x1 = float(MASK_RIGHT) / 4.0f;
+    float x0 = 0.0f, x1 = float(SCREEN_WIDTH);
     float y0 = float(MASK_TOP) / 4.0f, y1 = float(MASK_BOTTOM) / 4.0f;
-    bool wide = scale > 1.0f;
-    if (wide) {
-        float wide_dsdx = std::round(dsdx * 1024.0f * scale);
-        if (wide_dsdx > float(INT16_MAX)) {
-            return;
-        }
-        float back = float(SCREEN_MIDDLE) * (scale - 1.0f) + x0;
-        s = std::max(std::round((s - back * dsdx) * 32.0f), float(INT16_MIN)) / 32.0f;
-        dsdx = wide_dsdx / 1024.0f;
-        x0 = 0.0f;
-        x1 = float(SCREEN_WIDTH);
-    }
-    bool split = s_extent != nullptr && dsdx > 0.0f && dtdy > 0.0f && mg::enhancements();
-    if (!wide && !split) {
+    scale = std::max(scale, 1.0f);
+    float wide_dsdx = std::round(dsdx * 1024.0f * scale);
+    if (wide_dsdx > float(INT16_MAX)) {
         return;
     }
+    float back = float(SCREEN_MIDDLE) * (scale - 1.0f) + float(MASK_LEFT) / 4.0f;
+    s = std::max(std::round((s - back * dsdx) * 32.0f), float(INT16_MIN)) / 32.0f;
+    dsdx = wide_dsdx / 1024.0f;
+    bool split = s_extent != nullptr && dsdx > 0.0f && dtdy > 0.0f && mg::enhancements();
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
     Writer out{ buffer };
     GfxCommand c[1];
-    if (wide) {
-        gEXEnable(c);
-        out.put(c, 1);
-        gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
-        out.put(c, 1);
-    }
+    gEXEnable(c);
+    out.put(c, 1);
+    gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
+    out.put(c, 1);
     if (split) {
         // The pixels that sample inside the texture, to whole ones, and the surround on the texture's corner texel.
         float left = std::ceil(pixel_at(s_extent->first, x0, x1, s, dsdx));
@@ -183,10 +174,8 @@ void draw(uint32_t addr, float scale, const Extent* s_extent, const Extent* t_ex
     } else {
         put_rect(out, tile, x0, x1, y0, y1, s, t, dsdx, dtdy);
     }
-    if (wide) {
-        gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
-        out.put(c, 1);
-    }
+    gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
+    out.put(c, 1);
     out.put((G_DL << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
 
     wr_w(addr, (G_DL << 24) | (G_DL_NOPUSH << 16));
