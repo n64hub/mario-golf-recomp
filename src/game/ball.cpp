@@ -61,7 +61,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
@@ -128,9 +127,6 @@ constexpr uint32_t G_SETPRIMCOLOR = 0xFA;
 // How far inside each side of the screen the sun must be for the game to draw the flare: its own 16 pixels, or with
 // Enhancements On none, so that the circles fade out to the side rather than going 16 pixels before it.
 float flare_edge() {
-    if (std::getenv("MG_FLARE_OLD") != nullptr) { // WIP: temporary, the last release's rule for comparison
-        return FLARE_EDGE;
-    }
     return mg::enhancements() ? 0.0f : FLARE_EDGE;
 }
 
@@ -377,15 +373,10 @@ void place_flare(uint32_t start, uint32_t end) {
     }
     float sx = rd_f(SUN_X), sy = rd_f(SUN_Y);
     float inside = std::min(std::min(sx, SCREEN_WIDTH / 4 - sx), std::min(sy, SCREEN_HEIGHT / 4 - sy)) - flare_edge();
-    bool log = std::getenv("MG_FLARE_LOG") != nullptr; // WIP: temporary, the sun's place each frame
-    int drawn = 0;
-    if (log && !(inside > 0.0f)) {
-        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f drawn=-1\n", sx, sy, inside);
-    }
     if (!(inside > 0.0f)) {
         return;
     }
-    float fade = std::min(1.0f, inside / (std::getenv("MG_FLARE_OLD") != nullptr ? 32.0f : FLARE_FADE));
+    float fade = std::min(1.0f, inside / FLARE_FADE);
     bool fading = mg::enhancements() && fade < 1.0f;
     float cx[FLARE_CIRCLES], cy[FLARE_CIRCLES];
     for (int i = 0; i < FLARE_CIRCLES; i++) {
@@ -432,14 +423,10 @@ void place_flare(uint32_t start, uint32_t end) {
                     wr_w(addr - 16, (w0 & 0xFF000000) | (uint32_t(x + w) << 12) | uint32_t(y + t));
                     wr_w(addr - 12, (w1 & 0xFF000000) | (uint32_t(x) << 12) | uint32_t(y));
                 }
-                drawn++;
                 i = FLARE_CIRCLES;
                 break;
             }
         }
-    }
-    if (log) {
-        fprintf(stderr, "MGFLARE sun=%.2f,%.2f inside=%.2f drawn=%d fade=%.2f\n", sx, sy, inside, drawn, fading ? fade : 1.0f);
     }
 }
 
