@@ -129,7 +129,8 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   frame as the view turned, and draws them on into the wide picture's sides as `ball.cpp` draws its sprites, where the
   3D's scissor cut them 8 pixels inside the 4:3 frame (RT64_INTERPOLATE_RECT_SCROLLS pairs
   the flag between game frames up to four times its size away, as no other rectangle looks like it, or it stepped as
-  the view turned fast), and `src/game/screen.cpp` scales the title and the menus, 2D screens
+  the view turned fast), and draws the flag with the filter at point, as a console's whole pixel samples it, where
+  RT64's samples between texels blended in blue and the next frame's cup at its edges, and `src/game/screen.cpp` scales the title and the menus, 2D screens
   RT64 keeps at 4:3 inside the game's own 8-pixel border, to the picture's full height, the tile wipe between the title
   and the main menu included, and `src/game/credits.cpp`
   the end credits' last picture the same way, which RT64 stretched across the window, `src/game/halfturn.cpp`
