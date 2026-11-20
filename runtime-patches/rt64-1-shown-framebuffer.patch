@@ -1,0 +1,76 @@
+diff --git a/src/hle/rt64_present_queue.cpp b/src/hle/rt64_present_queue.cpp
+index e8fa300..6c57f92 100644
+--- a/src/hle/rt64_present_queue.cpp
++++ b/src/hle/rt64_present_queue.cpp
+@@ -218,6 +218,13 @@ namespace RT64 {
+                                 break;
+                             }
+                         }
++
++                        // The framebuffer the frame shows (colorImageShownAddress) is shown where the last three VIs miss it,
++                        // not an earlier color image of the frame's that they hold: Mario Golf's course alone, drawn into the
++                        // framebuffer it showed two frames before as it turned a putt's aim from two framebuffers to a third.
++                        if ((colorFb != presentFb) && (colorFb->addressStart == ext.sharedResources->colorImageShownAddress)) {
++                            presentFb = colorFb;
++                        }
+                     }
+ 
+                     // Present early (or games that behave like it) will make it so that the presented image is a color image
+diff --git a/src/hle/rt64_shared_queue_resources.h b/src/hle/rt64_shared_queue_resources.h
+index 4bd6d21..4fb1da7 100644
+--- a/src/hle/rt64_shared_queue_resources.h
++++ b/src/hle/rt64_shared_queue_resources.h
+@@ -71,6 +71,9 @@ namespace RT64 {
+         // Workload to present state.
+         uint32_t viOriginalRate = 0;
+         std::vector<uint32_t> colorImageAddressVector;
++        // The framebuffer the frame of colorImageAddressVector shows: the last one its workloads draw that the VI has
++        // shown (Workload::shownFbAddress), or 0.
++        uint32_t colorImageShownAddress = 0;
+         std::unordered_set<uint32_t> colorImageAddressSet;
+         std::vector<std::unique_ptr<RenderTarget>> interpolatedColorTargets;
+         InterpolatedFrameCounters interpolatedFrames[2];
+diff --git a/src/hle/rt64_workload_queue.cpp b/src/hle/rt64_workload_queue.cpp
+index 69684b0..874bc78 100644
+--- a/src/hle/rt64_workload_queue.cpp
++++ b/src/hle/rt64_workload_queue.cpp
+@@ -1338,6 +1338,20 @@ namespace RT64 {
+                 // the presentation's SkipBuffering shows, and read it while this thread drew it. Turok 2's map, drawn in the
+                 // frame's second workload after the level, was missing from 3-10% of the frames shown while it was open.
+                 thread_local std::vector<uint32_t> frameColorImages;
++
++                // The framebuffer the frame shows: the last one its workloads draw that the VI has shown. It alone is the
++                // frame's interpolation target, where it is one, and not an earlier color image, which may be another
++                // framebuffer the VI shows that the game draws as a picture of its own first: Mario Golf, as a putt's aim
++                // turns, draws the course alone into the framebuffer it showed two frames before, then the whole picture
++                // into the next one. That one's interpolationEnabled was off (no present had shown it of late), the course
++                // alone's was on, and the frame and the one drawn after it were drawn from the course alone, without the
++                // golfer, the HUD or the aim's grid.
++                uint32_t frameShownAddress = 0;
++                for (uint32_t w = 0; w < frameWorkloadCount; w++) {
++                    const Workload &frameWorkload = workloads[workloadIndices[w]];
++                    frameShownAddress = frameWorkload.drawsShown ? frameWorkload.shownFbAddress : frameShownAddress;
++                }
++
+                 {
+                     std::scoped_lock<std::mutex> managerLock(ext.sharedResources->managerMutex);
+                     FramebufferManager &fbManager = ext.sharedResources->framebufferManager;
+@@ -1369,6 +1383,10 @@ namespace RT64 {
+                             continue;
+                         }
+ 
++                        if ((frameShownAddress != 0) && (colorImg.address != frameShownAddress)) {
++                            continue;
++                        }
++
+                         Framebuffer *interpolationFb = fbManager.find(colorImg.address);
+                         if ((interpolationFb != nullptr) && interpolationFb->interpolationEnabled) {
+                             interpolationTargetKey.fbType = Framebuffer::Type::Color;
+@@ -1630,6 +1648,7 @@ namespace RT64 {
+                     // After one frame is rendered, we indicate the workload has been processed so the present thread can start presenting frames as soon as it can.
+                     if (frame == 0) {
+                         ext.sharedResources->colorImageAddressVector = frameColorImages;
++                        ext.sharedResources->colorImageShownAddress = frameShownAddress;
+                         threadAdvanceWorkloadId(lastWorkload.workloadId);
+                     }
+ 
