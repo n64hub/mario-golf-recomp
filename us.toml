@@ -66,6 +66,19 @@ func = "func_80069D08"
 before_vram = 0x80069ED8
 text = "{ void mg_load_end(uint8_t*); mg_load_end(rdram); }"
 
+# Ring Shot's stage-select slats over the whole picture (src/game/slats.cpp): around func_ovl13_802423A4, which draws
+# them, what it adds to the display list (its a0 the word the list's head is kept in) is put back to reach the picture's
+# edges, plain planks past its 4:3 picture.
+[[patches.hook]]
+func = "func_ovl13_802423A4"
+before_vram = 0x802423B0
+text = "{ void mg_slats_begin(uint8_t*, uint32_t); mg_slats_begin(rdram, (uint32_t)ctx->r4); }"
+
+[[patches.hook]]
+func = "func_ovl13_802423A4"
+before_vram = 0x802427B8
+text = "{ void mg_slats_end(uint8_t*); mg_slats_end(rdram); }"
+
 # The main loop's call of address 0 (a debug library's function the release doesn't link), with a0 = 100, made only
 # while the byte at 0x800B67C8 is 2. Nothing sets it but the graphics callback, from 1 to 2 when A, B, L and R are held,
 # and nothing sets it to 1, so the call never runs; N64Recomp needs a function to call there, and it calls nothing.
