@@ -46,6 +46,12 @@ constexpr uint32_t MAX_STRIPS = 38;
 constexpr int LEFT_COLUMN = 2, RIGHT_COLUMN = 303;
 
 constexpr float SCREEN_WIDTH = 320.0f, SCREEN_HEIGHT = 240.0f, CENTRE_X = 160.0f, CENTRE_Y = 120.0f;
+// The picture's first two rows and columns are never opaque (the iris reaches neither, so the course shows through
+// them, under the border on a console): its opaque part, its rows 2 to 223 and columns 2 to 303, is scaled to fill the
+// 224 lines inside the border by OPAQUE, its middle column (161 on the screen) to the screen's, before screen.cpp
+// scales it on, or the course showed in a band across the window's top 8 of 720 lines.
+constexpr float BORDER = 8.0f, OPAQUE_FROM = 2.0f, OPAQUE = 224.0f / (224.0f - OPAQUE_FROM);
+constexpr float OPAQUE_CENTRE_X = BORDER + OPAQUE_FROM + (304.0f - OPAQUE_FROM) / 2.0f;
 // Its scale: its 224 lines to the picture's 240, as screen.cpp scales a 2D screen.
 constexpr float FILL = 240.0f / 224.0f;
 
@@ -118,6 +124,30 @@ bool put_side(Writer& out, uint32_t rect, uint32_t x0, uint32_t x1) {
     return true;
 }
 
+// A coordinate of the game's picture (quarter pixels, a rectangle's) moved by OPAQUE about from, which goes to to.
+uint32_t refit(uint32_t quarters, float to, float from) {
+    float v = to + (quarters / 4.0f - from) * OPAQUE;
+    return uint32_t(std::lround(std::fmax(v, 0.0f) * 4.0f)) & 0xFFF;
+}
+
+// The strip's copy at rect refitted (refit) about the opaque part, its texture's steps fitted to its new edges.
+void refit_strip(uint32_t rect) {
+    uint32_t w0 = rd_w(rect), w1 = rd_w(rect + 4), d = rd_w(rect + 20);
+    uint32_t ulx = (w1 >> 12) & 0xFFF, uly = w1 & 0xFFF, lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF;
+    // Across about the middles of the two, so its sides lose as much; down from the border's top.
+    uint32_t nulx = refit(ulx, CENTRE_X, OPAQUE_CENTRE_X), nlrx = refit(lrx, CENTRE_X, OPAQUE_CENTRE_X);
+    uint32_t nuly = refit(uly, BORDER, BORDER + OPAQUE_FROM), nlry = refit(lry, BORDER, BORDER + OPAQUE_FROM);
+    if (nlrx <= nulx || nlry <= nuly) {
+        return;
+    }
+    // The texels it reads, across its new width and height.
+    float s_step = int16_t(d >> 16) * float(lrx - ulx) / float(nlrx - nulx);
+    float t_step = int16_t(d & 0xFFFF) * float(lry - uly) / float(nlry - nuly);
+    wr_w(rect, (w0 & 0xFF000000) | (nlrx << 12) | nlry);
+    wr_w(rect + 4, (w1 & 0xFF000000) | (nulx << 12) | nuly);
+    wr_w(rect + 20, (uint32_t(int(std::trunc(s_step))) << 16) | (uint32_t(int(std::trunc(t_step))) & 0xFFFF));
+}
+
 // The strip at rect moved to a buffer: the strip, scaled by screen.cpp, then in a window wider than 4:3 the black
 // sides at its outer columns' alpha (combine the game's with its colour 0), and back to the list after the strip.
 void move_strip(uint32_t rect, uint32_t combine_w0, uint32_t combine_w1, float wide) {
@@ -128,6 +158,7 @@ void move_strip(uint32_t rect, uint32_t combine_w0, uint32_t combine_w1, float w
         wr_w(out.pos + i, rd_w(rect + i));
     }
     out.pos += 24;
+    refit_strip(buffer);
     if (wide > 1.0f && combine_w0 != 0) {
         // The 4:3 frame's sides, stretched across the window: a quarter pixel into the frame, so no column of the
         // course shows between them and the picture.
