@@ -191,31 +191,28 @@ bool put_sides(Writer& out, float wide, uint32_t combine_w0, uint32_t combine_w1
     out.put(BLACK_W0, BLACK_W1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
+    // One rectangle a side for each of the texture's rows, at that row's place whatever the iris does, never one for a
+    // run of rows: RT64 (RT64_INTERPOLATE_RECT_SCROLLS, CMakeLists.txt) pairs a rectangle with the frame before's at its
+    // place, or else with the nearest of its size, and draws it between the two in the frames between the game's, so
+    // runs that changed height each frame were drawn between other runs, in wedges and bars across the course.
     bool any = false;
-    uint32_t run_from = 0, run_x = 0;
-    for (int row = int(OPAQUE_FROM); row <= 224; row++) {
-        uint32_t y = uint32_t(std::lround((row - OPAQUE_FROM) * S * 4.0f));
-        uint32_t x = 0;
-        if (row < 224) {
-            float dy = row + 0.5f - IRIS_Y;
-            float black_to = left;
-            if (radius >= 0.0f && radius * radius > dy * dy) {
-                // Where the clear words end across (each two pixels, measured to its middle), on the screen, then as
-                // a stretched side's x.
-                float half = 2.0f * std::sqrt(radius * radius - dy * dy) + 1.0f;
-                float screen_x = CENTRE_X - half * S;
-                black_to = std::fmin(left, CENTRE_X + (screen_x - CENTRE_X) / wide);
-            }
-            x = uint32_t(std::lround(std::fmax(black_to, 0.0f) * 4.0f));
+    for (int row = int(OPAQUE_FROM); row < 224; row++) {
+        uint32_t y0 = uint32_t(std::lround((row - OPAQUE_FROM) * S * 4.0f));
+        uint32_t y1 = uint32_t(std::lround((row + 1 - OPAQUE_FROM) * S * 4.0f));
+        float dy = row + 0.5f - IRIS_Y;
+        float black_to = left;
+        if (radius >= 0.0f && radius * radius > dy * dy) {
+            // Where the clear words end across (each two pixels, measured to its middle), on the screen, then as a
+            // stretched side's x.
+            float half = 2.0f * std::sqrt(radius * radius - dy * dy) + 1.0f;
+            float screen_x = CENTRE_X - half * S;
+            black_to = std::fmin(left, CENTRE_X + (screen_x - CENTRE_X) / wide);
         }
-        if (row == int(OPAQUE_FROM) || x != run_x || row == 224) {
-            if (row != int(OPAQUE_FROM) && run_x > 0 && y > run_from) {
-                put_black(out, 0, run_from, run_x, y);
-                put_black(out, uint32_t(SCREEN_WIDTH * 4) - run_x, run_from, uint32_t(SCREEN_WIDTH * 4), y);
-                any = true;
-            }
-            run_from = y;
-            run_x = x;
+        uint32_t x = uint32_t(std::lround(std::fmax(black_to, 0.0f) * 4.0f));
+        if (x > 0 && y1 > y0) {
+            put_black(out, 0, y0, x, y1);
+            put_black(out, uint32_t(SCREEN_WIDTH * 4) - x, y0, uint32_t(SCREEN_WIDTH * 4), y1);
+            any = true;
         }
     }
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
