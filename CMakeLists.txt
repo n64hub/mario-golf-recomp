@@ -119,6 +119,11 @@ set(RT64_INTERPOLATE_SCREEN_VERTICES ON)
 # such a framebuffer comes from what RAM holds (RT64_TILE_COPY_TMEM_FALLBACK), or the rings drew black now and then
 # (issue 65).
 set(RT64_TILE_COPY_TMEM_FALLBACK ON)
+# The ball's sprites and the sun's lens flare are texture rectangles src/game/ball.cpp puts where the game works them
+# out, to a quarter of a pixel: on the desktop and with Emscripten, RT64 draws a texture rectangle at those corners,
+# its texture from its top (RT64_SUBPIXEL_TEXRECTS), or on the whole pixels they round up to, and the flare's circles
+# stepped against the sun's light on the game's own frames at a high display rate (issue 156).
+set(RT64_SUBPIXEL_TEXRECTS ON)
 # Metal Mario's Red and Blue costumes sample a 32x32 map each that the game draws every frame with one rectangle, the
 # screen's 320x240 scissor still set: here on the desktop too, as with Emscripten, a pair's scissor counts only to its
 # framebuffer's edges (RT64_SCISSOR_INSIDE_FRAMEBUFFER), or RT64 took the map's for a 4:3 picture and in a wider window
