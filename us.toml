@@ -324,6 +324,18 @@ func = "func_ovl16_801F7554"
 before_vram = 0x801F8000
 text = "{ void mg_credits_picture_end(uint8_t*, uint32_t); mg_credits_picture_end(rdram, (uint32_t)ctx->r29); }"
 
+# Tournament's HALF TURN picture at the picture's full height (src/game/halfturn.cpp): where its drawing
+# (func_8006C918) begins the picture's strips, and where it puts back the list's head it keeps at sp + 0x28.
+[[patches.hook]]
+func = "func_8006C918"
+before_vram = 0x8006CB44
+text = "{ void mg_half_turn_begin(uint8_t*, uint32_t); mg_half_turn_begin(rdram, (uint32_t)ctx->r29); }"
+
+[[patches.hook]]
+func = "func_8006C918"
+before_vram = 0x8006CD20
+text = "{ void mg_half_turn_end(uint8_t*, uint32_t); mg_half_turn_end(rdram, (uint32_t)ctx->r29); }"
+
 # The Game Boy Color's golfers (Kid, Sherry, Azalea and Joe) at character select, with the General tab's Game Boy
 # Golfers option (src/game/config.cpp). On a console they come only through a Transfer Pak holding Mario Golf for the
 # Game Boy Color: overlay 15's link reads the golfers the cart holds into RAM for the session (0x800FF1E8, 0x8C bytes
