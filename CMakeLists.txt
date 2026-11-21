@@ -90,7 +90,8 @@ set(RT64_GAME_FRAME_WORKLOADS ON)
 # pitches, so RT64 slides the texture and moves the strips in the frames between (RT64_INTERPOLATE_RECT_SCROLLS), or
 # they stepped a game frame at a time against the trees and fairway in front. The strip that crosses the top of the
 # picture the game cuts there, its top held at the scissor's as the rest move, and RT64 pairs it as such (rt64 8868f0d),
-# or a line of sky showed under it as the camera panned. It pairs them as the game drew them, so the end credits'
+# or a line of sky showed under it as the camera panned. Across a camera cut it pairs none (rt64 59df529), or the
+# frame between drew the strips halfway from strips of the shot before, a band across the fog. It pairs them as the game drew them, so the end credits'
 # lines, which rise a pixel a game frame, keep their place sideways near the bottom too. The end credits cut from one
 # golfer to the next between cameras that hold still, by less than RT64's turn and jump for a cut: a camera that held
 # still and then turns or jumps far in one frame cuts too (rt64 57778cd), or a frame between drew the next golfer
