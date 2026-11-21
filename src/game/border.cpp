@@ -25,7 +25,8 @@
 // hills' last strip where it already runs on past its 4 rows, its last row repeated down to the border as the game
 // draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last 8
 // lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below it,
-// where the course doesn't). One drawn in strips that each load only their own rows (the old frame Ring Shot's stage
+// where the course doesn't). The strips the game cuts at the border's bottom, or leaves with nothing to draw below it,
+// get their own rows back to the screen's bottom, so with the camera tipped up the hills reach it where the course does. One drawn in strips that each load only their own rows (the old frame Ring Shot's stage
 // select holds while its slats close) has strips of the rows above its first and below its last drawn with them. One
 // over the whole of the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's
 // copy holds only the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it
@@ -66,6 +67,7 @@
 // as the end of the list wherever its texture started left of 0, so the far hills after it, which backdrop.cpp also
 // draws from buffers of its own, were left at the 4:3 frame's sides.
 
+#include <algorithm>
 #include <cstdint>
 
 bool mg_aspect_expand();
@@ -483,6 +485,14 @@ void rect(uint32_t addr) {
     // 232 itself, a line past the border's last, so either bottom is the border's.
     else if (!game_copy && lry >= BORDER_BOTTOM - 4 && lry <= BORDER_BOTTOM && lry > uly + STRIP_ROWS * 4) {
         w0 = (w0 & ~0xFFFu) | (SCREEN_BOTTOM - inside);
+    }
+    // Any other strip of the hills the game cut at the border's bottom (0x80091958-0x80091970: its bottom the lesser of
+    // its own and 232) gets its own rows back, up to the screen's bottom. The game goes on making strips down to a top
+    // of 240 (0x80091578), so those below the border have their bottom above their top and draw nothing: with the
+    // camera tipped up, the hills stood on a straight line 8 lines above the picture's bottom, the sky under them
+    // where the course in front ran on down. A strip's own rows are its texture's, so nothing repeats.
+    else if (!game_copy && lry == BORDER_BOTTOM && uly + STRIP_ROWS * 4 > lry + inside) {
+        w0 = (w0 & ~0xFFFu) | std::min(uly + STRIP_ROWS * 4 - inside, SCREEN_BOTTOM - inside);
     }
     // The pause's copy holds the 224 lines inside the border, and its last strip runs on past them, into what lies
     // after the copy: it stops at the border.
