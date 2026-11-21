@@ -288,6 +288,7 @@ target_sources(MarioGolfRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src/game/callout.cpp
     ${CMAKE_SOURCE_DIR}/src/game/loader.cpp
     ${CMAKE_SOURCE_DIR}/src/game/slats.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/sound.cpp
 )
 if (MG_PATCHES)
     target_sources(MarioGolfRecompiled PRIVATE ${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp)

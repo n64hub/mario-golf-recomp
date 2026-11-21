@@ -367,3 +367,11 @@ text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
 func = "func_8005CA48"
 before_vram = 0x8005CEBC
 text = "{ void mg_gb_golfers_clubs(uint8_t*, recomp_context*); mg_gb_golfers_clubs(rdram, ctx); }"
+
+# The courses' ambience (src/game/sound.cpp): every 240 game frames on a hole, func_ovl0_802078F4 plays one of its
+# course's seven animal calls (D_ovl0_80223EF0) through func_80050DA0, its volume (0x5F) in a2. At that call the
+# volume is scaled by the Sound tab's Ambient Volume, 100% as on a console.
+[[patches.hook]]
+func = "func_ovl0_802078F4"
+before_vram = 0x802079F0
+text = "{ int32_t mg_ambient_volume(int32_t, int32_t); ctx->r6 = mg_ambient_volume((int32_t)ctx->r4, (int32_t)ctx->r6); }"

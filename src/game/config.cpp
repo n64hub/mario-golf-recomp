@@ -5,7 +5,8 @@
 // On by default (mg::enhancements(); its description lists them, and a new one goes under it rather than an option
 // of its own), and Game Boy Golfers and Game Boy Golfers' Stats (disabled while the first is Original), which
 // us.toml's hooks in character select (func_8005CA48) read through mg_gb_golfers and mg_gb_golfers_setup, and
-// mg_gb_golfers_clubs works out the four golfers' shots once they are in.
+// mg_gb_golfers_clubs works out the four golfers' shots once they are in. The Sound tab adds Ambient Volume, the
+// courses' animal calls (mg::ambient_volume(), which sound.cpp plays them at), 100% as on a console.
 
 #include <cstdint>
 #include <filesystem>
@@ -19,6 +20,7 @@ namespace {
     constexpr const char* enhancements_id = "enhancements";
     constexpr const char* gb_golfers_id = "gb_golfers";
     constexpr const char* gb_golfer_stats_id = "gb_golfer_stats";
+    constexpr const char* ambient_volume_id = "ambient_volume";
 
     enum class Enhancements : uint32_t {
         Original,
@@ -126,6 +128,10 @@ bool mg::enhancements() {
     return std::get<uint32_t>(value) == static_cast<uint32_t>(Enhancements::On);
 }
 
+double mg::ambient_volume() {
+    return std::get<double>(recompui::config::get_sound_config().get_option_value(ambient_volume_id));
+}
+
 void mg::init_config() {
     std::filesystem::path app_dir = recompui::file::get_app_folder_path();
     if (!app_dir.empty()) {
@@ -171,7 +177,15 @@ void mg::init_config() {
     general.add_option_disable_dependency(gb_golfer_stats_id, gb_golfers_id, GbGolfers::Original);
     recompui::config::create_controls_tab();
     recompui::config::create_graphics_tab();
-    recompui::config::create_sound_tab();
+    recomp::config::Config& sound = recompui::config::create_sound_tab();
+    sound.add_percent_number_option(
+        ambient_volume_id,
+        "Ambient Volume",
+        "The animal calls a course plays now and then: the birds of Toad Highlands, Koopa Park and the Mini-Golf "
+        "courses, Mario's Star's, and Yoshi's Island's jungle. 100% plays them as a console does, 0% leaves them out. "
+        "The music and every other sound stay as they are.",
+        100.0
+    );
     recompui::config::create_mods_tab();
     recompui::config::finalize();
 }
