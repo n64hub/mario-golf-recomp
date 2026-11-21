@@ -22,7 +22,9 @@ its edges and the HUD its sides, with the menus in the middle 4:3. The Game Boy 
 not there, but the General tab's Game Boy Golfers option puts Kid, Sherry, Azalea and Joe at character select, with
 the clubs the game has for them or, by Game Boy Golfers' Stats, its test values (Kid drives 500 yards). Its
 Enhancements option, On by default, makes changes to how the game looks that a console doesn't, such as the sun's lens
-flare fading out near the screen's edge. Original draws it all as a console does.
+flare fading out near the screen's edge. Original draws it all as a console does. The Sound tab's Ambient Volume
+lowers the animal calls a course plays now and then (Yoshi's Island's jungle, the birds elsewhere), or at 0% leaves
+them out; at 100%, the default, they play as on a console.
 
 It plays in a browser too, at [n64hub.com/mario-golf](https://n64hub.com/mario-golf/) (`docs/web.md`), and the
 desktop builds for Windows and Linux are on the [Releases](https://github.com/n64hub/mario-golf-recomp/releases) page.

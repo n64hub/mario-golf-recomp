@@ -84,7 +84,10 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   the runtime never reports full: `patches/audio.c` sizes each frame by what is queued, without which the queue grew to
   `queue_samples`' 100 ms catch-up and clicked about four times a second. A change to the sound reads what is queued
   through a play (a log of `get_queued_audio_bytes` beside each `queue_samples`, on the sound device: SDL's disk driver
-  plays slower than real time, so it never shows a queue that runs dry).
+  plays slower than real time, so it never shows a queue that runs dry). A course's ambience, the animal calls it plays
+  now and then, comes from one function,
+  func_ovl0_802078F4, every 240 game frames one of seven IDs from its course's row of a table, which the Sound tab's
+  Ambient Volume scales (`src/game/sound.cpp`, which lists each course's).
 - **Saves.** 256 Kbit of SRAM. `main.cpp` declares `SaveType::Sram`; the runtime keeps it in
   `saves/mariogolf64.n64.us.1.0.bin`.
 - **The Transfer Pak.** The game looks for one for its link with the Game Boy Color game; `src/game/libultra.cpp`
