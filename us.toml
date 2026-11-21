@@ -368,14 +368,10 @@ func = "func_8005CA48"
 before_vram = 0x8005CEBC
 text = "{ void mg_gb_golfers_clubs(uint8_t*, recomp_context*); mg_gb_golfers_clubs(rdram, ctx); }"
 
-# Every sound the game starts (src/game/sound.cpp): at the first instruction of the sound layer's two start functions,
-# before their prologue, so that a sound left out returns at once.
+# The courses' ambience (src/game/sound.cpp): every 240 game frames on a hole, func_ovl0_802078F4 plays one of its
+# course's seven animal calls (D_ovl0_80223EF0) through func_80050DA0, its volume (0x5F) in a2. At that call the
+# volume is scaled by the Sound tab's Ambient Volume, 100% as on a console.
 [[patches.hook]]
-func = "func_80050BF0"
-before_vram = 0x80050BF0
-text = "{ int mg_sound_start(uint8_t*, recomp_context*, int); if (mg_sound_start(rdram, ctx, 0)) return; }"
-
-[[patches.hook]]
-func = "func_80050DA0"
-before_vram = 0x80050DA0
-text = "{ int mg_sound_start(uint8_t*, recomp_context*, int); if (mg_sound_start(rdram, ctx, 1)) return; }"
+func = "func_ovl0_802078F4"
+before_vram = 0x802079F0
+text = "{ int32_t mg_ambient_volume(int32_t, int32_t); ctx->r6 = mg_ambient_volume((int32_t)ctx->r4, (int32_t)ctx->r6); }"
