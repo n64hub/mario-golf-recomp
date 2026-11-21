@@ -4,9 +4,9 @@
 //
 // The sky behind the course has the sun's light drawn on it in screen space, where the sun is: a texture rectangle, a
 // square around the sun as tall as it is wide (from the sun's x less its size plus one to its x plus its size, the size
-// the game's, which on Training's hole 10 shrinks from 64 to 32 as the camera follows a drive), over a 64-texel texture
-// whose s and t are mirrored past it, so a square 128 pixels across shows it and its mirror image and one 64 across it
-// once, in a pale colour, before the course. func_8008FF20 draws it. Where the sun is near or past the screen's left
+// the game's sky's: 64 by day, 96 at sunset, and on Training's hole 10 it shrinks from 64 to 32 as the camera follows
+// a drive), over a 64-texel texture whose s and t are mirrored past it, so a square 128 pixels across shows it and its
+// mirror image and one 64 across it once, in a pale colour, before the course. func_8008FF20 draws it. Where the sun is near or past the screen's left
 // side, the game cuts the rectangle at 0 and starts its texture as far in as it cut (wholly past it, the rectangle is
 // cut to nothing); on the right it lets the rectangle run past 320. Either way the game's scissor, the 3D's (8 to 312),
 // cuts it at the 4:3 frame's side. RT64 widens the 3D to the picture but draws a rectangle where the game puts it, in
@@ -34,7 +34,10 @@
 // commands go to a buffer of this file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced
 // by a branch to it, and its end a branch back. func_8008FF20's bounds on the sun's x (-64 and 384) are read through
 // mg_sun_bound_x, a us.toml hook that moves the x they compare toward the screen's middle by as much as the wide
-// picture reaches past 4:3, so the light is drawn until the last of it leaves the picture. With Aspect Ratio Original,
+// picture reaches past 4:3 and the light's half-width past the 64 those bounds allow for, so the light is drawn until
+// the last of it leaves the picture. The game's sky table (0x800C6014: a row a course, an entry for each weather and
+// time of day) gives each sky its sun, whose half-width is 96 at sunset: read as 64, that sun's light went at once
+// with its last 32 pixels still inside the wide picture's side, and came in at once as wide. With Aspect Ratio Original,
 // or a window no wider than 4:3, nothing changes. Nor does it where the 3D doesn't fill the screen (the end credits'
 // character preview, a window that shrinks to the screen's right part over black, and the small view of where the ball
 // lands), under a scissor of its own: in the credits the light widened there, and drawn for a sun the game would have
@@ -66,7 +69,10 @@
 // is drawn that far right and down inside the rectangle, whose texture's edges are clear. RT64 pairs the rectangle
 // with the last frame's as before and slides that step of its texture between them as it does a scroll. widen()
 // puts a cut at the left back in whole pixels and keeps the fraction in s, and puts the squeezed rectangle's left
-// edge on the whole pixel RT64 would, its texture starting as much further on. Whatever the window's shape.
+// edge on the whole pixel RT64 would, its texture starting as much further on, and its right edge the squeezed width
+// on from there: rounded each its own way, the edges came 1.25 pixels apart in a game frame now and then, and RT64
+// pairs a rectangle that changed size only while its edges moved a pixel apart at most, so that frame's light was
+// drawn where the game put it, not slid there, a twitch as the camera panned. Whatever the window's shape.
 //
 // And the far hills keep the width they have in the 4:3 frame. func_80091110 draws them after the light, as strips of
 // a panorama 512 texels across that repeats across s (its tile's mask), each 4 rows of it, a copy-mode texture
@@ -125,15 +131,20 @@ constexpr int SCISSOR_BOTTOM = 232;
 // How far back from the sky the game's last G_SETSCISSOR is looked for, in commands.
 constexpr uint32_t SCISSOR_LOOKBACK = 4096;
 // func_8008FF20 draws the sun's light only while the sun is less than this far past a side of the 4:3 screen (its
-// -64 and 384), in pixels: the light's half-width.
+// -64 and 384), in pixels, whatever the light's half-width.
 constexpr float SUN_REACH = 64.0f;
+// Where func_8008FF20 keeps its sky's entry in the table at 0x800C6014 (its course, weather and time of day's): at 0xC4
+// on its stack. The entry's word at 0x14 points to its sun, whose word at 0x10 is the light's half-width.
+constexpr uint32_t SUN_ENTRY_ON_STACK = 0xC4;
+constexpr uint32_t ENTRY_SUN = 0x14;
+constexpr uint32_t SUN_SIZE = 0x10;
 
 // Where func_8008FF20 keeps the sun's place on the screen, a float per view (two of them), x and then y, which it
 // truncates to whole pixels for the light's rectangle.
 constexpr uint32_t SUN_X = 0x800C5F24;
 constexpr uint32_t SUN_Y = 0x800C5F2C;
 constexpr int SUN_VIEWS = 2;
-// The light's half-width, at most, in pixels (the game's size: 64, or less as on Training's hole 10).
+// The light's half-width, at most, in pixels (the game's size: 64 by day, 32 or 48 at other times, 96 at sunset).
 constexpr int SUN_MAX_SIZE = 128;
 
 // Above hud.cpp's buffers. Two lists a frame, and the renderer may read one a frame or more after the game sends it.
@@ -234,7 +245,6 @@ bool widen(uint32_t addr, const Tile& tile, float scale, bool always) {
     // Drawn stretched to the picture, as RT64 draws a rectangle across the whole screen: the game's own scissor (the
     // 3D's, 8 to 312) is then the 3D's in the picture too. So that the light keeps its shape, the rectangle is put
     // nearer the screen's middle and its texture stepped faster by as much as the stretch spreads them.
-    auto squeeze = [scale](int x) { return int(std::lround(SCREEN_WIDTH * 2 + (x - SCREEN_WIDTH * 2) / scale)); };
     int wide_dsdx = int(std::lround(dsdx * scale));
     if (wide_dsdx > INT16_MAX) {
         return false;
@@ -248,6 +258,11 @@ bool widen(uint32_t addr, const Tile& tile, float scale, bool always) {
     if (new_s < INT16_MIN || new_s > INT16_MAX) {
         return false;
     }
+    // The right edge is the squeezed width on from that left edge, so the two move together: RT64 pairs a rectangle
+    // whose size changed with the last frame's only while its edges moved a pixel apart at most, and the left edge's
+    // whole pixel and the right one's quarter, each rounded its own way, came 1.25 pixels apart now and then, a frame
+    // the light was then drawn where the game put it and not slid there, a twitch as the camera panned (issue 208).
+    int wide_lrx = wide_ulx + int(std::lround((new_lrx - new_ulx) / scale));
 
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
@@ -257,7 +272,7 @@ bool widen(uint32_t addr, const Tile& tile, float scale, bool always) {
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, wide_ulx, uly, squeeze(new_lrx), lry,
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, wide_ulx, uly, wide_lrx, lry,
                         (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
@@ -529,13 +544,26 @@ bool tag_sky(uint32_t start, uint32_t end) {
 
 // The sun's x on the screen as func_8008FF20's bounds read it: moved toward the screen's middle by as much as the wide
 // picture reaches further, so that the light is drawn while any of it is in the picture.
-extern "C" float mg_sun_bound_x(float x) {
+extern "C" float mg_sun_bound_x(uint8_t* rdram, uint32_t sp, float x) {
     float scale = mg_wide_scale();
     if (scale <= 1.0f || !g_full) {
         return x;
     }
+    g_rdram = rdram;
+    // The light reaches its own half-width past the sun: 96 pixels at sunset, past the game's 64.
+    float reach = SUN_REACH;
+    uint32_t entry = rd_w(sp + SUN_ENTRY_ON_STACK);
+    if ((entry >> 23) == (0x80000000u >> 23)) {
+        uint32_t sun = rd_w(entry + ENTRY_SUN);
+        if ((sun >> 23) == (0x80000000u >> 23)) {
+            int size = int(rd_w(sun + SUN_SIZE));
+            if (size > 0 && size <= SUN_MAX_SIZE) {
+                reach = float(size);
+            }
+        }
+    }
     float half = SCREEN_WIDTH / 2.0f;
-    return half + (x - half) * (half + SUN_REACH) / (half * scale + SUN_REACH);
+    return half + (x - half) * (half + SUN_REACH) / (half * scale + reach);
 }
 
 extern "C" void mg_backdrop_begin(uint8_t* rdram) {
