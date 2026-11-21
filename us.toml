@@ -367,3 +367,15 @@ text = "{ int mg_gb_golfers(void); if (mg_gb_golfers()) ctx->r2 = 1; }"
 func = "func_8005CA48"
 before_vram = 0x8005CEBC
 text = "{ void mg_gb_golfers_clubs(uint8_t*, recomp_context*); mg_gb_golfers_clubs(rdram, ctx); }"
+
+# Every sound the game starts (src/game/sound.cpp): at the first instruction of the sound layer's two start functions,
+# before their prologue, so that a sound left out returns at once.
+[[patches.hook]]
+func = "func_80050BF0"
+before_vram = 0x80050BF0
+text = "{ int mg_sound_start(uint8_t*, recomp_context*, int); if (mg_sound_start(rdram, ctx, 0)) return; }"
+
+[[patches.hook]]
+func = "func_80050DA0"
+before_vram = 0x80050DA0
+text = "{ int mg_sound_start(uint8_t*, recomp_context*, int); if (mg_sound_start(rdram, ctx, 1)) return; }"
