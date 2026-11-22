@@ -64,6 +64,11 @@ On Linux the same lines take `clang` and `clang++` in place of `clang-cl`, and t
 back its ELF, and `tools/gen_syms.sh` turns that into N64Recomp's symbols. Only a move of `lib/mariogolf64` needs them
 again.
 
+## Thanks
+
+Thanks to [clintosfan](https://github.com/clintosfan) for testing it thoroughly: most of what has been fixed here, in
+wide windows, at high refresh rates and on every screen of the game, was found in their reports.
+
 ## License
 
 GPL-3.0 (`LICENSE`), as the recompilations it follows.
