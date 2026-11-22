@@ -116,7 +116,9 @@ This repo is the game: its recompilation, the patches over it, the desktop build
 - **Graphics.** RecompFrontend's Graphics tab defaults to Resolution Auto and Framerate Display, so RT64 interpolates
   to the display's rate. The game's own picture is 4:3: RT64's Expand widens the course, which `src/game/border.cpp`
   draws through the game's own 8-pixel border to the window's edges (on a hole and in the opening), with the depth the
-  game holds of the course while the view is still, or the pond drew over the tee's grass there, `patches/cull.c` culls the
+  game holds of the course while the view is still, or the pond drew over the tee's grass there, and the far hills'
+  strips that reach past the screen's top whole, at their own place above it, with RT64's texture rectangle, whose
+  coordinates are signed, or a band of sky crossed the picture's top as the camera tipped down, `patches/cull.c` culls the
   course's terrain at the wide picture's width rather than the 4:3 frame's, `src/game/hud.cpp` puts the HUD at the
   wide picture's sides, the hole's waving sign in a matrix group whose vertices RT64 moves between the game's frames, and `src/game/backdrop.cpp` draws the sun's beam and glare on the sky on past the 4:3 frame's
   sides, where the game's scissor cuts them, and while any of them is in the picture, where the course fills the screen, puts them where the sun is between whole pixels, by moving their texture, rather than on the game's whole one, puts the sky in a matrix group whose clouds RT64 slides

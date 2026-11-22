@@ -319,52 +319,125 @@
 236.3 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 238.3 shot 60_training_main_menu
 
+# Training again, on Shy Guy Desert's hole 1 (the course 2 at 0x801B6094 and the hole 1 at 0x801B6098, the picker's
+# hole moved from 2 to 1 with the stick so it loads them): the drive, then at the second lie four presses of S, the
+# 6-iron to the 8-iron, and the shot whose camera follows the ball up and tips down as it falls. The far hills leave the
+# picture over its top a strip at a time, faster than a strip's height a game frame, and RT64 drew each strip the game
+# put back over the border's top lines moving down to the border in the frames between, a band of sky over the hills
+# at the picture's top (issue 206). Training asks after each shot whether to go on, which Space answers (the second
+# lie comes some 4 seconds after it, and the presses of S wait 4.5); the pause is taken at the third lie, Enter pressed
+# until it comes, since a shot's question takes no Start.
+238.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+241.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+243.8 until 0x801323A8 0x000000FF 0x6 15 D
+244.8 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+246.8 unchecked middle
+246.8 poke 0x801B6094 2
+246.8 poke 0x801B6098 1
+246.8 poke 0x800F72F0 2
+247.3 until 0x800F72F0 0xFFFFFFFF 0x1 15 A
+248.8 key Space
+248.8 until 0x800B5FF8 0xFF000000 0x01000000 30
+251.8 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+252.3 poke 0x800BA9F0 0x00081650
+252.3 poke 0x800BA9F4 0xA5605DC0
+252.3 poke 0x80104F44 0xC1E973E5
+252.3 poke 0x80104F4C 0xC218717C
+252.3 poke 0x800FBD30 1
+253.3 shot 61_shy_guy_tee
+254.3 poke 0x800BA9F0 0x00081650
+254.3 poke 0x800BA9F4 0xA5605DC0
+254.3 poke 0x80104F44 0xC1E973E5
+254.3 poke 0x80104F4C 0xC218717C
+254.3 poke 0x80104F7C 0x1E
+254.3 poke 0x80104F80 0x3B
+254.3 poke 0x80104F8C 0
+254.3 poke 0x80104F90 0
+254.3 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+254.3 poke 0x80227194 1
+254.3 until 0x800FBE88 0x000000FC 0x00000030 5
+254.3 poke 0x800FBE88 0x30
+254.3 poke 0x800FBD30 1
+254.3 until 0x800FBE88 0xFFFFFFFF 0x0000003B 5
+256.3 shot 62_shy_guy_drive
+274.3 key Space
+278.3 shot 63_shy_guy_second_lie
+278.8 key S
+279.2 key S
+279.6 key S
+280 key S
+280.6 shot 64_shy_guy_eight_iron
+281.1 poke 0x800BA9F0 0x00081650
+281.1 poke 0x800BA9F4 0xA5605DC0
+281.1 poke 0x80104F44 0xC1E973E5
+281.1 poke 0x80104F4C 0xC218717C
+281.1 poke 0x80104F7C 0x1C
+281.1 poke 0x80104F80 0x38
+281.1 poke 0x80104F8C 0
+281.1 poke 0x80104F90 0
+281.1 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+281.1 poke 0x80227194 1
+281.1 until 0x800FBE88 0x000000FC 0x00000030 5
+281.1 poke 0x800FBE88 0x30
+281.1 poke 0x800FBD30 1
+281.1 until 0x800FBE88 0xFFFFFFFF 0x00000038 5
+282.1 shot 65_shy_guy_ball_up
+282.6 shot 66_shy_guy_tipped_down
+296 key Space
+298 until 0x800C306C 0x000000FF 0x00000001 20 Enter
+299.5 checked middle
+299.5 shot 67_shy_guy_pause
+299.5 until 0x80224924 0x000000FF 0x00000008 15 W
+300 shot 68_shy_guy_quit
+300 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+302 shot 69_shy_guy_main_menu
+
 # Speed Golf, last: Lakitu starts the clock (a press before is lost), and the golfer runs to the ball after the
 # shot; its pause menu has five items, and its Quit Game asks first, NO lit, which A answers, back in play. (No word in
 # RAM was found to hold which of YES and NO is lit, and A toggles it, so the plan never takes YES.)
-238.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-240.3 shot 61_character_select
-241.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-242.8 shot 62_play_modes
-243.8 until 0x801323A8 0x000000FF 0x3 15 D
-244.8 key Space
-246.3 shot 63_speed_golf_select
-247.3 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-247.3 until 0x800B5FF8 0xFF000000 0x00000000 60
-247.8 poke 0x800BA9F0 0x00081650
-247.8 poke 0x800BA9F4 0xA5605DC0
-247.8 poke 0x80104F44 0xC1E973E5
-247.8 poke 0x80104F4C 0xC218717C
-247.8 poke 0x800FBD30 1
-247.3 unchecked middle
-248.3 shot 64_speed_golf_tee
-252.3 shot 65_speed_golf_lakitu
-252.8 poke 0x800BA9F0 0x00081650
-252.8 poke 0x800BA9F4 0xA5605DC0
-252.8 poke 0x80104F44 0xC1E973E5
-252.8 poke 0x80104F4C 0xC218717C
-252.8 poke 0x80104F7C 0x16
-252.8 poke 0x80104F80 0x2C
-252.8 poke 0x80104F8C 0
-252.8 poke 0x80104F90 0
-252.8 until 0x800FBE88 0x000000F8 0x00000008 15 Space
-252.8 poke 0x80227194 1
-252.8 until 0x800FBE88 0x000000FC 0x00000024 5
-252.8 poke 0x800FBE88 0x24
-252.8 poke 0x800FBD30 1
-252.8 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
-257.2 shot 66_speed_golf_flight
-265.2 shot 67_speed_golf_landing
-271.2 shot 68_speed_golf_run
-272.2 checked middle
-272.2 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-273.7 shot 69_speed_golf_pause
-273.7 until 0x80224924 0x000000FF 0x00000004 15 W
-274.2 shot 70_speed_golf_quit
-274.7 key Space
-277.7 shot 71_speed_golf_ask
-277.7 until 0x800C306C 0x000000FF 0x00000000 15 Space
-279.2 shot 72_speed_golf_resumed
+302.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+304 shot 70_character_select
+305 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+306.5 shot 71_play_modes
+307.5 until 0x801323A8 0x000000FF 0x3 15 D
+308.5 key Space
+310 shot 72_speed_golf_select
+311 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+311 until 0x800B5FF8 0xFF000000 0x00000000 60
+311.5 poke 0x800BA9F0 0x00081650
+311.5 poke 0x800BA9F4 0xA5605DC0
+311.5 poke 0x80104F44 0xC1E973E5
+311.5 poke 0x80104F4C 0xC218717C
+311.5 poke 0x800FBD30 1
+311 unchecked middle
+312 shot 73_speed_golf_tee
+316 shot 74_speed_golf_lakitu
+316.5 poke 0x800BA9F0 0x00081650
+316.5 poke 0x800BA9F4 0xA5605DC0
+316.5 poke 0x80104F44 0xC1E973E5
+316.5 poke 0x80104F4C 0xC218717C
+316.5 poke 0x80104F7C 0x16
+316.5 poke 0x80104F80 0x2C
+316.5 poke 0x80104F8C 0
+316.5 poke 0x80104F90 0
+316.5 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+316.5 poke 0x80227194 1
+316.5 until 0x800FBE88 0x000000FC 0x00000024 5
+316.5 poke 0x800FBE88 0x24
+316.5 poke 0x800FBD30 1
+316.5 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+320.9 shot 75_speed_golf_flight
+328.9 shot 76_speed_golf_landing
+334.9 shot 77_speed_golf_run
+335.9 checked middle
+335.9 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+337.4 shot 78_speed_golf_pause
+337.4 until 0x80224924 0x000000FF 0x00000004 15 W
+337.9 shot 79_speed_golf_quit
+338.4 key Space
+341.4 shot 80_speed_golf_ask
+341.4 until 0x800C306C 0x000000FF 0x00000000 15 Space
+342.9 shot 81_speed_golf_resumed
 
 # The end credits, which a round can't reach in minutes: from Speed Golf's round the round's state machine is set
 # to its credits state (0x801B6088 = 7, 0x800C30AC = 0xF) and the fade between (scene 0xC at 0x800BB020) let through
@@ -374,15 +447,15 @@
 # rand() unless debug flag 0x99 is on (func_800299F4, the flags' bits from 0x801052F8, 0x80 the first): the plan sets
 # it (0x40 in 0x8010530B, its only reader that shuffle) and seeds rand() (its state at 0x800FBD30, which the credits
 # also draw on for their shots) as the fade is let through, so every window shows the same golfers in the same order.
-279.7 poke 0x801B6088 7
-279.7 poke 0x800C30AC 0xF
-279.7 until 0x800BB020 0xFFFFFFFF 0xC 30
-279.7 or 0x80105308 0x40
-279.7 poke 0x800FBD30 1
-279.7 poke 0x800C401C 0
-279.7 until 0x800BB020 0xFFFFFFFF 0x1E 60
-282.7 shot 73_credits_start
-322.7 shot 74_credits_names
-322.7 until 0x801F89A4 0xFFFFFE00 0xE00 240
-342.7 shot 75_credits_picture
-345.7 end
+343.4 poke 0x801B6088 7
+343.4 poke 0x800C30AC 0xF
+343.4 until 0x800BB020 0xFFFFFFFF 0xC 30
+343.4 or 0x80105308 0x40
+343.4 poke 0x800FBD30 1
+343.4 poke 0x800C401C 0
+343.4 until 0x800BB020 0xFFFFFFFF 0x1E 60
+346.4 shot 82_credits_start
+386.4 shot 83_credits_names
+386.4 until 0x801F89A4 0xFFFFFE00 0xE00 240
+406.4 shot 84_credits_picture
+409.4 end

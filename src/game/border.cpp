@@ -15,25 +15,33 @@
 // aims and swings and the ball flies, and the course isn't drawn again) or from its own copy (GAME_COPY: the pause's),
 // whose columns past the border hold the course as it was drawn. The game loads each strip of either only inside the
 // border, columns 8 to 311, so those loads are widened to the whole row with it, or the RDP's clamp repeated columns 8
-// and 311 out to the picture's sides: bars over its outer edges as the aim turned, and behind the pause, the leaderboard
-// a hole ends on and every menu over the course the game holds still (all drawn over its copy). The hills (func_80091110, backdrop.cpp's) are strips of a
-// texture whose tops the game cuts at the border, the strip's texture starting as many rows further in
-// (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width rectangle at the border's top whose
-// texture starts past its first row has those rows put back, up to 8, so the hills reach the picture's top where the
-// course does; one wholly above the border has its bottom where it was (above the screen's top, which wraps to a large
-// lry, is left as it is). A copy of the frame that ends at the border's bottom runs on to the screen's. So does the
-// hills' last strip where it already runs on past its 4 rows, its last row repeated down to the border as the game
-// draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last 8
-// lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below it,
-// where the course doesn't). The strips the game cuts at the border's bottom, or leaves with nothing to draw below it,
-// get their own rows back to the screen's bottom, so with the camera tipped up the hills reach it where the course does. One drawn in strips that each load only their own rows (the old frame Ring Shot's stage
-// select holds while its slats close) has strips of the rows above its first and below its last drawn with them. One
-// over the whole of the border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's
-// copy holds only the 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it
-// that the console draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the
-// pause), and its last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox
-// bars, rectangles as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor
-// this file makes, and reach the picture's edges by hud.cpp's hand.
+// and 311 out to the picture's sides: bars over its outer edges as the aim turned, and behind the pause, the
+// leaderboard a hole ends on and every menu over the course the game holds still (all drawn over its copy). The hills
+// (func_80091110, backdrop.cpp's) are strips of a texture whose tops the game cuts at the border, the strip's texture
+// starting as many rows further in (0x80091934-0x800919AC); a strip wholly above it is cut to nothing. A full-width
+// rectangle at the border's top whose texture starts past its first row has those rows put back, up to 8, so the hills
+// reach the picture's top where the course does; one wholly above the border has its bottom where it was. A strip that
+// reaches past the screen's top, or lies wholly above it (its bottom wrapping to a large lry, which the RDP would draw
+// down to the scissor's bottom), is drawn whole at its own place above the screen's top with RT64's texture rectangle,
+// whose coordinates are signed, so each strip is the same rectangle from frame to frame as the camera tips: cut at the
+// screen's top, RT64 drew the strips there off their place in the frames between, a band of sky across the picture's
+// top or through the pyramids as the camera tipped down fast. Rows are put back only where they are the strip's own:
+// the last strip, drawn down to the border's bottom whatever its rows, keeps its top at the border once all the hills
+// are above it, where its texture starts past its rows and the RDP repeats them in a band the course covers (it
+// streaked the picture's top 8 lines). A copy of the frame that ends at the border's bottom runs on to the screen's. So
+// does the hills' last strip where it already runs on past its 4 rows, its last row repeated down to the border as the
+// game draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last
+// 8 lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below
+// it, where the course doesn't). The strips the game cuts at the border's bottom, or leaves with nothing to draw below
+// it, get their own rows back to the screen's bottom, so with the camera tipped up the hills reach it where the course
+// does. One drawn in strips that each load only their own rows (the old frame Ring Shot's stage select holds while its
+// slats close) has strips of the rows above its first and below its last drawn with them. One over the whole of the
+// border's inside that copies no frame (the opening's fades) covers the whole screen. The pause's copy holds only the
+// 224 lines inside the border (all 320 columns), so the pause keeps the black above and below it that the console
+// draws, filled before its first strip (otherwise those lines kept whatever was drawn there before the pause), and its
+// last strip, which the game runs on past the copy's end, stops at the border. Lakitu Mode's letterbox bars, rectangles
+// as wide as the game's scissor, are hud.cpp's: they are drawn through its buffer, under the scissor this file makes,
+// and reach the picture's edges by hud.cpp's hand.
 //
 // While the view holds still (a golfer aiming, or swinging, as the ball flies), the game draws the course again from
 // its color image and its depth from its own copy of it: each frame clears the z-buffer and draws that copy, a whole
@@ -69,6 +77,9 @@
 
 #include <algorithm>
 #include <cstdint>
+
+#define F3DEX_GBI_2
+#include "rt64_extended_gbi.h"
 
 bool mg_aspect_expand();
 
@@ -107,6 +118,9 @@ uint32_t extended_length(uint32_t op) {
 constexpr uint32_t SET_CYCLE_TYPE = 0xE3000A01, G_CYC_COPY = 0x00200000, G_CYC_FILL = 0x00300000, BLACK = 0x00010001;
 // Past billboard.cpp's buffers: 16 of 0x100 bytes.
 constexpr uint32_t BUFFER_BASE = 0x807B0000, BUFFER_SIZE = 0x100, BUFFER_COUNT = 16;
+// Below hud.cpp's buffers, the strips of the hills drawn above the screen's top (ext_rect): five commands each, a few a
+// frame, two lists a frame, and the renderer may read one a frame or more after the game sends it.
+constexpr uint32_t EXT_BASE = 0x806F0000, EXT_SIZE = 0x30, EXT_COUNT = 1024;
 
 // The overlay table (the game's loader sets the byte at the head of an overlay's entry while it is loaded), a hole's
 // overlay, the opening's and the end credits'.
@@ -149,6 +163,7 @@ uint32_t g_zimg;
 uint32_t g_cycle;
 bool g_blacked;
 uint32_t g_next_buffer;
+uint32_t g_next_ext;
 // The last G_SETTIMG's first word (its format, size and width), the last G_LOADTILE, and each tile's last
 // G_SETTILESIZE.
 uint32_t g_timg0;
@@ -294,6 +309,36 @@ void outside_rows(uint32_t addr, uint32_t first, uint32_t last, uint32_t inside)
     }
 }
 
+// The texture rectangle at addr drawn from uly to lry (quarter pixels, above the screen's top: negative) with its
+// texture at t there, by RT64's texture rectangle, whose coordinates are signed: the rectangle's sides, tile, s and
+// steps as they are now. Its commands go in a buffer of EXT_BASE's, after the command that enables RT64's (the
+// rectangle may be in the game's own list, where none has), the rectangle's place in the list calling them.
+void ext_rect(uint32_t addr, int32_t uly, int32_t lry, int32_t t) {
+    uint32_t buffer = EXT_BASE + EXT_SIZE * g_next_ext;
+    g_next_ext = (g_next_ext + 1) % EXT_COUNT;
+    uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
+    int32_t ulx = int32_t((w1 >> 12) & 0xFFF), lrx = int32_t((w0 >> 12) & 0xFFF);
+    int32_t s = int16_t(st >> 16), dsdx = int16_t(d >> 16), dtdy = int16_t(d & 0xFFFF);
+    GfxCommand c[4];
+    gEXEnable(&c[0]);
+    gEXTextureRectangle(&c[1], G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, ulx, uly, lrx, lry, (w1 >> 24) & 7, s, t, dsdx,
+                        dtdy);
+    uint32_t out = buffer;
+    for (const GfxCommand& cmd : c) {
+        wr_w(out, cmd.values.word0);
+        wr_w(out + 4, cmd.values.word1);
+        out += 8;
+    }
+    wr_w(out, G_ENDDL << 24);
+    wr_w(out + 4, 0);
+    wr_w(addr, G_DL << 24);
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
+    for (uint32_t i = 1; i < 3; i++) {
+        wr_w(addr + i * 8, G_SPNOOP << 24);
+        wr_w(addr + i * 8 + 4, 0);
+    }
+}
+
 // Whether the strip at addr, of a screen's color image, reads it a row a line from its tile's first row, the image
 // 16-bit and 4 of its rows a load that fits in TMEM, with as many rows of the image above its tile as the border's:
 // what outside_rows draws the rows past the border with.
@@ -409,7 +454,7 @@ void whole_rows(uint32_t addr) {
 
 // The texture rectangle at addr (G_TEXRECT, then its texture coordinates, G_RDPHALF_1: s and t, and steps,
 // G_RDPHALF_2: dsdx and dtdy), on a hole drawn at the frame's full height, if it is as wide as the 3D and drawn to the
-// screen: its top at the border's put back as far as its texture starts past its first row, up to 8 rows, its bottom
+// screen: its top at the border's put back as far as its texture starts past its first row, up to 8 rows of its tile, its bottom
 // at the border's moved to the screen's where its texture is one of the screen's color images (in copy mode a
 // rectangle's lower right is inside it, so there the border's last line is 231), and its sides at the screen's. That
 // puts back the far hills' rows the game cut, and draws the frame before whole where the game copies it from its color
@@ -445,11 +490,41 @@ void rect(uint32_t addr) {
         uly = 0;
         lry = SCREEN_BOTTOM - inside;
     }
-    // A strip wholly above the border has its bottom above the screen's top, which wraps past its bottom (lry is
-    // unsigned): left as it is.
+    // A strip of the hills whose rows lie more than the border's 8 lines above it reaches past the screen's top, where
+    // the RDP can't put a rectangle (its coordinates are unsigned): the game draws it from the border's top, its texture
+    // started as many rows further in, and its bottom above that top, which wraps to a large lry (12 bits) where it is
+    // above the screen's top too. It is drawn instead whole, at its own place above the screen's top, with RT64's texture
+    // rectangle, whose coordinates are signed (in a buffer of its own that enables RT64's commands: ext_rect), and the
+    // screen's scissor cuts it. So each strip is the same rectangle frame to frame, moved as the camera moves, and RT64
+    // slides them all alike in the frames between. Cut at the screen's top, one moving more than its 4 rows in a game
+    // frame went unpaired or paired with another place: a band of the sky across the picture's top, or a line of it
+    // through the pyramids, as the camera following a ball on Shy Guy Desert tipped down fast (issue 206). Where the
+    // strip isn't one strip's rows (its bottom past its top's 4 rows, or above that top), the wrapped one draws nothing:
+    // from the border's top on, the RDP would draw it down to the scissor's bottom, from texels past its rows.
+    bool ext = false;
+    int32_t ext_uly = 0, ext_lry = 0, ext_t = 0;
+    if (!game_copy && copy && !is_screen(g_texture) && uly == BORDER_TOP) {
+        int32_t t = int16_t(rd_w(addr + 12) & 0xFFFF);
+        int32_t dtdy = int16_t(rd_w(addr + 20) & 0xFFFF);
+        int32_t bottom = lry >= 0x800 ? int32_t(lry) - 0x1000 : int32_t(lry);
+        if (t > 0 && dtdy > 0 && bottom < int32_t(BORDER_TOP)) {
+            int32_t rows = t * 32 / dtdy;
+            int32_t top = int32_t(uly) - rows * 4;
+            if (top < 0 && bottom >= top && bottom < top + int32_t(STRIP_ROWS) * 4) {
+                ext = true;
+                ext_uly = top;
+                ext_lry = bottom;
+                ext_t = t - rows * dtdy / 32;
+            }
+        }
+        if (!ext && lry >= 0x800) {
+            wr_w(addr, w0 & ~0xFFFu);
+            return;
+        }
+    }
     // A strip of a screen's color image has the rows above drawn by outside_rows.
     bool above = uly == BORDER_TOP && (depth || strip_of_rows(addr));
-    if (!game_copy && !above && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
+    if (!game_copy && !above && !ext && uly == BORDER_TOP && lry <= SCREEN_BOTTOM) {
         // t is 10.5 fixed point, dtdy 5.10: a row of the rectangle steps t by dtdy / 32.
         uint32_t half1 = rd_w(addr + 12);
         int32_t t = int16_t(half1 & 0xFFFF);
@@ -459,9 +534,23 @@ void rect(uint32_t addr) {
             if (rows > BORDER_ROWS) {
                 rows = BORDER_ROWS;
             }
-            t -= int32_t(rows) * dtdy / 32;
-            wr_w(addr + 4, (w1 & ~0xFFFu) | (uly - rows * 4));
-            wr_w(addr + 12, (half1 & 0xFFFF0000) | uint16_t(t));
+            int32_t top_t = t - int32_t(rows) * dtdy / 32;
+            // The last of the lines put back that the rectangle draws (the line above the border's, or its own bottom
+            // where that is higher: a strip of the hills wholly above the border), and the texture's row there. Past
+            // its tile's last row (G_SETTILESIZE's lrt, 10.2) the RDP wraps round the tile's rows: those lines would
+            // be a band of them, so none are put back. That is the hills' last strip, which the game always draws
+            // down to the border's bottom, once the camera tips down and all the hills are above the picture: its
+            // texture starts past its 4 rows, and the band it draws under the course was put into the top 8 lines,
+            // streaks of the hills over the sky wherever the course didn't reach the picture's top (as the camera
+            // following a ball at Shy Guy Desert's hole 1 tips down, issue 206).
+            int32_t last_line = std::min(int32_t(uly) / 4, int32_t(lry + inside) / 4) - 1;
+            int32_t last_t = top_t + (last_line - int32_t(uly / 4 - rows)) * dtdy / 32;
+            uint32_t tile = (w1 >> 24) & 7;
+            bool in_tile = g_size_addr[tile] == 0 || last_t < int32_t((g_size1[tile] & 0xFFF) + 4) * 8;
+            if (in_tile) {
+                wr_w(addr + 4, (w1 & ~0xFFFu) | (uly - rows * 4));
+                wr_w(addr + 12, (half1 & 0xFFFF0000) | uint16_t(top_t));
+            }
         }
     }
     w0 = rd_w(addr);
@@ -518,7 +607,10 @@ void rect(uint32_t addr) {
         w0 = (w0 & ~(0xFFFu << 12)) | ((lrx + SCREEN_RIGHT - BORDER_RIGHT) << 12);
     }
     wr_w(addr, w0);
-    if (above) {
+    if (ext) {
+        ext_rect(addr, ext_uly, ext_lry, ext_t);
+    }
+    else if (above) {
         outside_rows(addr, 0, BORDER_TOP / 4, inside);
     }
     else if (below) {
