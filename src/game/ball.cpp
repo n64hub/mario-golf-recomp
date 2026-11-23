@@ -181,10 +181,12 @@ struct Tile {
     bool mirror = false;
     int ult = 0, lrt = 0;
     bool mirror_t = false;
+    uint32_t size_w0 = 0, size_w1 = 0; // TEST ONLY: the G_SETTILESIZE itself
 };
 
 // TEST ONLY: MG_FLARE_UNCUT puts a rectangle the game cut at the top back above it too.
 static bool test_log() { static int v = -1; if (v < 0) { const char* e = std::getenv("MG_FLARE_LOG"); v = (e && *e == '1') ? 1 : 0; } return v == 1; }
+static bool test_owntile() { static int v = -1; if (v < 0) { const char* e = std::getenv("MG_FLARE_OWNTILE"); v = (e && *e == '1') ? 1 : 0; } return v == 1; }
 static bool test_uncut() { static int v = -1; if (v < 0) { const char* e = std::getenv("MG_FLARE_UNCUT"); v = (e && *e == '1') ? 1 : 0; } return v == 1; }
 
 // The rectangle at addr (its three commands) put back past the side of the screen it was cut at and drawn into the
@@ -241,6 +243,9 @@ bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always
     uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
     g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
     Writer out{ buffer, buffer + BUFFER_SIZE };
+    if (test_owntile() && tile.size_w0 != 0) {
+        out.put(tile.size_w0, tile.size_w1);
+    }
     GfxCommand c[3];
     gEXEnable(c);
     out.put(c, 1);
@@ -474,6 +479,8 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, int sprite
                 tile.lrs = int((w1 >> 12) & 0xFFF) / 4;
                 tile.ult = int(w0 & 0xFFF) / 4;
                 tile.lrt = int(w1 & 0xFFF) / 4;
+                tile.size_w0 = w0;
+                tile.size_w1 = w1;
                 break;
             }
             case G_TEXRECT:
@@ -491,6 +498,21 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, int sprite
                     }
                     if (widen(addr, tile, scale, cut_dx, always)) {
                         done++;
+                    } else if (test_owntile() && tile.size_w0 != 0) {
+                        // TEST ONLY: the rectangle after its tile's size again, so RT64 gives it tile entries of its own.
+                        uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+                        g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
+                        Writer out{ buffer, buffer + BUFFER_SIZE };
+                        out.put(tile.size_w0, tile.size_w1);
+                        for (int k = 0; k < 3; k++) {
+                            out.put(rd_w(addr + 8 * k), rd_w(addr + 8 * k + 4));
+                        }
+                        out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
+                        if (out.ok) {
+                            wr_w(addr, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
+                            wr_w(addr + 4, buffer & 0x1FFFFFFF);
+                            done++;
+                        }
                     }
                     addr += 16;
                 }
