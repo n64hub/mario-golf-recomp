@@ -61,6 +61,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
@@ -178,7 +179,12 @@ struct Writer {
 struct Tile {
     int uls = 0, lrs = 0; // in texels
     bool mirror = false;
+    int ult = 0, lrt = 0;
+    bool mirror_t = false;
 };
+
+// TEST ONLY: MG_FLARE_UNCUT puts a rectangle the game cut at the top back above it too.
+static bool test_uncut() { static int v = -1; if (v < 0) { const char* e = std::getenv("MG_FLARE_UNCUT"); v = (e && *e == '1') ? 1 : 0; } return v == 1; }
 
 // The rectangle at addr (its three commands) put back past the side of the screen it was cut at and drawn into the
 // wide picture's sides, in a buffer that branches back after it, and if the game cut it at a side, moved across by
@@ -195,6 +201,11 @@ bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always
     int start = tile.uls * 32;
     int end = (tile.uls + (tile.lrs - tile.uls + 1) * (tile.mirror ? 2 : 1)) * 32;
     int new_ulx = ulx, new_lrx = lrx, new_s = s;
+    int new_uly = uly, new_t = t;
+    if (test_uncut() && uly == 0 && dtdy > 0 && t > tile.ult * 32) {
+        new_uly = -((t - tile.ult * 32) * 128 / dtdy);
+        new_t = tile.ult * 32;
+    }
     // s moves by dsdx / 128 a quarter pixel.
     if (ulx == 0 && s > start) {
         new_ulx = -((s - start) * 128 / dsdx);
@@ -234,8 +245,8 @@ bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
-    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), uly, squeeze(new_lrx), lry,
-                        (w1 >> 24) & 7, new_s & 0xFFFF, t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
+    gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), new_uly & 0xFFFF, squeeze(new_lrx), lry,
+                        (w1 >> 24) & 7, new_s & 0xFFFF, new_t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
@@ -451,11 +462,14 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, int sprite
         switch (w0 >> 24) {
             case G_SETTILE:
                 tiles[(w1 >> 24) & 7].mirror = ((w1 >> 8) & G_TX_MIRROR) != 0;
+                tiles[(w1 >> 24) & 7].mirror_t = ((w1 >> 18) & G_TX_MIRROR) != 0;
                 break;
             case G_SETTILESIZE: {
                 Tile& tile = tiles[(w1 >> 24) & 7];
                 tile.uls = int((w0 >> 12) & 0xFFF) / 4;
                 tile.lrs = int((w1 >> 12) & 0xFFF) / 4;
+                tile.ult = int(w0 & 0xFFF) / 4;
+                tile.lrt = int(w1 & 0xFFF) / 4;
                 break;
             }
             case G_TEXRECT:
@@ -493,6 +507,34 @@ void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx, in
 // func_8008D3F4): flare_edge().
 extern "C" float mg_flare_edge() {
     return flare_edge();
+}
+
+// TEST ONLY: MG_DEBUG_SUN="x0,y0,x1,y1,frames,gap" puts the sun the flare is drawn from on a line from (x0, y0) to
+// (x1, y1) over frames calls of func_8008D3F4, then draws none for gap calls, and again. 0: as the game has it, 1: the
+// flare drawn there, 2: none.
+extern "C" int mg_debug_sun(uint8_t* rdram) {
+    static int parsed = -1;
+    static float x0, y0, x1, y1;
+    static int frames, gap, n;
+    if (parsed < 0) {
+        const char* e = std::getenv("MG_DEBUG_SUN");
+        parsed = (e && std::sscanf(e, "%f,%f,%f,%f,%d,%d", &x0, &y0, &x1, &y1, &frames, &gap) == 6 && frames > 1) ? 1 : 0;
+    }
+    if (!parsed) {
+        return 0;
+    }
+    int i = n++ % (frames + gap);
+    if (i >= frames) {
+        return 2;
+    }
+    g_rdram = rdram;
+    float k = float(i) / float(frames - 1), x = x0 + (x1 - x0) * k, y = y0 + (y1 - y0) * k;
+    uint32_t wx, wy;
+    std::memcpy(&wx, &x, 4);
+    std::memcpy(&wy, &y, 4);
+    wr_w(SUN_X, wx);
+    wr_w(SUN_Y, wy);
+    return 1;
 }
 
 // head: the word the caller keeps the display list's head in, MG_GFX_HEAD or a copy of it (as mg_ball_end's).
