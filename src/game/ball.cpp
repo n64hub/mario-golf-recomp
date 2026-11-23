@@ -184,6 +184,7 @@ struct Tile {
 };
 
 // TEST ONLY: MG_FLARE_UNCUT puts a rectangle the game cut at the top back above it too.
+static bool test_log() { static int v = -1; if (v < 0) { const char* e = std::getenv("MG_FLARE_LOG"); v = (e && *e == '1') ? 1 : 0; } return v == 1; }
 static bool test_uncut() { static int v = -1; if (v < 0) { const char* e = std::getenv("MG_FLARE_UNCUT"); v = (e && *e == '1') ? 1 : 0; } return v == 1; }
 
 // The rectangle at addr (its three commands) put back past the side of the screen it was cut at and drawn into the
@@ -245,6 +246,9 @@ bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always
     out.put(c, 1);
     gEXSetRectAspect(c, G_EX_ASPECT_STRETCH);
     out.put(c, 1);
+    if (test_log()) {
+        std::printf("  W ulx=%d uly=%d lrx=%d lry=%d s=%d t=%d dsdx=%d\n", squeeze(new_ulx), new_uly, squeeze(new_lrx), lry, new_s, new_t, wide_dsdx);
+    }
     gEXTextureRectangle(c, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, squeeze(new_ulx), new_uly & 0xFFFF, squeeze(new_lrx), lry,
                         (w1 >> 24) & 7, new_s & 0xFFFF, new_t & 0xFFFF, wide_dsdx & 0xFFFF, dtdy & 0xFFFF);
     out.put(c, 3);
@@ -478,6 +482,13 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, int sprite
                     if (sprite_texels > 0) {
                         tile = Tile{ sprite_uls, sprite_uls + sprite_texels - 1, false };
                     }
+                    if (test_log()) {
+                        uint32_t r1 = rd_w(addr + 4), r0 = rd_w(addr), st = rd_w(addr + 12), d = rd_w(addr + 20);
+                        std::printf(" R ulx=%d uly=%d lrx=%d lry=%d s=%d t=%d dsdx=%d dtdy=%d tile=%d %d..%d %d..%d m%d\n", int((r1 >> 12) & 0xFFF),
+                                    int(r1 & 0xFFF), int((r0 >> 12) & 0xFFF), int(r0 & 0xFFF), int(int16_t(st >> 16)), int(int16_t(st & 0xFFFF)),
+                                    int(int16_t(d >> 16)), int(int16_t(d & 0xFFFF)), int((w1 >> 24) & 7), tile.uls, tile.lrs, tile.ult, tile.lrt,
+                                    int(tile.mirror));
+                    }
                     if (widen(addr, tile, scale, cut_dx, always)) {
                         done++;
                     }
@@ -588,7 +599,14 @@ extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     g_open = false;
     g_rdram = rdram;
     uint32_t end = rd_w(head);
+    if (test_log()) {
+        static int frame = 0;
+        std::printf("F %d sun %.2f %.2f\n", frame++, rd_f(SUN_X), rd_f(SUN_Y));
+    }
     place_flare(g_start, end);
     nudge_all(g_start, end);
     widen_all(g_start, end, 0, false);
+    if (test_log()) {
+        std::fflush(stdout);
+    }
 }
