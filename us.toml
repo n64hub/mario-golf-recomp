@@ -198,12 +198,6 @@ text = "{ void mg_ball_end(uint8_t*, uint32_t); mg_ball_end(rdram, (uint32_t)ctx
 # while the sun (x at 0x800C5F24, y at 0x800C5F2C) is more than 16 pixels inside each side, x against 16.0 in $f8 and
 # 304.0 in $f0, y against $f8 and 224.0 in $f0, and then adds $f8's 16 to the flare's brightness. Each test is given
 # mg_flare_edge() in its place (16 in Original, as the game has it), and $f8 its 16 again before the brightness.
-# TEST ONLY: MG_DEBUG_SUN (src/game/ball.cpp) sets where the flare is drawn from.
-[[patches.hook]]
-func = "func_8008D3F4"
-before_vram = 0x8008D4AC
-text = "{ int mg_debug_sun(uint8_t*); int d = mg_debug_sun(rdram); if (d == 1) ctx->r2 = 1; else if (d == 2) ctx->r2 = 0; }"
-
 [[patches.hook]]
 func = "func_8008D3F4"
 before_vram = 0x8008D4C8
