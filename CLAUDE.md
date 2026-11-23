@@ -128,9 +128,7 @@ This repo is the game: its recompilation, the patches over it, the desktop build
   where the game works them out, to a quarter of a pixel, rather than on the whole pixels it truncates them to, which
   RT64 draws there only with `RT64_SUBPIXEL_TEXRECTS` (`CMakeLists.txt`), or the circles stepped against the sun's light
   on the game's own frames, and with Enhancements On draws the flare on to the screen's edge, where the game drops it 16
-  pixels in (hooks in func_8008D3F4, `us.toml`), its circles fading out before it, and gives each of those rectangles
-  RT64 tile entries of its own, or as RT64 slid the circle cut at the screen's corner between frames it moved every
-  circle's texture and drew a cap over each, `src/game/aim.cpp` puts the red pin flag in the sky and the landing point's label where their points are
+  pixels in (hooks in func_8008D3F4, `us.toml`), its circles fading out before it, `src/game/aim.cpp` puts the red pin flag in the sky and the landing point's label where their points are
   across, to a quarter pixel, not the whole one the game truncates them to, or they slid in whole console pixels a game
   frame as the view turned, and draws them on into the wide picture's sides as `ball.cpp` draws its sprites, where the
   3D's scissor cut them 8 pixels inside the 4:3 frame (RT64_INTERPOLATE_RECT_SCROLLS pairs

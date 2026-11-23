@@ -31,8 +31,8 @@
 // own scissor, the 3D's, clips it where the wide picture's 3D ends; its place and texture step are squeezed toward the
 // screen's middle by as much, so it keeps its shape and its place on the course. Those commands go to a buffer of this
 // file's in RDRAM above the 4 MB the game uses, the rectangle's first command replaced by a branch to it, and its end a
-// branch back. A rectangle well inside the 4:3 frame is left where it is, and with Aspect Ratio Original, or a window no
-// wider than 4:3, none is widened. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
+// branch back. A rectangle well inside the 4:3 frame is left as it is, and with Aspect Ratio Original, or a window no
+// wider than 4:3, nothing changes. The flare still shows only while the sun is in the 4:3 frame, as the game decides.
 //
 // The flare's circles are put where the game works them out, to a quarter of a pixel, so they move with the sun's
 // light rather than in whole pixels against it. The game draws them only while the sun is more than 16 pixels inside
@@ -58,12 +58,6 @@
 // widened. The game still rounds a sprite's size to whole pixels, so a frame in which the ball's sprite grows or
 // shrinks by one isn't slid. mg_ball_project_x also keeps what was dropped of the last x, whoever asked for it, for
 // src/game/aim.cpp, which moves the aim's marks by it the same way.
-//
-// And every one of these rectangles is drawn after its tile's size again (G_SETTILESIZE, in a buffer as above), so
-// that RT64 gives each tile entries of its own, whatever the window's shape (own_tile() says why): RT64 slides a
-// rectangle's texture between the game's frames by moving its tiles, and the flare's circles shared one set, so as the
-// circle beyond the sun was cut at the screen's corner, each of the others showed a cap over it at a display rate
-// above the game's.
 
 #include <algorithm>
 #include <cmath>
@@ -180,34 +174,16 @@ struct Writer {
     }
 };
 
-// What the last G_SETTILE and G_SETTILESIZE said of a tile, and that G_SETTILESIZE itself (size_w0 0 if none).
+// What the last G_SETTILE and G_SETTILESIZE said of a tile.
 struct Tile {
     int uls = 0, lrs = 0; // in texels
     bool mirror = false;
-    uint32_t size_w0 = 0, size_w1 = 0;
 };
-
-// The branch to a buffer that takes the place of a rectangle's first command, and the one back after its last.
-void branch(uint32_t addr, uint32_t buffer) {
-    wr_w(addr, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
-    wr_w(addr + 4, buffer & 0x1FFFFFFF);
-}
-
-void put_branch_back(Writer& out, uint32_t addr) {
-    out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
-}
-
-uint32_t next_buffer() {
-    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
-    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
-    return buffer;
-}
 
 // The rectangle at addr (its three commands) put back past the side of the screen it was cut at and drawn into the
 // wide picture's sides, in a buffer that branches back after it, and if the game cut it at a side, moved across by
-// cut_dx quarter pixels. With own_tile, its tile's G_SETTILESIZE goes first (own_tile() says why). False if it lies
-// well inside the 4:3 frame (unless always), or didn't fit.
-bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always, bool own_tile) {
+// cut_dx quarter pixels. False if it lies well inside the 4:3 frame (unless always), or didn't fit.
+bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always) {
     uint32_t w0 = rd_w(addr), w1 = rd_w(addr + 4), st = rd_w(addr + 12), d = rd_w(addr + 20);
     int ulx = int((w1 >> 12) & 0xFFF), uly = int(w1 & 0xFFF); // quarter pixels
     int lrx = int((w0 >> 12) & 0xFFF), lry = int(w0 & 0xFFF);
@@ -250,11 +226,9 @@ bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always
         return false;
     }
 
-    uint32_t buffer = next_buffer();
+    uint32_t buffer = BUFFER_BASE + BUFFER_SIZE * g_next_buffer;
+    g_next_buffer = (g_next_buffer + 1) % BUFFER_COUNT;
     Writer out{ buffer, buffer + BUFFER_SIZE };
-    if (own_tile && tile.size_w0 != 0) {
-        out.put(tile.size_w0, tile.size_w1);
-    }
     GfxCommand c[3];
     gEXEnable(c);
     out.put(c, 1);
@@ -265,37 +239,12 @@ bool widen(uint32_t addr, const Tile& tile, float scale, int cut_dx, bool always
     out.put(c, 3);
     gEXSetRectAspect(c, G_EX_ASPECT_AUTO);
     out.put(c, 1);
-    put_branch_back(out, addr);
+    out.put((uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16), (addr + 24) & 0x1FFFFFFF);
     if (!out.ok) {
         return false;
     }
-    branch(addr, buffer);
-    return true;
-}
-
-// The rectangle at addr drawn after its tile's G_SETTILESIZE again, in a buffer that branches back after it, so that
-// RT64 gives it tile entries of its own. RT64 gives a draw call new ones only when the texture's state changed since
-// the last, so the rectangles the game draws one after another from one texture share them: the flare's eight
-// circles, which change only the colour between them. RT64_INTERPOLATE_RECT_SCROLLS slides a rectangle's texture
-// between the game's frames by moving its tiles, and as the circle beyond the sun went past the screen's corner, its
-// texture cut a few rows further in each game frame, its slide moved every circle's texture: at a display rate above
-// the game's, each circle showed the rim of the mirrored texture as a cap over it, and its own circle lower down
-// (issue 156). False if the list holds no G_SETTILESIZE for its tile, or it didn't fit.
-bool own_tile(uint32_t addr, const Tile& tile) {
-    if (tile.size_w0 == 0) {
-        return false;
-    }
-    uint32_t buffer = next_buffer();
-    Writer out{ buffer, buffer + BUFFER_SIZE };
-    out.put(tile.size_w0, tile.size_w1);
-    for (uint32_t k = 0; k < 3; k++) {
-        out.put(rd_w(addr + 8 * k), rd_w(addr + 8 * k + 4));
-    }
-    put_branch_back(out, addr);
-    if (!out.ok) {
-        return false;
-    }
-    branch(addr, buffer);
+    wr_w(addr, (uint32_t(G_DL) << 24) | (G_DL_NOPUSH << 16));
+    wr_w(addr + 4, buffer & 0x1FFFFFFF);
     return true;
 }
 
@@ -485,16 +434,14 @@ void place_flare(uint32_t start, uint32_t end) {
     }
 }
 
-// In a picture wider than 4:3, each rectangle cut at a side is put back to the texels of its tile, or with sprite_texels
-// not 0, of the sprite it draws in a tile that holds several side by side: sprite_texels wide from sprite_uls. With
-// own_tiles, each rectangle is drawn with tile entries of its own (own_tile()), whatever the picture's shape.
-void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, bool own_tiles, int sprite_uls = 0,
-               int sprite_texels = 0) {
+// Each rectangle cut at a side is put back to the texels of its tile, or with sprite_texels not 0, of the sprite it
+// draws in a tile that holds several side by side: sprite_texels wide from sprite_uls.
+void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, int sprite_uls = 0, int sprite_texels = 0) {
     if (end <= start || (end - start) / 8 > MAX_COMMANDS || (start & 7) != 0) {
         return;
     }
     float scale = mg_wide_scale();
-    if (scale <= 1.0f && !own_tiles) {
+    if (scale <= 1.0f) {
         return;
     }
     Tile tiles[8];
@@ -509,20 +456,15 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, bool own_t
                 Tile& tile = tiles[(w1 >> 24) & 7];
                 tile.uls = int((w0 >> 12) & 0xFFF) / 4;
                 tile.lrs = int((w1 >> 12) & 0xFFF) / 4;
-                tile.size_w0 = w0;
-                tile.size_w1 = w1;
                 break;
             }
             case G_TEXRECT:
                 if (addr + 24 <= end && (rd_w(addr + 8) >> 24) == G_RDPHALF_1 && (rd_w(addr + 16) >> 24) == G_RDPHALF_2) {
                     Tile tile = tiles[(w1 >> 24) & 7];
                     if (sprite_texels > 0) {
-                        tile.uls = sprite_uls;
-                        tile.lrs = sprite_uls + sprite_texels - 1;
-                        tile.mirror = false;
+                        tile = Tile{ sprite_uls, sprite_uls + sprite_texels - 1, false };
                     }
-                    bool widened = scale > 1.0f && widen(addr, tile, scale, cut_dx, always, own_tiles);
-                    if (widened || (own_tiles && own_tile(addr, tile))) {
+                    if (widen(addr, tile, scale, cut_dx, always)) {
                         done++;
                     }
                     addr += 16;
@@ -544,7 +486,7 @@ void widen_all(uint32_t start, uint32_t end, int cut_dx, bool always, bool own_t
 // four frames), which is what one cut at a side is put back to (widen_all()).
 void mg_widen_rects(uint8_t* rdram, uint32_t start, uint32_t end, int cut_dx, int sprite_uls, int sprite_texels) {
     g_rdram = rdram;
-    widen_all(start, end, cut_dx, true, false, sprite_uls, sprite_texels);
+    widen_all(start, end, cut_dx, true, sprite_uls, sprite_texels);
 }
 
 // The edge the game's test of whether the sun is far enough inside the screen for its flare reads (us.toml's hooks in
@@ -553,6 +495,7 @@ extern "C" float mg_flare_edge() {
     return flare_edge();
 }
 
+// TEST ONLY (MG_DEBUG_SUN, us.toml): where the flare is drawn from, along a straight track.
 #include <cstdio>
 extern "C" int mg_debug_sun(uint8_t* rdram) {
     static int parsed = -1;
@@ -632,5 +575,5 @@ extern "C" void mg_ball_end(uint8_t* rdram, uint32_t head) {
     uint32_t end = rd_w(head);
     place_flare(g_start, end);
     nudge_all(g_start, end);
-    widen_all(g_start, end, 0, false, true);
+    widen_all(g_start, end, 0, false);
 }
