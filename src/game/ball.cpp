@@ -553,6 +553,32 @@ extern "C" float mg_flare_edge() {
     return flare_edge();
 }
 
+#include <cstdio>
+extern "C" int mg_debug_sun(uint8_t* rdram) {
+    static int parsed = -1;
+    static float x0, y0, x1, y1;
+    static int frames, gap, n;
+    if (parsed < 0) {
+        const char* e = std::getenv("MG_DEBUG_SUN");
+        parsed = (e && std::sscanf(e, "%f,%f,%f,%f,%d,%d", &x0, &y0, &x1, &y1, &frames, &gap) == 6 && frames > 1) ? 1 : 0;
+    }
+    if (!parsed) {
+        return 0;
+    }
+    int i = n++ % (frames + gap);
+    if (i >= frames) {
+        return 2;
+    }
+    g_rdram = rdram;
+    float k = float(i) / float(frames - 1), x = x0 + (x1 - x0) * k, y = y0 + (y1 - y0) * k;
+    uint32_t wx, wy;
+    std::memcpy(&wx, &x, 4);
+    std::memcpy(&wy, &y, 4);
+    wr_w(SUN_X, wx);
+    wr_w(SUN_Y, wy);
+    return 1;
+}
+
 // head: the word the caller keeps the display list's head in, MG_GFX_HEAD or a copy of it (as mg_ball_end's).
 extern "C" void mg_ball_begin(uint8_t* rdram, uint32_t head) {
     g_rdram = rdram;
