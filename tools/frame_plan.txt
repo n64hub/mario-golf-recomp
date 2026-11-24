@@ -165,10 +165,12 @@
 131.5 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
 133.5 shot 27_ring_shot_main_menu
 
-# Mini-Golf on Luigi's Garden (overlay 2): its course select, hole 1's flyover and a putt that drops, the
-# HOLE-IN-ONE! that slides in and squashes over it (issue 154: its letters went missing or doubled between the game's
-# frames, and every big word a shot or a hole ends on is drawn the same way), the view of the cup with its stars and
-# the score card, then hole 2's camera swooping in behind the tee and its aim turned right,
+# Mini-Golf on Luigi's Garden (overlay 2): its course select, hole 1's flyover looking steeply down on the hole (issue
+# 215: past the 4:3 frame, its top 8 lines showed a strip of sky and cloud above the hills' flat band, where the game's
+# border is), and a putt that drops, the HOLE-IN-ONE! that slides in and squashes over it (issue 154: its letters
+# went missing or doubled between the game's frames, and every big word a shot or a hole ends on is drawn the same
+# way), the view of the cup with its stars and the score card, then hole 2's camera swooping in behind the tee and its
+# aim turned right,
 # pressed until the sun's x on the screen (a float at 0x800C5F24) is 256 to 288, then on a tap at a time as the sun's
 # lens flare crosses the 4:3 frame's right side (issue 92: its circles were cut along a vertical line there); then
 # turned back left until the sun's x is -64 to -96, where the game cuts its light (a square 128 across here) off the
@@ -182,104 +184,105 @@
 140 key Space
 141.5 shot 30_mini_golf_select
 142.5 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-142.5 until 0x800B5FF8 0xFF000000 0x00000000 60
-142.5 unchecked middle
-143 poke 0x800FBD30 1
-143.5 shot 31_mini_golf_tee
-144 poke 0x80104F7C 0x12
-144 poke 0x80104F80 0x2C
-144 poke 0x80104F8C 0
-144 poke 0x80104F90 0
-144 until 0x800FBE88 0x000000F8 0x00000008 15 Space
-144 poke 0x80227194 1
-144 until 0x800FBE88 0x000000FC 0x0000000C 5
-144 poke 0x800FBE88 0x0C
-144 poke 0x800FBD30 1
-144 until 0x800FBE88 0xFFFFFFFF 0x00000012 5
-148.4 shot 32_mini_golf_flight
-156.4 shot 33_mini_golf_landing
-160.4 key Space
-162.4 shot 34_mini_golf_next
-162.4 checked middle
-162.4 until 0x800B5FF8 0xFF000000 0x00000000 60
-163.4 shot 35_mini_golf_hole2
-163.5 until 0x800C5F24 0xFFF00000 0x43800000 60 D 80 0.6
-163.9 key D 80
-164.3 shot 35a_mini_golf_flare
-164.4 key D 80
-164.8 shot 35b_mini_golf_flare
-164.9 key D 80
-165.3 shot 35c_mini_golf_flare
-165.4 key D 80
-165.8 shot 35d_mini_golf_flare
-165.9 key D 80
-166.3 shot 35e_mini_golf_flare
-166.4 key D 80
-166.8 shot 35f_mini_golf_flare
+145.2 shot 30a_mini_golf_flyover
+145.5 until 0x800B5FF8 0xFF000000 0x00000000 60
+145.5 unchecked middle
+146 poke 0x800FBD30 1
+146.5 shot 31_mini_golf_tee
+147 poke 0x80104F7C 0x12
+147 poke 0x80104F80 0x2C
+147 poke 0x80104F8C 0
+147 poke 0x80104F90 0
+147 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+147 poke 0x80227194 1
+147 until 0x800FBE88 0x000000FC 0x0000000C 5
+147 poke 0x800FBE88 0x0C
+147 poke 0x800FBD30 1
+147 until 0x800FBE88 0xFFFFFFFF 0x00000012 5
+151.4 shot 32_mini_golf_flight
+159.4 shot 33_mini_golf_landing
+163.4 key Space
+165.4 shot 34_mini_golf_next
+165.4 checked middle
+165.4 until 0x800B5FF8 0xFF000000 0x00000000 60
+166.4 shot 35_mini_golf_hole2
+166.5 until 0x800C5F24 0xFFF00000 0x43800000 60 D 80 0.6
 166.9 key D 80
-167.3 shot 35g_mini_golf_flare
+167.3 shot 35a_mini_golf_flare
 167.4 key D 80
-167.8 shot 35h_mini_golf_flare
-167.85 until 0x800C5F24 0xFFC00000 0xC2800000 90 A 80 0.3
-167.9 shot 35i_mini_golf_sun_left
-167.95 key A 80
-168.05 shot 35j_mini_golf_sun_left
-168.1 key A 80
-168.2 shot 35k_mini_golf_sun_left
-168.25 key A 80
-168.35 shot 35l_mini_golf_sun_left
-168.4 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-169.9 shot 36_mini_golf_pause
-169.9 until 0x80224924 0x000000FF 0x00000005 15 W
-170.4 shot 37_mini_golf_quit
-170.4 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-172.4 shot 38_mini_golf_main_menu
+167.8 shot 35b_mini_golf_flare
+167.9 key D 80
+168.3 shot 35c_mini_golf_flare
+168.4 key D 80
+168.8 shot 35d_mini_golf_flare
+168.9 key D 80
+169.3 shot 35e_mini_golf_flare
+169.4 key D 80
+169.8 shot 35f_mini_golf_flare
+169.9 key D 80
+170.3 shot 35g_mini_golf_flare
+170.4 key D 80
+170.8 shot 35h_mini_golf_flare
+170.85 until 0x800C5F24 0xFFC00000 0xC2800000 90 A 80 0.3
+170.9 shot 35i_mini_golf_sun_left
+170.95 key A 80
+171.05 shot 35j_mini_golf_sun_left
+171.1 key A 80
+171.2 shot 35k_mini_golf_sun_left
+171.25 key A 80
+171.35 shot 35l_mini_golf_sun_left
+171.4 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+172.9 shot 36_mini_golf_pause
+172.9 until 0x80224924 0x000000FF 0x00000005 15 W
+173.4 shot 37_mini_golf_quit
+173.4 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+175.4 shot 38_mini_golf_main_menu
 
 # Get Character: a match against a computer golfer, whose turn the camera follows.
-172.9 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-174.4 shot 39_character_select
-175.4 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-176.9 shot 40_play_modes
-177.9 until 0x801323A8 0x000000FF 0x1 15 D
-178.9 key Space
-180.4 shot 41_get_character_select
-181.4 key Space
-182.9 shot 42_get_character_course
-183.9 key Space
-183.9 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-183.9 unchecked middle
-183.9 until 0x800B5FF8 0xFF000000 0x00000000 60
-184.4 poke 0x800BA9F0 0x00081650
-184.4 poke 0x800BA9F4 0xA5605DC0
-184.4 poke 0x80104F44 0xC1E973E5
-184.4 poke 0x80104F4C 0xC218717C
-184.4 poke 0x800FBD30 1
-184.9 shot 43_get_character_tee
-185.4 poke 0x800BA9F0 0x00081650
-185.4 poke 0x800BA9F4 0xA5605DC0
-185.4 poke 0x80104F44 0xC1E973E5
-185.4 poke 0x80104F4C 0xC218717C
-185.4 poke 0x80104F7C 0x16
-185.4 poke 0x80104F80 0x2C
-185.4 poke 0x80104F8C 0
-185.4 poke 0x80104F90 0
-185.4 until 0x800FBE88 0x000000F8 0x00000008 15 Space
-185.4 poke 0x80227194 1
-185.4 until 0x800FBE88 0x000000FC 0x00000024 5
-185.4 poke 0x800FBE88 0x24
-185.4 poke 0x800FBD30 1
-185.4 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
-189.8 shot 44_get_character_flight
-197.8 shot 45_get_character_landing
-205.8 shot 46_get_character_rival
-213.8 shot 47_get_character_rival2
-214.8 checked middle
-214.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-216.3 shot 48_get_character_pause
-216.3 until 0x80224924 0x000000FF 0x00000005 15 W
-216.8 shot 49_get_character_quit
-216.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-218.8 shot 50_get_character_main_menu
+175.9 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+177.4 shot 39_character_select
+178.4 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+179.9 shot 40_play_modes
+180.9 until 0x801323A8 0x000000FF 0x1 15 D
+181.9 key Space
+183.4 shot 41_get_character_select
+184.4 key Space
+185.9 shot 42_get_character_course
+186.9 key Space
+186.9 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+186.9 unchecked middle
+186.9 until 0x800B5FF8 0xFF000000 0x00000000 60
+187.4 poke 0x800BA9F0 0x00081650
+187.4 poke 0x800BA9F4 0xA5605DC0
+187.4 poke 0x80104F44 0xC1E973E5
+187.4 poke 0x80104F4C 0xC218717C
+187.4 poke 0x800FBD30 1
+187.9 shot 43_get_character_tee
+188.4 poke 0x800BA9F0 0x00081650
+188.4 poke 0x800BA9F4 0xA5605DC0
+188.4 poke 0x80104F44 0xC1E973E5
+188.4 poke 0x80104F4C 0xC218717C
+188.4 poke 0x80104F7C 0x16
+188.4 poke 0x80104F80 0x2C
+188.4 poke 0x80104F8C 0
+188.4 poke 0x80104F90 0
+188.4 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+188.4 poke 0x80227194 1
+188.4 until 0x800FBE88 0x000000FC 0x00000024 5
+188.4 poke 0x800FBE88 0x24
+188.4 poke 0x800FBD30 1
+188.4 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+192.8 shot 44_get_character_flight
+200.8 shot 45_get_character_landing
+208.8 shot 46_get_character_rival
+216.8 shot 47_get_character_rival2
+217.8 checked middle
+217.8 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+219.3 shot 48_get_character_pause
+219.3 until 0x80224924 0x000000FF 0x00000005 15 W
+219.8 shot 49_get_character_quit
+219.8 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+221.8 shot 50_get_character_main_menu
 
 # Training: its hole picker over the course map, hole 2 picked (it hung there once), and then hole 14 of Yoshi's
 # Island put in its place (the course at 0x801B6094, 3 Yoshi's Island, and the hole from 0 at 0x801B6098), whose
@@ -288,36 +291,36 @@
 # each of its frames a cut). The hole's overlay is loaded at the picker already, so A is pressed once and the flyover's
 # loaded (a second press in the doors skips it), then pressed through the rest of it to the tee, left from there (a
 # shot ends on a menu that Start doesn't pause); its pause menu has nine items, the last Return to Menu.
-219.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-220.8 shot 51_character_select
-221.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-223.3 shot 52_play_modes
-224.3 until 0x801323A8 0x000000FF 0x6 15 D
-225.3 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
-226.8 shot 53_training_select
-227.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
-228.3 unchecked middle
-228.3 poke 0x801B6094 3
-228.3 poke 0x801B6098 13
-229.3 shot 54_training_hole
-229.3 key Space
-229.3 until 0x800B5FF8 0xFF000000 0x01000000 30
-229.8 shot 55_training_doors
-231.8 shot 56_training_flyover
-232.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-232.8 poke 0x800BA9F0 0x00081650
-232.8 poke 0x800BA9F4 0xA5605DC0
-232.8 poke 0x80104F44 0xC1E973E5
-232.8 poke 0x80104F4C 0xC218717C
-232.8 poke 0x800FBD30 1
-233.3 shot 57_training_tee
-234.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-235.8 checked middle
-235.8 shot 58_training_pause
-235.8 until 0x80224924 0x000000FF 0x00000008 15 W
-236.3 shot 59_training_quit
-236.3 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-238.3 shot 60_training_main_menu
+222.3 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+223.8 shot 51_character_select
+224.8 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+226.3 shot 52_play_modes
+227.3 until 0x801323A8 0x000000FF 0x6 15 D
+228.3 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+229.8 shot 53_training_select
+230.8 until 0x800F72F0 0xFFFFFFFF 0x2 15 D
+231.3 unchecked middle
+231.3 poke 0x801B6094 3
+231.3 poke 0x801B6098 13
+232.3 shot 54_training_hole
+232.3 key Space
+232.3 until 0x800B5FF8 0xFF000000 0x01000000 30
+232.8 shot 55_training_doors
+234.8 shot 56_training_flyover
+235.3 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+235.8 poke 0x800BA9F0 0x00081650
+235.8 poke 0x800BA9F4 0xA5605DC0
+235.8 poke 0x80104F44 0xC1E973E5
+235.8 poke 0x80104F4C 0xC218717C
+235.8 poke 0x800FBD30 1
+236.3 shot 57_training_tee
+237.3 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+238.8 checked middle
+238.8 shot 58_training_pause
+238.8 until 0x80224924 0x000000FF 0x00000008 15 W
+239.3 shot 59_training_quit
+239.3 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+241.3 shot 60_training_main_menu
 
 # Training again, on Shy Guy Desert's hole 1 (the course 2 at 0x801B6094 and the hole 1 at 0x801B6098, the picker's
 # hole moved from 2 to 1 with the stick so it loads them): the drive, then at the second lie four presses of S, the
@@ -327,117 +330,117 @@
 # at the picture's top (issue 206). Training asks after each shot whether to go on, which Space answers (the second
 # lie comes some 4 seconds after it, and the presses of S wait 4.5); the pause is taken at the third lie, Enter pressed
 # until it comes, since a shot's question takes no Start.
-238.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-241.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-243.8 until 0x801323A8 0x000000FF 0x6 15 D
-244.8 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
-246.8 unchecked middle
-246.8 poke 0x801B6094 2
-246.8 poke 0x801B6098 1
-246.8 poke 0x800F72F0 2
-247.3 until 0x800F72F0 0xFFFFFFFF 0x1 15 A
-248.8 key Space
-248.8 until 0x800B5FF8 0xFF000000 0x01000000 30
-251.8 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
-252.3 poke 0x800BA9F0 0x00081650
-252.3 poke 0x800BA9F4 0xA5605DC0
-252.3 poke 0x80104F44 0xC1E973E5
-252.3 poke 0x80104F4C 0xC218717C
-252.3 poke 0x800FBD30 1
-253.3 shot 61_shy_guy_tee
-254.3 poke 0x800BA9F0 0x00081650
-254.3 poke 0x800BA9F4 0xA5605DC0
-254.3 poke 0x80104F44 0xC1E973E5
-254.3 poke 0x80104F4C 0xC218717C
-254.3 poke 0x80104F7C 0x1E
-254.3 poke 0x80104F80 0x3B
-254.3 poke 0x80104F8C 0
-254.3 poke 0x80104F90 0
-254.3 until 0x800FBE88 0x000000F8 0x00000008 15 Space
-254.3 poke 0x80227194 1
-254.3 until 0x800FBE88 0x000000FC 0x00000030 5
-254.3 poke 0x800FBE88 0x30
-254.3 poke 0x800FBD30 1
-254.3 until 0x800FBE88 0xFFFFFFFF 0x0000003B 5
-256.3 shot 62_shy_guy_drive
-274.3 key Space
-278.3 shot 63_shy_guy_second_lie
-278.8 key S
-279.2 key S
-279.6 key S
-280 key S
-280.6 shot 64_shy_guy_eight_iron
-281.1 poke 0x800BA9F0 0x00081650
-281.1 poke 0x800BA9F4 0xA5605DC0
-281.1 poke 0x80104F44 0xC1E973E5
-281.1 poke 0x80104F4C 0xC218717C
-281.1 poke 0x80104F7C 0x1C
-281.1 poke 0x80104F80 0x38
-281.1 poke 0x80104F8C 0
-281.1 poke 0x80104F90 0
-281.1 until 0x800FBE88 0x000000F8 0x00000008 15 Space
-281.1 poke 0x80227194 1
-281.1 until 0x800FBE88 0x000000FC 0x00000030 5
-281.1 poke 0x800FBE88 0x30
-281.1 poke 0x800FBD30 1
-281.1 until 0x800FBE88 0xFFFFFFFF 0x00000038 5
-282.1 shot 65_shy_guy_ball_up
-282.6 shot 66_shy_guy_tipped_down
-296 key Space
-298 until 0x800C306C 0x000000FF 0x00000001 20 Enter
-299.5 checked middle
-299.5 shot 67_shy_guy_pause
-299.5 until 0x80224924 0x000000FF 0x00000008 15 W
-300 shot 68_shy_guy_quit
-300 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
-302 shot 69_shy_guy_main_menu
+241.8 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+244.3 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+246.8 until 0x801323A8 0x000000FF 0x6 15 D
+247.8 until 0x801EFFA0 0xFFFFFFFF 0x6 15 Space
+249.8 unchecked middle
+249.8 poke 0x801B6094 2
+249.8 poke 0x801B6098 1
+249.8 poke 0x800F72F0 2
+250.3 until 0x800F72F0 0xFFFFFFFF 0x1 15 A
+251.8 key Space
+251.8 until 0x800B5FF8 0xFF000000 0x01000000 30
+254.8 until 0x800B5FF8 0xFF000000 0x00000000 60 Space
+255.3 poke 0x800BA9F0 0x00081650
+255.3 poke 0x800BA9F4 0xA5605DC0
+255.3 poke 0x80104F44 0xC1E973E5
+255.3 poke 0x80104F4C 0xC218717C
+255.3 poke 0x800FBD30 1
+256.3 shot 61_shy_guy_tee
+257.3 poke 0x800BA9F0 0x00081650
+257.3 poke 0x800BA9F4 0xA5605DC0
+257.3 poke 0x80104F44 0xC1E973E5
+257.3 poke 0x80104F4C 0xC218717C
+257.3 poke 0x80104F7C 0x1E
+257.3 poke 0x80104F80 0x3B
+257.3 poke 0x80104F8C 0
+257.3 poke 0x80104F90 0
+257.3 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+257.3 poke 0x80227194 1
+257.3 until 0x800FBE88 0x000000FC 0x00000030 5
+257.3 poke 0x800FBE88 0x30
+257.3 poke 0x800FBD30 1
+257.3 until 0x800FBE88 0xFFFFFFFF 0x0000003B 5
+259.3 shot 62_shy_guy_drive
+277.3 key Space
+281.3 shot 63_shy_guy_second_lie
+281.8 key S
+282.2 key S
+282.6 key S
+283 key S
+283.6 shot 64_shy_guy_eight_iron
+284.1 poke 0x800BA9F0 0x00081650
+284.1 poke 0x800BA9F4 0xA5605DC0
+284.1 poke 0x80104F44 0xC1E973E5
+284.1 poke 0x80104F4C 0xC218717C
+284.1 poke 0x80104F7C 0x1C
+284.1 poke 0x80104F80 0x38
+284.1 poke 0x80104F8C 0
+284.1 poke 0x80104F90 0
+284.1 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+284.1 poke 0x80227194 1
+284.1 until 0x800FBE88 0x000000FC 0x00000030 5
+284.1 poke 0x800FBE88 0x30
+284.1 poke 0x800FBD30 1
+284.1 until 0x800FBE88 0xFFFFFFFF 0x00000038 5
+285.1 shot 65_shy_guy_ball_up
+285.6 shot 66_shy_guy_tipped_down
+299 key Space
+301 until 0x800C306C 0x000000FF 0x00000001 20 Enter
+302.5 checked middle
+302.5 shot 67_shy_guy_pause
+302.5 until 0x80224924 0x000000FF 0x00000008 15 W
+303 shot 68_shy_guy_quit
+303 until 0x800B5FD0 0xFF000000 0x01000000 30 Space
+305 shot 69_shy_guy_main_menu
 
 # Speed Golf, last: Lakitu starts the clock (a press before is lost), and the golfer runs to the ball after the
 # shot; its pause menu has five items, and its Quit Game asks first, NO lit, which A answers, back in play. (No word in
 # RAM was found to hold which of YES and NO is lit, and A toggles it, so the plan never takes YES.)
-302.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
-304 shot 70_character_select
-305 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
-306.5 shot 71_play_modes
-307.5 until 0x801323A8 0x000000FF 0x3 15 D
-308.5 key Space
-310 shot 72_speed_golf_select
-311 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
-311 until 0x800B5FF8 0xFF000000 0x00000000 60
-311.5 poke 0x800BA9F0 0x00081650
-311.5 poke 0x800BA9F4 0xA5605DC0
-311.5 poke 0x80104F44 0xC1E973E5
-311.5 poke 0x80104F4C 0xC218717C
-311.5 poke 0x800FBD30 1
-311 unchecked middle
-312 shot 73_speed_golf_tee
-316 shot 74_speed_golf_lakitu
-316.5 poke 0x800BA9F0 0x00081650
-316.5 poke 0x800BA9F4 0xA5605DC0
-316.5 poke 0x80104F44 0xC1E973E5
-316.5 poke 0x80104F4C 0xC218717C
-316.5 poke 0x80104F7C 0x16
-316.5 poke 0x80104F80 0x2C
-316.5 poke 0x80104F8C 0
-316.5 poke 0x80104F90 0
-316.5 until 0x800FBE88 0x000000F8 0x00000008 15 Space
-316.5 poke 0x80227194 1
-316.5 until 0x800FBE88 0x000000FC 0x00000024 5
-316.5 poke 0x800FBE88 0x24
-316.5 poke 0x800FBD30 1
-316.5 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
-320.9 shot 75_speed_golf_flight
-328.9 shot 76_speed_golf_landing
-334.9 shot 77_speed_golf_run
-335.9 checked middle
-335.9 until 0x800C306C 0x000000FF 0x00000001 15 Enter
-337.4 shot 78_speed_golf_pause
-337.4 until 0x80224924 0x000000FF 0x00000004 15 W
-337.9 shot 79_speed_golf_quit
-338.4 key Space
-341.4 shot 80_speed_golf_ask
-341.4 until 0x800C306C 0x000000FF 0x00000000 15 Space
-342.9 shot 81_speed_golf_resumed
+305.5 until 0x801EFFA0 0xFFFFFFFF 0x1 15 Space
+307 shot 70_character_select
+308 until 0x801EFFA0 0xFFFFFFFF 0x5 15 Space
+309.5 shot 71_play_modes
+310.5 until 0x801323A8 0x000000FF 0x3 15 D
+311.5 key Space
+313 shot 72_speed_golf_select
+314 until 0x800B5FA8 0xFF000000 0x01000000 60 Space
+314 until 0x800B5FF8 0xFF000000 0x00000000 60
+314.5 poke 0x800BA9F0 0x00081650
+314.5 poke 0x800BA9F4 0xA5605DC0
+314.5 poke 0x80104F44 0xC1E973E5
+314.5 poke 0x80104F4C 0xC218717C
+314.5 poke 0x800FBD30 1
+314 unchecked middle
+315 shot 73_speed_golf_tee
+319 shot 74_speed_golf_lakitu
+319.5 poke 0x800BA9F0 0x00081650
+319.5 poke 0x800BA9F4 0xA5605DC0
+319.5 poke 0x80104F44 0xC1E973E5
+319.5 poke 0x80104F4C 0xC218717C
+319.5 poke 0x80104F7C 0x16
+319.5 poke 0x80104F80 0x2C
+319.5 poke 0x80104F8C 0
+319.5 poke 0x80104F90 0
+319.5 until 0x800FBE88 0x000000F8 0x00000008 15 Space
+319.5 poke 0x80227194 1
+319.5 until 0x800FBE88 0x000000FC 0x00000024 5
+319.5 poke 0x800FBE88 0x24
+319.5 poke 0x800FBD30 1
+319.5 until 0x800FBE88 0xFFFFFFFF 0x0000002C 5
+323.9 shot 75_speed_golf_flight
+331.9 shot 76_speed_golf_landing
+337.9 shot 77_speed_golf_run
+338.9 checked middle
+338.9 until 0x800C306C 0x000000FF 0x00000001 15 Enter
+340.4 shot 78_speed_golf_pause
+340.4 until 0x80224924 0x000000FF 0x00000004 15 W
+340.9 shot 79_speed_golf_quit
+341.4 key Space
+344.4 shot 80_speed_golf_ask
+344.4 until 0x800C306C 0x000000FF 0x00000000 15 Space
+345.9 shot 81_speed_golf_resumed
 
 # The end credits, which a round can't reach in minutes: from Speed Golf's round the round's state machine is set
 # to its credits state (0x801B6088 = 7, 0x800C30AC = 0xF) and the fade between (scene 0xC at 0x800BB020) let through
@@ -447,15 +450,15 @@
 # rand() unless debug flag 0x99 is on (func_800299F4, the flags' bits from 0x801052F8, 0x80 the first): the plan sets
 # it (0x40 in 0x8010530B, its only reader that shuffle) and seeds rand() (its state at 0x800FBD30, which the credits
 # also draw on for their shots) as the fade is let through, so every window shows the same golfers in the same order.
-343.4 poke 0x801B6088 7
-343.4 poke 0x800C30AC 0xF
-343.4 until 0x800BB020 0xFFFFFFFF 0xC 30
-343.4 or 0x80105308 0x40
-343.4 poke 0x800FBD30 1
-343.4 poke 0x800C401C 0
-343.4 until 0x800BB020 0xFFFFFFFF 0x1E 60
-346.4 shot 82_credits_start
-386.4 shot 83_credits_names
-386.4 until 0x801F89A4 0xFFFFFE00 0xE00 240
-406.4 shot 84_credits_picture
-409.4 end
+346.4 poke 0x801B6088 7
+346.4 poke 0x800C30AC 0xF
+346.4 until 0x800BB020 0xFFFFFFFF 0xC 30
+346.4 or 0x80105308 0x40
+346.4 poke 0x800FBD30 1
+346.4 poke 0x800C401C 0
+346.4 until 0x800BB020 0xFFFFFFFF 0x1E 60
+349.4 shot 82_credits_start
+389.4 shot 83_credits_names
+389.4 until 0x801F89A4 0xFFFFFE00 0xE00 240
+409.4 shot 84_credits_picture
+412.4 end

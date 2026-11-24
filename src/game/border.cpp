@@ -28,7 +28,11 @@
 // top or through the pyramids as the camera tipped down fast. Rows are put back only where they are the strip's own:
 // the last strip, drawn down to the border's bottom whatever its rows, keeps its top at the border once all the hills
 // are above it, where its texture starts past its rows and the RDP repeats them in a band the course covers (it
-// streaked the picture's top 8 lines). A copy of the frame that ends at the border's bottom runs on to the screen's. So
+// streaked the picture's top 8 lines). One whose texture starts past its rows at the border itself, every line of it
+// that band, runs on up to the screen's top with its texture as it is, so the top 8 lines are the band the line under
+// them is, rather than the sky and the hills drawn above the picture (Mini-Golf's flyovers look steeply down on a hole,
+// the whole backdrop above the frame: a strip of sky and cloud showed there, over the iris opening on one too). A
+// copy of the frame that ends at the border's bottom runs on to the screen's. So
 // does the hills' last strip where it already runs on past its 4 rows, its last row repeated down to the border as the
 // game draws it (in the flyover's view from above, the course doesn't cover the screen, and nothing else draws its last
 // 8 lines, which kept what an earlier frame left there); one no taller than its texture stays (the sky goes on below
@@ -546,10 +550,19 @@ void rect(uint32_t addr) {
             int32_t last_line = std::min(int32_t(uly) / 4, int32_t(lry + inside) / 4) - 1;
             int32_t last_t = top_t + (last_line - int32_t(uly / 4 - rows)) * dtdy / 32;
             uint32_t tile = (w1 >> 24) & 7;
-            bool in_tile = g_size_addr[tile] == 0 || last_t < int32_t((g_size1[tile] & 0xFFF) + 4) * 8;
+            int32_t past_tile = int32_t((g_size1[tile] & 0xFFF) + 4) * 8;
+            bool in_tile = g_size_addr[tile] == 0 || last_t < past_tile;
             if (in_tile) {
                 wr_w(addr + 4, (w1 & ~0xFFFu) | (uly - rows * 4));
                 wr_w(addr + 12, (half1 & 0xFFFF0000) | uint16_t(top_t));
+            } else if (t >= past_tile && !is_screen(g_texture)) {
+                // The strip's own first line is already past its tile's rows: every line it draws is the tile's last
+                // row, repeated (the flat band the console shows from the border down, under the course). It runs on
+                // up to the screen's top with its texture as it is, every line of it still past the tile, so the top
+                // 8 lines carry on that band, as the line under them does, rather than show the sky and the strips
+                // of the hills drawn above the picture there (Mini-Golf's flyovers, whose camera looks steeply down
+                // on each hole, and the iris opening on one, issue 215).
+                wr_w(addr + 4, w1 & ~0xFFFu);
             }
         }
     }
