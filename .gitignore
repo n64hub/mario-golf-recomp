@@ -27,6 +27,7 @@ __pycache__/
 /portable.txt
 /saves/
 /*.json
+!/recomplauncher.json
 /mods/
 /*.log
 /*.bak
