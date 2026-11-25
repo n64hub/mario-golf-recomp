@@ -43,14 +43,15 @@
 // RT64 paired it with nothing and it stepped (issue 190). mg_aim_end hands ball.cpp the frame's 8 texels for the
 // flag, which it puts the rectangle back to instead.
 //
-// The game draws the flag (and the label) with the bilinear filter on, which on a console at the whole pixel it puts
-// the flag on samples each texel at its own place, so the flag comes out crisp. RT64 samples it at every pixel of a
-// larger picture, between texels, and blended in what lies beside them in the tile: the transparent texels' colour,
-// pure blue, a column down the pole's left and bits under the cloth, and right of the cup the next frame's first
-// column, its cup's lip and black base, a dark line on three of the four frames (issue 190). mg_aim_end turns the
-// flag's own command that sets the palette's type (G_SETOTHERMODE_H, G_MDSFT_TEXTLUT, just before its rectangle) into
-// one that sets the filter to point too, which samples each texel as the console does; the game sets bilinear again
-// before anything else is drawn.
+// The game draws the flag and the label with the bilinear filter on, which on a console at the whole pixel it puts
+// them on samples each texel at its own place, so they come out crisp. RT64 samples them at every pixel of a larger
+// picture, between texels, and blended in what lies beside them in the tile: for the flag the transparent texels'
+// colour, pure blue, a column down the pole's left and bits under the cloth, and right of the cup the next frame's
+// first column, its cup's lip and black base, a dark line on three of the four frames (issue 190); for the label's
+// letters, the edges of the letters beside each in the font, dashes over, under and beside them (issue 219). mg_aim_end
+// turns each command of a mark's that sets the palette's type (G_SETOTHERMODE_H, G_MDSFT_TEXTLUT, before its
+// rectangles) into one that sets the filter to point too, which samples each texel as the console does; the game sets
+// bilinear again before anything else is drawn.
 
 #include <cmath>
 #include <cstdint>
@@ -125,19 +126,17 @@ extern "C" void mg_aim_end(uint8_t* rdram, int flag) {
         }
         addr += 16;
     }
-    // The flag sampled as on a console (above): its last palette type command before its rectangle sets point too.
-    if (flag) {
-        uint32_t lut = 0;
-        for (uint32_t addr = g_start; addr + 8 <= end; addr += 8) {
-            uint32_t w0 = rd_w(addr);
-            if (w0 == SET_TEXTLUT) {
-                lut = addr;
-            }
-            else if ((w0 >> 24) == G_TEXRECT && lut != 0) {
-                wr_w(lut, SET_TEXTFILT_TEXTLUT);
-                wr_w(lut + 4, rd_w(lut + 4) & 0xC000);
-                lut = 0;
-            }
+    // The mark sampled as on a console (above): each palette type command before a rectangle sets point too.
+    uint32_t lut = 0;
+    for (uint32_t addr = g_start; addr + 8 <= end; addr += 8) {
+        uint32_t w0 = rd_w(addr);
+        if (w0 == SET_TEXTLUT) {
+            lut = addr;
+        }
+        else if ((w0 >> 24) == G_TEXRECT && lut != 0) {
+            wr_w(lut, SET_TEXTFILT_TEXTLUT);
+            wr_w(lut + 4, rd_w(lut + 4) & 0xC000);
+            lut = 0;
         }
     }
     int frame = flag ? int(rd_w(FLAG_COUNTER) & 0xF) / 4 : 0;
